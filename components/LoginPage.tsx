@@ -9,13 +9,11 @@ import {
   Eye, 
   ShieldCheck, 
   Headphones, 
-  Gauge,
   ArrowLeft,
   Mail,
   Lock,
   User,
   Building2,
-  Zap,
   CheckCircle2
 } from "lucide-react"
 
@@ -89,21 +87,6 @@ export default function LoginPage({ onBack, onLogin, initialTab = "user" }: Logi
         "Operational monitoring",
         "Issue tracking system"
       ]
-    },
-    smart: {
-      title: "Work Smartly",
-      subtitle: "AI-powered workflow optimization",
-      icon: Gauge,
-      color: "purple",
-      gradient: "from-purple-500 to-pink-600",
-      bgGradient: "from-purple-50 to-pink-50",
-      darkBgGradient: "from-purple-900/20 to-pink-900/20",
-      features: [
-        "AI workflow automation",
-        "Intelligent task management",
-        "Predictive analytics",
-        "Smart optimization tools"
-      ]
     }
   }
 
@@ -140,7 +123,7 @@ export default function LoginPage({ onBack, onLogin, initialTab = "user" }: Logi
 
         {/* Login Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-8 bg-white dark:bg-slate-800 p-2 rounded-2xl shadow-lg">
+          <TabsList className="grid w-full grid-cols-3 mb-8 bg-white dark:bg-slate-800 p-2 rounded-2xl shadow-lg">
             <TabsTrigger value="user" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white rounded-xl">
               <Eye className="h-4 w-4 mr-2" />
               User
@@ -152,10 +135,6 @@ export default function LoginPage({ onBack, onLogin, initialTab = "user" }: Logi
             <TabsTrigger value="staff" className="data-[state=active]:bg-green-500 data-[state=active]:text-white rounded-xl">
               <Headphones className="h-4 w-4 mr-2" />
               Staff
-            </TabsTrigger>
-            <TabsTrigger value="smart" className="data-[state=active]:bg-linear-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-600 data-[state=active]:text-white rounded-xl">
-              <Gauge className="h-4 w-4 mr-2" />
-              Smart Work
             </TabsTrigger>
           </TabsList>
 
@@ -222,25 +201,6 @@ export default function LoginPage({ onBack, onLogin, initialTab = "user" }: Logi
                         placeholder={activeTab === "admin" ? "Enter company ID" : "Enter department code"}
                         value={formData.companyId}
                         onChange={(e) => handleInputChange("companyId", e.target.value)}
-                        className="pl-10 h-12 rounded-xl border-slate-200 dark:border-slate-700"
-                        required
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === "smart" && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                      Smart Access Code
-                    </label>
-                    <div className="relative">
-                      <Zap className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                      <Input
-                        type="text"
-                        placeholder="Enter smart access code"
-                        value={formData.accessCode}
-                        onChange={(e) => handleInputChange("accessCode", e.target.value)}
                         className="pl-10 h-12 rounded-xl border-slate-200 dark:border-slate-700"
                         required
                       />

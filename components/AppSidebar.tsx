@@ -21,12 +21,8 @@ import {
     Users, 
     Ticket, 
     Package,
-    BarChart3,
-    Settings,
-    HelpCircle,
     Building2,
     ChevronRight,
-    User,
     LogOut,
     DollarSign
 } from "lucide-react"
@@ -70,34 +66,6 @@ const navigationItems = [
         badge: "3",
         description: "Support requests"
     },
-    {
-        title: "Reports",
-        url: "/reports",
-        icon: BarChart3,
-        badge: null,
-        description: "Analytics and insights"
-    }
-]
-
-const settingsItems = [
-    {
-        title: "Landing Page",
-        url: "/landing",
-        icon: Building2,
-        description: "Back to welcome page"
-    },
-    {
-        title: "Settings",
-        url: "/settings",
-        icon: Settings,
-        description: "System configuration"
-    },
-    {
-        title: "Help & Support",
-        url: "/help",
-        icon: HelpCircle,
-        description: "Documentation and support"
-    }
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -173,47 +141,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     </SidebarGroupContent>
                 </SidebarGroup>
 
-                <Separator className="my-6 mx-2" />
-
-                {/* Settings & Support */}
-                <SidebarGroup>
-                    <SidebarGroupLabel className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-2">
-                        System
-                    </SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu className="space-y-1">
-                            {settingsItems.map((item) => {
-                                const isActive = pathname === item.url
-                                return (
-                                    <SidebarMenuItem key={item.title}>
-                                        <SidebarMenuButton 
-                                            asChild 
-                                            className={`
-                                                group relative h-12 px-3 rounded-lg transition-all duration-200 hover:bg-gray-50
-                                                ${isActive 
-                                                    ? 'bg-blue-50 text-blue-700 border border-blue-200 shadow-sm' 
-                                                    : 'text-gray-700 hover:text-gray-900'
-                                                }
-                                            `}
-                                        >
-                                            <Link href={item.url} className="flex items-center gap-3 w-full">
-                                                <item.icon className={`h-5 w-5 ${isActive ? 'text-blue-600' : 'text-gray-500 group-hover:text-gray-700'}`} />
-                                                <div className="flex flex-col flex-1 min-w-0">
-                                                    <span className="font-medium text-sm truncate">{item.title}</span>
-                                                    <span className="text-xs text-gray-500 truncate">{item.description}</span>
-                                                </div>
-                                                {isActive && (
-                                                    <ChevronRight className="h-4 w-4 text-blue-600" />
-                                                )}
-                                            </Link>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
-                                )
-                            })}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-            </SidebarContent>
+                <Separator />
+                </SidebarContent>
 
             {/* User Profile Footer */}
             <SidebarFooter className="border-t border-gray-100 p-4">

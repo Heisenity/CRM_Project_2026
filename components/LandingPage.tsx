@@ -7,14 +7,15 @@ import {
   Package, 
   Building2, 
   Headphones, 
-  Gauge,
   Phone,
   Mail,
   MapPin,
-  Server,
-  Network,
-  Wifi,
-  ShieldCheck
+  ShieldCheck,
+  Camera,
+  Clock,
+  CheckCircle,
+  XCircle,
+  DollarSign
 } from "lucide-react"
 
 interface LandingPageProps {
@@ -44,115 +45,8 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center overflow-hidden">
-        <div className="absolute inset-0 bg-linear-to-br from-blue-50 via-white to-blue-100"></div>
-        
-        <div className="container mx-auto px-6 relative z-10 pt-20">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div className="space-y-8">
-              <div className="inline-flex items-center space-x-2 bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-medium">
-                <Package className="h-4 w-4" />
-                <span>Business Management System</span>
-              </div>
-              
-              <h1 className="text-5xl lg:text-6xl font-black text-gray-900 leading-tight">
-                Manage Your
-                <span className="block text-transparent bg-clip-text bg-linear-to-r from-blue-500 to-blue-600">
-                  Business
-                </span>
-                <span className="block text-3xl lg:text-4xl font-bold text-gray-700">
-                  Efficiently
-                </span>
-              </h1>
-              
-              <p className="text-xl text-gray-600 leading-relaxed max-w-lg">
-                Streamline your operations with our comprehensive business management platform. Handle inventory, attendance, payroll, and support tickets all in one place.
-              </p>
-              
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button 
-                  onClick={() => onGetStarted()}
-                  size="lg" 
-                  className="bg-linear-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-4 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all"
-                >
-                  Get Started
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="lg"
-                  className="border-2 border-gray-300 px-8 py-4 text-lg rounded-xl hover:bg-gray-50"
-                >
-                  Learn More
-                </Button>
-              </div>
-            </div>
-            
-            {/* Business Image */}
-            <div className="relative">
-              <div className="relative bg-white rounded-2xl shadow-2xl overflow-hidden">
-                <Image 
-                  src="https://images.unsplash.com/photo-1560472354-b33ff0c44a43?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1926&q=80"
-                  alt="Modern business office with people working"
-                  width={1926}
-                  height={400}
-                  className="w-full h-96 object-cover"
-                />
-                <div className="absolute inset-0 bg-linear-to-t from-black/20 to-transparent"></div>
-                <div className="absolute bottom-4 left-4 right-4">
-                  <div className="bg-white/90 backdrop-blur-sm rounded-lg p-4">
-                    <h3 className="font-semibold text-gray-900 mb-1">Real-time Dashboard</h3>
-                    <p className="text-sm text-gray-600">Monitor all your business operations from one central location</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Simple Features */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-black text-gray-900 mb-6">
-              Everything You Need
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Powerful tools to manage your business operations effectively
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="text-center p-6 bg-gray-50 rounded-xl hover:bg-blue-50 transition-colors">
-              <Package className="h-12 w-12 text-blue-500 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Inventory</h3>
-              <p className="text-gray-600">Track stock levels and manage products</p>
-            </div>
-            
-            <div className="text-center p-6 bg-gray-50 rounded-xl hover:bg-blue-50 transition-colors">
-              <Building2 className="h-12 w-12 text-blue-500 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Attendance</h3>
-              <p className="text-gray-600">Monitor employee attendance and schedules</p>
-            </div>
-            
-            <div className="text-center p-6 bg-gray-50 rounded-xl hover:bg-blue-50 transition-colors">
-              <Gauge className="h-12 w-12 text-blue-500 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Payroll</h3>
-              <p className="text-gray-600">Manage employee payments and benefits</p>
-            </div>
-            
-            <div className="text-center p-6 bg-gray-50 rounded-xl hover:bg-blue-50 transition-colors">
-              <Headphones className="h-12 w-12 text-blue-500 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Support</h3>
-              <p className="text-gray-600">Handle tickets and customer support</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Login Section */}
-      <section id="login" className="py-20 bg-white border-t border-gray-200">
+      {/* Login feature */}
+      <section id="login" className="pt-36 py-20 bg-white border-t border-gray-200">
         <div className="container mx-auto px-6">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12">
@@ -167,7 +61,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               </p>
             </div>
             
-            <div className="grid lg:grid-cols-4 gap-6">
+            <div className="grid lg:grid-cols-3 gap-6">
               {/* User Login */}
               <div className="group p-8 bg-gray-50 rounded-2xl border-2 border-transparent hover:border-blue-200 transition-all duration-300 hover:shadow-lg">
                 <div className="text-center">
@@ -188,9 +82,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               </div>
 
               {/* Admin Login */}
-              <div className="group p-8 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl border-2 border-blue-200 transition-all duration-300 hover:shadow-xl hover:from-blue-100 hover:to-blue-150">
+              <div className="group p-8 bg-linear-to-br from-blue-50 to-blue-100 rounded-2xl border-2 border-blue-200 transition-all duration-300 hover:shadow-xl hover:from-blue-100 hover:to-blue-150">
                 <div className="text-center">
-                  <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform shadow-lg">
+                  <div className="w-16 h-16 bg-linear-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform shadow-lg">
                     <ShieldCheck className="h-8 w-8 text-white" />
                   </div>
                   <h3 className="text-2xl font-bold text-gray-900 mb-3">Admin Portal</h3>
@@ -199,7 +93,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                   </p>
                   <Button 
                     onClick={() => onGetStarted("admin")}
-                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl py-3 shadow-lg"
+                    className="w-full bg-linear-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl py-3 shadow-lg"
                   >
                     Admin Access
                   </Button>
@@ -224,43 +118,114 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
                   </Button>
                 </div>
               </div>
-
-              {/* Work Smartly Button */}
-              <div className="group p-8 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl border-2 border-gray-700 transition-all duration-300 hover:shadow-xl">
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform shadow-lg">
-                    <Gauge className="h-8 w-8 text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-white mb-3">Work Smartly</h3>
-                  <p className="text-gray-300 mb-6 text-sm">
-                    AI-powered workflow optimization and intelligent automation tools
-                  </p>
-                  <Button 
-                    onClick={() => onGetStarted("smart")}
-                    className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-xl py-3 shadow-lg"
-                  >
-                    Start Smart Work
-                  </Button>
-                </div>
-              </div>
             </div>
-
-            {/* Quick Access Features */}
-            <div className="mt-12 grid md:grid-cols-3 gap-6">
-              <div className="text-center p-6 bg-gray-50 rounded-xl">
-                <Server className="h-8 w-8 text-blue-500 mx-auto mb-3" />
-                <h4 className="font-bold text-gray-900 mb-2">Single Sign-On</h4>
-                <p className="text-sm text-gray-600">Seamless access across all enterprise systems</p>
+            
+          </div>
+        </div>
+      </section>
+      
+      {/* Employee Self-Attendance Feature */}
+      <section className="py-20 bg-gradient-to-br from-blue-600 to-blue-700">
+        <div className="container mx-auto px-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12">
+              <Badge variant="outline" className="mb-4 text-white border-white/30 bg-white/10">
+                New Feature
+              </Badge>
+              <h2 className="text-4xl font-black text-white mb-4">
+                Employee Self-Attendance
+              </h2>
+              <p className="text-xl text-blue-100">
+                Let employees mark their own attendance with photo verification and location tracking
+              </p>
+            </div>
+            
+            <div className="grid lg:grid-cols-2 gap-12 items-center">
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-start space-x-4">
+                    <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center shrink-0">
+                      <Camera className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white mb-2">Photo Verification</h3>
+                      <p className="text-blue-100">Employees take a photo when marking attendance for security and verification purposes.</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start space-x-4">
+                    <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center shrink-0">
+                      <MapPin className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white mb-2">Location Tracking</h3>
+                      <p className="text-blue-100">Automatic IP address detection and location verification to ensure employees are at the right workplace.</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start space-x-4">
+                    <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center shrink-0">
+                      <Clock className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white mb-2">Real-time Tracking</h3>
+                      <p className="text-blue-100">Instant attendance recording with precise timestamps and device information for accurate records.</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <Button 
+                  onClick={() => window.open('/employee-attendance', '_blank')}
+                  size="lg"
+                  className="bg-white text-blue-600 hover:bg-blue-50 px-8 py-4 text-lg rounded-xl shadow-lg hover:shadow-xl transition-all"
+                >
+                  Try Employee Attendance
+                </Button>
               </div>
-              <div className="text-center p-6 bg-gray-50 rounded-xl">
-                <Network className="h-8 w-8 text-blue-500 mx-auto mb-3" />
-                <h4 className="font-bold text-gray-900 mb-2">Multi-Factor Auth</h4>
-                <p className="text-sm text-gray-600">Enterprise-grade security protocols</p>
-              </div>
-              <div className="text-center p-6 bg-gray-50 rounded-xl">
-                <Wifi className="h-8 w-8 text-blue-500 mx-auto mb-3" />
-                <h4 className="font-bold text-gray-900 mb-2">Cloud Sync</h4>
-                <p className="text-sm text-gray-600">Real-time data synchronization</p>
+              
+              <div className="relative">
+                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between p-4 bg-white/20 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white/30 rounded-full flex items-center justify-center">
+                          <Camera className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-white">Camera Active</p>
+                          <p className="text-sm text-blue-100">Photo verification enabled</p>
+                        </div>
+                      </div>
+                      <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center text-white">
+                        <span className="text-sm">IP Address:</span>
+                        <Badge className="bg-white/20 text-white border-white/30">192.168.1.45</Badge>
+                      </div>
+                      <div className="flex justify-between items-center text-white">
+                        <span className="text-sm">Location:</span>
+                        <span className="text-sm font-medium">Office Building A</span>
+                      </div>
+                      <div className="flex justify-between items-center text-white">
+                        <span className="text-sm">Time:</span>
+                        <span className="text-sm font-medium">09:15:32 AM</span>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button className="bg-green-500 hover:bg-green-600 text-white">
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Check In
+                      </Button>
+                      <Button className="bg-red-500 hover:bg-red-600 text-white">
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Check Out
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -270,19 +235,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
       {/* Contact Section */}
       <section id="contact" className="py-24 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-900/20 via-transparent to-blue-900/20"></div>
-        <div className="container mx-auto px-6 relative z-10">
-          <div className="max-w-4xl mx-auto text-center mb-16">
-            <h2 className="text-5xl font-black mb-6">
-              Ready to Get
-              <span className="block text-transparent bg-clip-text bg-linear-to-r from-blue-400 to-blue-500">
-                Started?
-              </span>
-            </h2>
-            <p className="text-xl text-gray-300">
-              Contact our team to learn more about our business management solutions.
-            </p>
-          </div>
-          
+        <div className="container mx-auto px-6 relative z-10">       
           <div className="grid lg:grid-cols-3 gap-8 mb-12">
             <div className="text-center p-8 bg-gray-800/50 rounded-2xl border border-gray-700">
               <Phone className="h-12 w-12 text-blue-400 mx-auto mb-4" />
