@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import LoginPage from "@/components/LoginPage"
 import { useRouter, useSearchParams } from "next/navigation"
