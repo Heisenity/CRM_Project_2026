@@ -174,7 +174,7 @@ export function Dashboard() {
                     <Clock className="h-4 w-4 text-amber-600" />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">Printer Not Working</p>
+                    <p className="font-medium text-gray-900">CCTV Not Working</p>
                     <p className="text-sm text-gray-500">Reported by Michael Chen</p>
                   </div>
                 </div>

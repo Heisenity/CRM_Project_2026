@@ -32,7 +32,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             <div className="w-8 h-8 bg-linear-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
               <Package className="h-4 w-4 text-white" />
             </div>
-            <span className="font-bold text-gray-900">BusinessHub</span>
+            <span className="font-bold text-gray-900">Mediacomputer</span>
           </div>
           <div className="hidden md:flex space-x-6 text-sm">
             <a href="#features" className="text-gray-600 hover:text-blue-600 transition-colors">Features</a>
@@ -259,15 +259,6 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             </div>
           </div>
           
-          <div className="text-center">
-            <Button 
-              onClick={() => onGetStarted()}
-              size="lg"
-              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-12 py-4 text-xl rounded-2xl shadow-2xl hover:shadow-blue-500/25 transition-all"
-            >
-              Access Business Portal
-            </Button>
-          </div>
         </div>
       </section>
 
@@ -279,10 +270,10 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
               <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
                 <Package className="h-4 w-4 text-white" />
               </div>
-              <span className="font-bold text-white">BusinessHub</span>
+              <span className="font-bold text-white">Mediacomputer</span>
             </div>
             <div className="text-center md:text-right">
-              <p>&copy; 2024 BusinessHub. Comprehensive business management solutions.</p>
+              <p>&copy; 2025 Mediacomputer. Comprehensive business management solutions.</p>
               <p className="text-sm mt-1">Streamline your operations with our integrated platform.</p>
             </div>
           </div>
