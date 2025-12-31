@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -198,7 +199,7 @@ const getStatusBadge = (status: string) => {
     pending: "bg-amber-50 text-amber-700 border-amber-200",
     scheduled: "bg-purple-50 text-purple-700 border-purple-200",
     resolved: "bg-green-50 text-green-700 border-green-200",
-    closed: "bg-gray-50 text-gray-700 border-gray-200"
+    closed: "bg-muted text-muted-foreground border-border"
   }
   
   const labels = {
@@ -232,6 +233,7 @@ const getPriorityBadge = (priority: string) => {
 }
 
 export function TicketTable() {
+  const router = useRouter()
   const [searchTerm, setSearchTerm] = React.useState("")
   const [selectedCategory, setSelectedCategory] = React.useState("all")
   const [selectedStatus, setSelectedStatus] = React.useState("all")
@@ -264,21 +266,24 @@ export function TicketTable() {
   })
 
   return (
-    <div className="min-h-screen bg-gray-50/30">
+    <div className="min-h-screen bg-background">
       <div className="p-8 space-y-8">
         {/* Header Section */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="bg-card rounded-xl shadow-sm border border-border p-6">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <h1 className="text-3xl font-bold text-gray-900">Support Tickets</h1>
-              <p className="text-gray-600">Manage and track customer support requests and issues</p>
+              <h1 className="text-3xl font-bold text-foreground">Support Tickets</h1>
+              <p className="text-muted-foreground">Manage and track customer support requests and issues</p>
             </div>
             <div className="flex items-center gap-3">
-              <Button variant="outline" className="border-gray-300 hover:bg-gray-50">
+              <Button variant="outline" className="border-border hover:bg-accent">
                 <Download className="h-4 w-4 mr-2" />
                 Export Report
               </Button>
-              <Button className="bg-blue-600 hover:bg-blue-700 shadow-sm">
+              <Button 
+                onClick={() => router.push('/tickets/new')}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 New Ticket
               </Button>
@@ -289,17 +294,17 @@ export function TicketTable() {
           
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4 bg-gray-100">
-              <TabsTrigger value="all" className="data-[state=active]:bg-white">
+            <TabsList className="grid w-full grid-cols-4 bg-muted">
+              <TabsTrigger value="all" className="data-[state=active]:bg-background">
                 All Tickets ({totalTickets})
               </TabsTrigger>
-              <TabsTrigger value="open" className="data-[state=active]:bg-white">
+              <TabsTrigger value="open" className="data-[state=active]:bg-background">
                 Active ({openTickets + inProgressTickets})
               </TabsTrigger>
-              <TabsTrigger value="resolved" className="data-[state=active]:bg-white">
+              <TabsTrigger value="resolved" className="data-[state=active]:bg-background">
                 Resolved ({resolvedTickets})
               </TabsTrigger>
-              <TabsTrigger value="closed" className="data-[state=active]:bg-white">
+              <TabsTrigger value="closed" className="data-[state=active]:bg-background">
                 Closed ({closedTickets})
               </TabsTrigger>
             </TabsList>
@@ -308,10 +313,10 @@ export function TicketTable() {
 
         {/* Analytics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="bg-white shadow-sm border-gray-200">
+          <Card className="bg-card shadow-sm border-border">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Open Tickets</CardTitle>
+                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Open Tickets</CardTitle>
                 <div className="p-2 bg-red-50 rounded-lg">
                   <AlertTriangle className="h-4 w-4 text-red-600" />
                 </div>
@@ -320,21 +325,21 @@ export function TicketTable() {
             <CardContent>
               <div className="space-y-2">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-gray-900">{openTickets}</span>
+                  <span className="text-3xl font-bold text-foreground">{openTickets}</span>
                   <div className="flex items-center gap-1 text-red-600">
                     <TrendingUp className="h-3 w-3" />
                     <span className="text-sm font-medium">+2</span>
                   </div>
                 </div>
-                <p className="text-sm text-gray-500">need attention</p>
+                <p className="text-sm text-muted-foreground">need attention</p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white shadow-sm border-gray-200">
+          <Card className="bg-card shadow-sm border-border">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide">In Progress</CardTitle>
+                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">In Progress</CardTitle>
                 <div className="p-2 bg-blue-50 rounded-lg">
                   <Clock className="h-4 w-4 text-blue-600" />
                 </div>
@@ -343,21 +348,21 @@ export function TicketTable() {
             <CardContent>
               <div className="space-y-2">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-gray-900">{inProgressTickets}</span>
+                  <span className="text-3xl font-bold text-foreground">{inProgressTickets}</span>
                   <div className="flex items-center gap-1 text-blue-600">
                     <TrendingUp className="h-3 w-3" />
                     <span className="text-sm font-medium">+1</span>
                   </div>
                 </div>
-                <p className="text-sm text-gray-500">being worked on</p>
+                <p className="text-sm text-muted-foreground">being worked on</p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white shadow-sm border-gray-200">
+          <Card className="bg-card shadow-sm border-border">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide">High Priority</CardTitle>
+                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">High Priority</CardTitle>
                 <div className="p-2 bg-amber-50 rounded-lg">
                   <ArrowUpDown className="h-4 w-4 text-amber-600" />
                 </div>
@@ -366,21 +371,21 @@ export function TicketTable() {
             <CardContent>
               <div className="space-y-2">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-gray-900">{highPriorityTickets}</span>
+                  <span className="text-3xl font-bold text-foreground">{highPriorityTickets}</span>
                   <div className="flex items-center gap-1 text-amber-600">
                     <TrendingDown className="h-3 w-3" />
                     <span className="text-sm font-medium">-1</span>
                   </div>
                 </div>
-                <p className="text-sm text-gray-500">urgent tickets</p>
+                <p className="text-sm text-muted-foreground">urgent tickets</p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white shadow-sm border-gray-200">
+          <Card className="bg-card shadow-sm border-border">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Resolved Today</CardTitle>
+                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Resolved Today</CardTitle>
                 <div className="p-2 bg-green-50 rounded-lg">
                   <CheckCircle className="h-4 w-4 text-green-600" />
                 </div>
@@ -389,35 +394,35 @@ export function TicketTable() {
             <CardContent>
               <div className="space-y-2">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-gray-900">5</span>
+                  <span className="text-3xl font-bold text-foreground">5</span>
                   <div className="flex items-center gap-1 text-green-600">
                     <TrendingUp className="h-3 w-3" />
                     <span className="text-sm font-medium">+3</span>
                   </div>
                 </div>
-                <p className="text-sm text-gray-500">tickets completed</p>
+                <p className="text-sm text-muted-foreground">tickets completed</p>
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Filters and Actions */}
-        <Card className="bg-white shadow-sm border-gray-200">
+        <Card className="bg-card shadow-sm border-border">
           <CardContent className="p-6">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-4 flex-1">
                 <div className="relative flex-1 max-w-md">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Search tickets, assignees, or reporters..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    className="pl-10 border-border focus:border-blue-500 focus:ring-blue-500"
                   />
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="border-gray-300 hover:bg-gray-50">
+                    <Button variant="outline" className="border-border hover:bg-accent">
                       <Filter className="h-4 w-4 mr-2" />
                       Category
                     </Button>
@@ -433,7 +438,7 @@ export function TicketTable() {
                 </DropdownMenu>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="border-gray-300 hover:bg-gray-50">
+                    <Button variant="outline" className="border-border hover:bg-accent">
                       <Filter className="h-4 w-4 mr-2" />
                       Priority
                     </Button>
@@ -451,17 +456,17 @@ export function TicketTable() {
         </Card>
 
         {/* Tickets Table */}
-        <Card className="bg-white shadow-sm border-gray-200 overflow-hidden">
+        <Card className="bg-card shadow-sm border-border overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="bg-gray-50/80 border-b border-gray-200">
-                <TableHead className="w-[280px] py-4 px-6 font-semibold text-gray-700">Ticket Details</TableHead>
-                <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Status</TableHead>
-                <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Priority</TableHead>
-                <TableHead className="w-[150px] py-4 px-6 font-semibold text-gray-700">Assignee</TableHead>
-                <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Due Date</TableHead>
-                <TableHead className="w-[100px] py-4 px-6 font-semibold text-gray-700">Comments</TableHead>
-                <TableHead className="py-4 px-6 font-semibold text-gray-700">Department</TableHead>
+              <TableRow className="bg-muted/50 border-b border-border">
+                <TableHead className="w-[280px] py-4 px-6 font-semibold text-foreground">Ticket Details</TableHead>
+                <TableHead className="w-[120px] py-4 px-6 font-semibold text-foreground">Status</TableHead>
+                <TableHead className="w-[120px] py-4 px-6 font-semibold text-foreground">Priority</TableHead>
+                <TableHead className="w-[150px] py-4 px-6 font-semibold text-foreground">Assignee</TableHead>
+                <TableHead className="w-[120px] py-4 px-6 font-semibold text-foreground">Due Date</TableHead>
+                <TableHead className="w-[100px] py-4 px-6 font-semibold text-foreground">Comments</TableHead>
+                <TableHead className="py-4 px-6 font-semibold text-foreground">Department</TableHead>
                 <TableHead className="w-[60px] py-4 px-6"></TableHead>
               </TableRow>
             </TableHeader>
@@ -469,8 +474,8 @@ export function TicketTable() {
               {filteredData.map((ticket, index) => (
                 <TableRow 
                   key={ticket.id} 
-                  className={`hover:bg-gray-50/50 border-b border-gray-100 ${
-                    index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
+                  className={`hover:bg-accent/50 border-b border-border ${
+                    index % 2 === 0 ? 'bg-background' : 'bg-muted/30'
                   }`}
                 >
                   <TableCell className="py-4 px-6">
@@ -480,15 +485,15 @@ export function TicketTable() {
                           <Ticket className="h-6 w-6" />
                         </div>
                         {getStatusIcon(ticket.status) && (
-                          <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5">
+                          <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-0.5">
                             {getStatusIcon(ticket.status)}
                           </div>
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-gray-900 truncate">{ticket.title}</p>
-                        <p className="text-sm text-gray-500">{ticket.id} • {ticket.category}</p>
-                        <p className="text-xs text-gray-400 line-clamp-1">{ticket.description}</p>
+                        <p className="font-semibold text-foreground truncate">{ticket.title}</p>
+                        <p className="text-sm text-muted-foreground">{ticket.id} • {ticket.category}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-1">{ticket.description}</p>
                       </div>
                     </div>
                   </TableCell>
@@ -504,25 +509,25 @@ export function TicketTable() {
                         {ticket.assignee.split(' ').map(n => n[0]).join('')}
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900 text-sm">{ticket.assignee}</p>
-                        <p className="text-xs text-gray-500">Assignee</p>
+                        <p className="font-medium text-foreground text-sm">{ticket.assignee}</p>
+                        <p className="text-xs text-muted-foreground">Assignee</p>
                       </div>
                     </div>
                   </TableCell>
                   <TableCell className="py-4 px-6">
                     <div className="text-sm">
-                      <p className="font-medium text-gray-900">{ticket.dueDate}</p>
-                      <p className="text-xs text-gray-500">{ticket.estimatedHours}h estimated</p>
+                      <p className="font-medium text-foreground">{ticket.dueDate}</p>
+                      <p className="text-xs text-muted-foreground">{ticket.estimatedHours}h estimated</p>
                     </div>
                   </TableCell>
                   <TableCell className="py-4 px-6">
                     <div className="flex items-center gap-1">
-                      <MessageSquare className="h-4 w-4 text-gray-400" />
-                      <span className="font-medium text-gray-900">{ticket.comments}</span>
+                      <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium text-foreground">{ticket.comments}</span>
                     </div>
                   </TableCell>
                   <TableCell className="py-4 px-6">
-                    <span className="text-sm text-gray-600">{ticket.department}</span>
+                    <span className="text-sm text-muted-foreground">{ticket.department}</span>
                   </TableCell>
                   <TableCell className="py-4 px-6">
                     <DropdownMenu>
@@ -558,7 +563,7 @@ export function TicketTable() {
         </Card>
 
         {/* Footer */}
-        <div className="flex items-center justify-between text-sm text-gray-500 bg-white rounded-lg p-4 border border-gray-200">
+        <div className="flex items-center justify-between text-sm text-muted-foreground bg-card rounded-lg p-4 border border-border">
           <div>
             Showing {filteredData.length} of {totalTickets} tickets
           </div>

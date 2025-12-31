@@ -24,29 +24,31 @@ interface LandingPageProps {
 
 export default function LandingPage({ onGetStarted }: LandingPageProps) {
   return (
-    <div className="min-h-screen bg-gray-50/30">
+    <div className="min-h-screen bg-background">
       {/* Floating Navigation */}
-      <nav className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 bg-white/90 backdrop-blur-md rounded-full px-8 py-3 shadow-lg border border-gray-200">
+      <nav className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 bg-card/90 backdrop-blur-md rounded-full px-8 py-3 shadow-lg border border-border">
         <div className="flex items-center space-x-8">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-linear-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
               <Package className="h-4 w-4 text-white" />
             </div>
-            <span className="font-bold text-gray-900">Mediacomputer</span>
+            <span className="font-bold text-foreground">Mediacomputer</span>
           </div>
           <div className="hidden md:flex space-x-6 text-sm">
-            <a href="#features" className="text-gray-600 hover:text-blue-600 transition-colors">Features</a>
-            <a href="#login" className="text-gray-600 hover:text-blue-600 transition-colors">Login</a>
-            <a href="#contact" className="text-gray-600 hover:text-blue-600 transition-colors">Contact</a>
+            <a href="#features" className="text-muted-foreground hover:text-blue-600 transition-colors">Features</a>
+            <a href="#login" className="text-muted-foreground hover:text-blue-600 transition-colors">Login</a>
+            <a href="#contact" className="text-muted-foreground hover:text-blue-600 transition-colors">Contact</a>
           </div>
-          <Button onClick={() => onGetStarted()} className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6">
-            Access Portal
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button onClick={() => onGetStarted()} className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6">
+              Access Portal
+            </Button>
+          </div>
         </div>
       </nav>
 
       {/* Login feature */}
-      <section id="login" className="pt-36 py-20 bg-white border-t border-gray-200">
+      <section id="login" className="pt-36 py-20 bg-card border-t border-border">
         <div className="container mx-auto px-6">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12">

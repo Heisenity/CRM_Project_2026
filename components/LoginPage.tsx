@@ -93,14 +93,14 @@ export default function LoginPage({ onBack, onLogin, initialTab = "user" }: Logi
   const currentType = loginTypes[activeTab as keyof typeof loginTypes]
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
       <div className="w-full max-w-6xl">
         {/* Header */}
         <div className="text-center mb-8">
           <Button 
             variant="ghost" 
             onClick={onBack}
-            className="absolute top-6 left-6 text-slate-600 dark:text-slate-300 hover:text-orange-600"
+            className="absolute top-6 left-6 text-slate-600 hover:text-orange-600"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Home
@@ -110,20 +110,20 @@ export default function LoginPage({ onBack, onLogin, initialTab = "user" }: Logi
             <div className="w-10 h-10 bg-linear-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
               <Eye className="h-5 w-5 text-white" />
             </div>
-            <span className="text-2xl font-bold text-slate-900 dark:text-white">VisionLink Pro</span>
+            <span className="text-2xl font-bold text-slate-900">VisionLink Pro</span>
           </div>
           
-          <h1 className="text-4xl font-black text-slate-900 dark:text-white mb-2">
+          <h1 className="text-4xl font-black text-slate-900 mb-2">
             Secure Access Portal
           </h1>
-          <p className="text-slate-600 dark:text-slate-300">
+          <p className="text-slate-600">
             Choose your access level and login to your personalized dashboard
           </p>
         </div>
 
         {/* Login Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-8 bg-white dark:bg-slate-800 p-2 rounded-2xl shadow-lg">
+          <TabsList className="grid w-full grid-cols-3 mb-8 bg-white p-2 rounded-2xl shadow-lg">
             <TabsTrigger value="user" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white rounded-xl">
               <Eye className="h-4 w-4 mr-2" />
               User
@@ -141,22 +141,22 @@ export default function LoginPage({ onBack, onLogin, initialTab = "user" }: Logi
           {/* Login Content */}
           <div className="grid lg:grid-cols-2 gap-8">
             {/* Login Form */}
-            <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-xl border border-slate-200 dark:border-slate-800">
+            <div className="bg-white rounded-3xl p-8 shadow-xl border border-slate-200">
               <div className="text-center mb-8">
                 <div className={`w-16 h-16 bg-linear-to-br ${currentType.gradient} rounded-2xl flex items-center justify-center mx-auto mb-4`}>
                   <currentType.icon className="h-8 w-8 text-white" />
                 </div>
-                <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
+                <h2 className="text-3xl font-bold text-slate-900 mb-2">
                   {currentType.title}
                 </h2>
-                <p className="text-slate-600 dark:text-slate-300">
+                <p className="text-slate-600">
                   {currentType.subtitle}
                 </p>
               </div>
 
               <form onSubmit={handleLogin} className="space-y-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  <label className="text-sm font-medium text-slate-700">
                     Email Address
                   </label>
                   <div className="relative">
@@ -166,14 +166,14 @@ export default function LoginPage({ onBack, onLogin, initialTab = "user" }: Logi
                       placeholder="Enter your email"
                       value={formData.email}
                       onChange={(e) => handleInputChange("email", e.target.value)}
-                      className="pl-10 h-12 rounded-xl border-slate-200 dark:border-slate-700"
+                      className="pl-10 h-12 rounded-xl border-slate-200"
                       required
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  <label className="text-sm font-medium text-slate-700">
                     Password
                   </label>
                   <div className="relative">
@@ -183,7 +183,7 @@ export default function LoginPage({ onBack, onLogin, initialTab = "user" }: Logi
                       placeholder="Enter your password"
                       value={formData.password}
                       onChange={(e) => handleInputChange("password", e.target.value)}
-                      className="pl-10 h-12 rounded-xl border-slate-200 dark:border-slate-700"
+                      className="pl-10 h-12 rounded-xl border-slate-200"
                       required
                     />
                   </div>
@@ -191,7 +191,7 @@ export default function LoginPage({ onBack, onLogin, initialTab = "user" }: Logi
 
                 {(activeTab === "admin" || activeTab === "staff") && (
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    <label className="text-sm font-medium text-slate-700">
                       {activeTab === "admin" ? "Company ID" : "Department Code"}
                     </label>
                     <div className="relative">
@@ -201,7 +201,7 @@ export default function LoginPage({ onBack, onLogin, initialTab = "user" }: Logi
                         placeholder={activeTab === "admin" ? "Enter company ID" : "Enter department code"}
                         value={formData.companyId}
                         onChange={(e) => handleInputChange("companyId", e.target.value)}
-                        className="pl-10 h-12 rounded-xl border-slate-200 dark:border-slate-700"
+                        className="pl-10 h-12 rounded-xl border-slate-200"
                         required
                       />
                     </div>
@@ -216,7 +216,7 @@ export default function LoginPage({ onBack, onLogin, initialTab = "user" }: Logi
                 </Button>
 
                 <div className="text-center">
-                  <a href="#" className="text-sm text-slate-500 dark:text-slate-400 hover:text-orange-600 transition-colors">
+                  <a href="#" className="text-sm text-slate-500 hover:text-orange-600 transition-colors">
                     Forgot your password?
                   </a>
                 </div>
@@ -224,14 +224,14 @@ export default function LoginPage({ onBack, onLogin, initialTab = "user" }: Logi
             </div>
 
             {/* Features Panel */}
-            <div className={`bg-linear-to-br ${currentType.bgGradient} dark:${currentType.darkBgGradient} rounded-3xl p-8 border border-slate-200 dark:border-slate-800`}>
+            <div className={`bg-linear-to-br ${currentType.bgGradient} rounded-3xl p-8 border border-slate-200`}>
               <div className="h-full flex flex-col justify-between">
                 <div>
                   <Badge variant="outline" className={`mb-6 text-${currentType.color}-600 border-${currentType.color}-200`}>
                     {currentType.title} Features
                   </Badge>
                   
-                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">
+                  <h3 className="text-2xl font-bold text-slate-900 mb-6">
                     What you&apos;ll get access to:
                   </h3>
                   
@@ -239,20 +239,20 @@ export default function LoginPage({ onBack, onLogin, initialTab = "user" }: Logi
                     {currentType.features.map((feature, index) => (
                       <div key={index} className="flex items-center space-x-3">
                         <CheckCircle2 className={`h-5 w-5 text-${currentType.color}-600 shrink-0`} />
-                        <span className="text-slate-700 dark:text-slate-300">{feature}</span>
+                        <span className="text-slate-700">{feature}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="mt-8 p-6 bg-white/50 dark:bg-slate-800/50 rounded-2xl backdrop-blur-sm">
+                <div className="mt-8 p-6 bg-white/50 rounded-2xl backdrop-blur-sm">
                   <div className="flex items-center space-x-3 mb-3">
                     <div className={`w-8 h-8 bg-linear-to-br ${currentType.gradient} rounded-lg flex items-center justify-center`}>
                       <ShieldCheck className="h-4 w-4 text-white" />
                     </div>
-                    <span className="font-semibold text-slate-900 dark:text-white">Enterprise Security</span>
+                    <span className="font-semibold text-slate-900">Enterprise Security</span>
                   </div>
-                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                  <p className="text-sm text-slate-600">
                     Multi-factor authentication, encrypted connections, and enterprise-grade security protocols protect your data.
                   </p>
                 </div>
@@ -262,7 +262,7 @@ export default function LoginPage({ onBack, onLogin, initialTab = "user" }: Logi
         </Tabs>
 
         {/* Footer */}
-        <div className="text-center mt-8 text-sm text-slate-500 dark:text-slate-400">
+        <div className="text-center mt-8 text-sm text-slate-500">
           <p>Need help? Contact our support team at support@visionlink.pro</p>
           <p className="mt-1">&copy; 2024 VisionLink Pro. All rights reserved.</p>
         </div>
