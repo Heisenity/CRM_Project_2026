@@ -1,2 +1,3 @@
 # Enviornment 
 .dev.env
+/generated/prisma

@@ -76,7 +76,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarHeader className="border-b border-border p-6">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 shadow-sm">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-linear-to-br from-blue-600 to-blue-700 shadow-sm">
                             <Building2 className="h-6 w-6 text-white" />
                         </div>
                         <div className="flex flex-col">
@@ -149,7 +149,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             {/* User Profile Footer */}
             <SidebarFooter className="border-t border-border p-4">
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-muted hover:bg-accent transition-colors cursor-pointer">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-gray-600 to-gray-700 text-white font-semibold text-sm">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-linear-to-br from-gray-600 to-gray-700 text-white font-semibold text-sm">
                         JD
                     </div>
                     <div className="flex flex-col flex-1 min-w-0">
