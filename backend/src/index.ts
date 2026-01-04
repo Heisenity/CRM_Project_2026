@@ -1,15 +1,15 @@
-import express from 'express'
-import cors from 'cors'
-import helmet from 'helmet'
-import dotenv from 'dotenv'
-import apiRoutes from './routes'
-import swagger from "./swagger/swagger"
+import express, { Request, Response } from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import dotenv from 'dotenv';
+import apiRoutes from './routes';
+import swagger from './swagger/swagger';
 
 // Load environment variables
-dotenv.config()
+dotenv.config();
 
-const app = express()
-const PORT = process.env.PORT || 3001
+const app = express();
+const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(helmet());
@@ -18,27 +18,30 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }))
+app.use(express.urlencoded({ extended: true }));
 
 // Routes
-app.use('/api/v1', apiRoutes)
-app.use("/api/v1/api-docs", swagger)
+app.use('/api/v1', apiRoutes);
+app.use('/api/v1/api-docs', swagger);
 
 // Root endpoint
-app.get('/', (req, res) => {
+app.get('/', (_req: Request, res: Response) => {
   res.json({ 
     message: 'CRM Backend API',
     version: '1.0.0',
     endpoints: {
       health: '/api/v1/health',
-      test: '/api/v1/test'
+      test: '/api/v1/test',
+      attendance: '/api/v1/attendance',
+      deviceInfo: '/api/v1/attendance/device',
+      apiDocs: '/api/v1/api-docs'
     }
   });
 });
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Backend server running on port ${PORT}`)
+  console.log(`🚀 Backend server running on port ${PORT}`);
 });
 
 export default app;

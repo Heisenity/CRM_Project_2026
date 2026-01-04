@@ -5,6 +5,12 @@
     "target": "esnext",
     "strict": true,
     "esModuleInterop": true,
-    "ignoreDeprecations": "5.0"
+    "ignoreDeprecations": "5.0",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@/lib/*": ["src/lib/*"],
+      "@/generated/*": ["generated/*"]
+    }
   }
 }

@@ -1,6 +1,5 @@
 "use client"
 
-import * as React from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -15,60 +14,58 @@ import {
   User,
   Building,
 } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { DeviceInfo } from "@/lib/server-api"
 
 interface EmployeeSelfAttendanceProps {
   onAttendanceMarked?: (data: AttendanceData) => void
+  deviceInfo?: DeviceInfo
 }
 
 interface AttendanceData {
   employeeId: string
   timestamp: string
-  location: string
-  ipAddress: string
-  deviceInfo: string
+  location?: string
+  ipAddress?: string
+  deviceInfo?: DeviceInfo
   photo?: string
   status: 'check-in' | 'check-out'
 }
 
-export function EmployeeSelfAttendance({ onAttendanceMarked }: EmployeeSelfAttendanceProps) {
-  const [isLoading, setIsLoading] = React.useState(false)
-  const [cameraActive, setCameraActive] = React.useState(false)
-  const [attendanceMarked, setAttendanceMarked] = React.useState(false)
-  const [employeeId, setEmployeeId] = React.useState("")
-  const [locationInfo, setLocationInfo] = React.useState({
-    ipAddress: "192.168.1.45",
-    location: "Office Building A, Floor 3",
-    deviceInfo: "Windows 11 - Chrome Browser"
-  })
-  const [currentTime, setCurrentTime] = React.useState(new Date())
-  const videoRef = React.useRef<HTMLVideoElement>(null)
-  const streamRef = React.useRef<MediaStream | null>(null)
+export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo }: EmployeeSelfAttendanceProps) {
+  const [isLoading, setIsLoading] = useState(false)
+  const [cameraActive, setCameraActive] = useState(false)
+  const [attendanceMarked, setAttendanceMarked] = useState(false)
+  const [employeeId, setEmployeeId] = useState("")
+  const [currentTime, setCurrentTime] = useState(new Date())
+  const [ipAddress, setIpAddress] = useState<string>("")
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
 
   // Update time every second
-  React.useEffect(() => {
+  useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date())
     }, 1000)
     return () => clearInterval(timer)
   }, [])
 
-  // Get user's IP and location info
-  React.useEffect(() => {
-    const getLocationInfo = async () => {
+  // Fetch IP address only
+  useEffect(() => {
+    const fetchIpAddress = async () => {
       try {
-        // Simulate getting IP and location info
-        const mockIpInfo = {
-          ipAddress: `192.168.1.${Math.floor(Math.random() * 255)}`,
-          location: "Office Building A, Floor 3",
-          deviceInfo: `${navigator.platform} - ${navigator.userAgent.split(' ')[0]}`
+        const response = await fetch('https://api.ipify.org?format=json')
+        if (response.ok) {
+          const data = await response.json()
+          setIpAddress(data.ip)
         }
-        setLocationInfo(mockIpInfo)
       } catch (error) {
-        console.error('Error getting location info:', error)
+        console.error('Error fetching IP address:', error)
+        setIpAddress('Unknown')
       }
     }
-    
-    getLocationInfo()
+
+    fetchIpAddress()
   }, [])
 
   const startCamera = async () => {
@@ -107,28 +104,35 @@ export function EmployeeSelfAttendance({ onAttendanceMarked }: EmployeeSelfAtten
 
     setIsLoading(true)
     
-    // Simulate attendance marking process
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    const attendanceData: AttendanceData = {
-      employeeId: employeeId.trim(),
-      timestamp: currentTime.toISOString(),
-      location: locationInfo.location,
-      ipAddress: locationInfo.ipAddress,
-      deviceInfo: locationInfo.deviceInfo,
-      status: type
+    try {
+      // Here you would typically send the attendance data to your backend
+      // For now, we'll simulate the process
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
+      const attendanceData: AttendanceData = {
+        employeeId: employeeId.trim(),
+        timestamp: currentTime.toISOString(),
+        location: 'Office Location', // This could come from backend or be configured
+        ipAddress: ipAddress,
+        deviceInfo: deviceInfo || undefined,
+        status: type
+      }
+
+      onAttendanceMarked?.(attendanceData)
+      setAttendanceMarked(true)
+      setIsLoading(false)
+      stopCamera()
+
+      // Reset after 5 seconds
+      setTimeout(() => {
+        setAttendanceMarked(false)
+        setEmployeeId("")
+      }, 5000)
+    } catch (error) {
+      console.error('Error marking attendance:', error)
+      setIsLoading(false)
+      alert('Failed to mark attendance. Please try again.')
     }
-
-    onAttendanceMarked?.(attendanceData)
-    setAttendanceMarked(true)
-    setIsLoading(false)
-    stopCamera()
-
-    // Reset after 5 seconds
-    setTimeout(() => {
-      setAttendanceMarked(false)
-      setEmployeeId("")
-    }, 5000)
   }
 
   const formatTime = (date: Date) => {
@@ -257,7 +261,7 @@ export function EmployeeSelfAttendance({ onAttendanceMarked }: EmployeeSelfAtten
                   <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
                     <h4 className="font-semibold text-gray-900 flex items-center gap-2">
                       <MapPin className="h-4 w-4" />
-                      Location Information
+                      Device Information
                     </h4>
                     <div className="space-y-3 text-sm">
                       <div className="flex items-center justify-between">
@@ -265,21 +269,23 @@ export function EmployeeSelfAttendance({ onAttendanceMarked }: EmployeeSelfAtten
                           <Wifi className="h-4 w-4" />
                           IP Address:
                         </span>
-                        <Badge variant="secondary">{locationInfo.ipAddress}</Badge>
+                        <Badge variant="secondary">{ipAddress || 'Loading...'}</Badge>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-gray-600 flex items-center gap-2">
                           <Building className="h-4 w-4" />
                           Location:
                         </span>
-                        <span className="font-medium">{locationInfo.location}</span>
+                        <span className="font-medium">Office Location</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-gray-600 flex items-center gap-2">
                           <Monitor className="h-4 w-4" />
                           Device:
                         </span>
-                        <span className="font-medium">{locationInfo.deviceInfo}</span>
+                        <span className="font-medium">
+                          {deviceInfo ? `${deviceInfo.device} - ${deviceInfo.browser} on ${deviceInfo.os}` : 'Loading...'}
+                        </span>
                       </div>
                     </div>
                   </div>

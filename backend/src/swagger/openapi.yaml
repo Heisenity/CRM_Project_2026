@@ -1,33 +1,110 @@
 openapi: 3.0.3
 info:
-  title: CRM Application
+  title: CRM Internal API
   version: 1.0.0
-  description: CRM application API documentation
+  description: Internal CRM application API
 
 servers:
   - url: http://localhost:3001/api/v1
-    description: Development server
+    description: Local development
 
 tags:
-  - name: index
-    description: Health check and Test API
+  - name: system
+    description: Health and status
+  - name: attendance
+    description: Staff attendance
 
 components:
-  securitySchemes:
-    Bearer:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-    ApiKeyAuth:
-      type: apiKey
-      in: header
-      name: x-api-key
+  schemas:
+    DeviceInfo:
+      type: object
+      properties:
+        os:
+          type: string
+          example: "Windows"
+        browser:
+          type: string
+          example: "Chrome"
+        device:
+          type: string
+          example: "desktop"
+
+    DeviceResponse:
+      type: object
+      properties:
+        device:
+          $ref: '#/components/schemas/DeviceInfo'
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "OK"
+        timestamp:
+          type: string
+        service:
+          type: string
+          example: "CRM Backend API"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
 
 paths:
   /health:
     get:
-      tags: [index]
+      tags: [system]
       summary: Health check
       responses:
         '200':
-          description: API is running
+          description: API status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /test:
+    get:
+      tags: [system]
+      summary: Test endpoint
+      responses:
+        '200':
+          description: Test response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "CRM Backend API is running!"
+                  version:
+                    type: string
+                    example: "1.0.0"
+
+  /attendance/device:
+    get:
+      tags: [attendance]
+      summary: Detect device info
+      description: Gets device info from User-Agent header
+      responses:
+        '200':
+          description: Device detected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceResponse'
+              example:
+                device:
+                  os: "Windows"
+                  browser: "Chrome"
+                  device: "desktop"
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
