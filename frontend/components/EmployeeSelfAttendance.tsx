@@ -25,6 +25,7 @@ import {
   createAttendance, 
   getRemainingAttempts, 
   getAssignedLocation,
+  getLocationInfo,
   AssignedLocationResponse 
 } from "@/lib/server-api"
 
@@ -83,11 +84,8 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
       const { latitude, longitude } = position.coords
       
       // Call backend API to get location info
-      const response = await fetch(`/api/location?latitude=${latitude}&longitude=${longitude}`)
-      if (response.ok) {
-        const locationData = await response.json()
-        setUserLocationInfo(locationData)
-      }
+      const locationData = await getLocationInfo(latitude, longitude)
+      setUserLocationInfo(locationData)
     } catch (error) {
       console.error('Error getting location:', error)
       setLocationError('Failed to get your current location. Please enable location services.')

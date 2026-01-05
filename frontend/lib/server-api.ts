@@ -76,7 +76,7 @@ export type AssignedLocationResponse = {
 
 export async function createAttendance(data: CreateAttendanceRequest): Promise<CreateAttendanceResponse> {
     try {
-        const res = await fetch('/api/attendance', {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/attendance`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -100,10 +100,10 @@ export async function createAttendance(data: CreateAttendanceRequest): Promise<C
 
 export async function getLocationInfo(latitude: number, longitude: number): Promise<LocationInfo> {
     try {
-        console.log('Making request to:', `/api/location?latitude=${latitude}&longitude=${longitude}`)
+        console.log('Making request to:', `${process.env.NEXT_PUBLIC_BACKEND_URL}/attendance/location?latitude=${latitude}&longitude=${longitude}`)
         
         const res = await fetch(
-            `/api/location?latitude=${latitude}&longitude=${longitude}`,
+            `${process.env.NEXT_PUBLIC_BACKEND_URL}/attendance/location?latitude=${latitude}&longitude=${longitude}`,
             {
                 cache: 'no-store'
             }
@@ -129,7 +129,7 @@ export async function getLocationInfo(latitude: number, longitude: number): Prom
 
 export async function getRemainingAttempts(employeeId: string): Promise<RemainingAttemptsResponse> {
     try {
-        const res = await fetch(`/api/attendance/attempts/${employeeId}`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/attendance/attempts/${employeeId}`, {
             cache: 'no-store'
         })
 
@@ -148,7 +148,7 @@ export async function getRemainingAttempts(employeeId: string): Promise<Remainin
 
 export async function getAssignedLocation(employeeId: string): Promise<AssignedLocationResponse> {
     try {
-        const res = await fetch(`/api/attendance/assigned-location/${employeeId}`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/attendance/assigned-location/${employeeId}`, {
             cache: 'no-store'
         })
 
@@ -161,6 +161,25 @@ export async function getAssignedLocation(employeeId: string): Promise<AssignedL
         return response
     } catch (error) {
         console.error('getAssignedLocation error:', error)
+        throw error
+    }
+}
+
+export async function getDeviceInfo(): Promise<DeviceInfo> {
+    try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/attendance/device`, {
+            cache: 'no-store'
+        })
+
+        const response = await res.json()
+
+        if (!res.ok) {
+            throw new Error(response.error || `Failed to get device info: ${res.status}`)
+        }
+
+        return response
+    } catch (error) {
+        console.error('getDeviceInfo error:', error)
         throw error
     }
 }
