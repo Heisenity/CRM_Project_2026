@@ -1,5 +1,5 @@
 // lib/server-api.ts
-import { headers } from 'next/headers'
+// Client-side API functions (no server-only imports)
 
 export type CreateAttendanceRequest = {
     employeeId: string
@@ -47,9 +47,36 @@ export type LocationInfo = {
   timestamp: string
 }
 
+export type RemainingAttemptsResponse = {
+  success: boolean
+  data: {
+    remainingAttempts: number
+    isLocked: boolean
+    status?: string
+  }
+  error?: string
+}
+
+export type AssignedLocationResponse = {
+  success: boolean
+  data?: {
+    id: string
+    latitude: number
+    longitude: number
+    radius: number
+    address?: string
+    city?: string
+    state?: string
+    startTime: string
+    endTime: string
+    assignedBy: string
+  }
+  error?: string
+}
+
 export async function createAttendance(data: CreateAttendanceRequest): Promise<CreateAttendanceResponse> {
     try {
-        const res = await fetch(`${process.env.BACKEND_URL}/attendance`, {
+        const res = await fetch('/api/attendance', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -71,29 +98,12 @@ export async function createAttendance(data: CreateAttendanceRequest): Promise<C
     }
 }
 
-
-export async function getDeviceInfo(): Promise<DeviceInfo> {
-    const ua = (await headers()).get('user-agent') ?? ''
-
-    const res = await fetch(`${process.env.BACKEND_URL}/attendance/device`, {
-        headers: { 'user-agent': ua },
-        cache: 'no-store'
-    })
-
-    if (!res.ok) {
-        throw new Error('Failed to fetch device info')
-    }
-
-    const { device } = await res.json()
-    return device
-}
-
 export async function getLocationInfo(latitude: number, longitude: number): Promise<LocationInfo> {
     try {
-        console.log('Making request to:', `${process.env.BACKEND_URL}/attendance/location?latitude=${latitude}&longitude=${longitude}`)
+        console.log('Making request to:', `/api/location?latitude=${latitude}&longitude=${longitude}`)
         
         const res = await fetch(
-            `${process.env.BACKEND_URL}/attendance/location?latitude=${latitude}&longitude=${longitude}`,
+            `/api/location?latitude=${latitude}&longitude=${longitude}`,
             {
                 cache: 'no-store'
             }
@@ -113,6 +123,44 @@ export async function getLocationInfo(latitude: number, longitude: number): Prom
         return locationInfo
     } catch (error) {
         console.error('getLocationInfo error:', error)
+        throw error
+    }
+}
+
+export async function getRemainingAttempts(employeeId: string): Promise<RemainingAttemptsResponse> {
+    try {
+        const res = await fetch(`/api/attendance/attempts/${employeeId}`, {
+            cache: 'no-store'
+        })
+
+        const response = await res.json()
+
+        if (!res.ok) {
+            throw new Error(response.error || `Failed to get remaining attempts: ${res.status}`)
+        }
+
+        return response
+    } catch (error) {
+        console.error('getRemainingAttempts error:', error)
+        throw error
+    }
+}
+
+export async function getAssignedLocation(employeeId: string): Promise<AssignedLocationResponse> {
+    try {
+        const res = await fetch(`/api/attendance/assigned-location/${employeeId}`, {
+            cache: 'no-store'
+        })
+
+        const response = await res.json()
+
+        if (!res.ok) {
+            throw new Error(response.error || `Failed to get assigned location: ${res.status}`)
+        }
+
+        return response
+    } catch (error) {
+        console.error('getAssignedLocation error:', error)
         throw error
     }
 }

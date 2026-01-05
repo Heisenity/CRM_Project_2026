@@ -3,7 +3,92 @@ import { AttendanceRecord, LocationData, GeolocationCoordinates } from "./attend
 import { getHumanReadableLocation, getLocationFromCoordinates } from "@/utils/geolocation";
 import { getDeviceInfo } from "@/utils/deviceinfo";
 
-// Create attendance record with geolocation
+// Simple coordinate comparison within 50 meter radius (approximately 0.0005 degrees)
+function isWithinRadius(lat1: number, lon1: number, lat2: number, lon2: number, radiusMeters: number = 50): boolean {
+  // Approximate conversion: 1 degree ≈ 111,000 meters
+  const radiusDegrees = radiusMeters / 111000;
+  
+  const latDiff = Math.abs(lat1 - lat2);
+  const lonDiff = Math.abs(lon1 - lon2);
+  
+  return latDiff <= radiusDegrees && lonDiff <= radiusDegrees;
+}
+
+// Check if employee is within allowed location
+async function validateEmployeeLocation(
+  employeeId: string, 
+  coordinates: GeolocationCoordinates
+): Promise<{ isValid: boolean; message: string; allowedLocation?: any; currentLocation?: string }> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Find user
+  const user = await prisma.user.findUnique({
+    where: { employeeId }
+  });
+
+  if (!user) {
+    return { isValid: false, message: "Employee not found" };
+  }
+
+  // Get today's assigned location for the employee
+  const dailyLocation = await prisma.dailyLocation.findUnique({
+    where: {
+      userId_date: {
+        userId: user.id,
+        date: today
+      }
+    }
+  });
+
+  if (!dailyLocation) {
+    return { isValid: false, message: "No location assigned for today. Please contact your administrator." };
+  }
+
+  // Check if current time is within allowed time range
+  const now = new Date();
+  const currentTime = now.getHours() * 60 + now.getMinutes(); // Convert to minutes
+  const startTime = dailyLocation.startTime.getHours() * 60 + dailyLocation.startTime.getMinutes();
+  const endTime = dailyLocation.endTime.getHours() * 60 + dailyLocation.endTime.getMinutes();
+
+  if (currentTime < startTime || currentTime > endTime) {
+    return { 
+      isValid: false, 
+      message: `Attendance can only be marked between ${dailyLocation.startTime.toLocaleTimeString()} and ${dailyLocation.endTime.toLocaleTimeString()}`,
+      allowedLocation: dailyLocation
+    };
+  }
+
+  // Get human-readable location for current coordinates
+  const currentLocationString = await getHumanReadableLocation(coordinates);
+
+  // Check coordinates match within 50 meter radius
+  const isLocationValid = isWithinRadius(
+    coordinates.latitude,
+    coordinates.longitude,
+    parseFloat(dailyLocation.latitude.toString()),
+    parseFloat(dailyLocation.longitude.toString()),
+    50 // Fixed 50 meter radius
+  );
+
+  if (isLocationValid) {
+    return { 
+      isValid: true, 
+      message: "Location validated successfully", 
+      allowedLocation: dailyLocation,
+      currentLocation: currentLocationString
+    };
+  }
+
+  return { 
+    isValid: false, 
+    message: `Location mismatch. Please ensure you are at the assigned location within 50 meters.`,
+    allowedLocation: dailyLocation,
+    currentLocation: currentLocationString
+  };
+}
+
+// Create attendance record with geolocation and location validation
 export async function createAttendanceRecord(data: {
   employeeId: string;
   coordinates?: GeolocationCoordinates;
@@ -12,46 +97,130 @@ export async function createAttendanceRecord(data: {
   photo?: string;
   status: 'PRESENT' | 'LATE';
 }): Promise<AttendanceRecord> {
-  let locationData = null;
   let locationString = "Location not provided";
   
-  // Get location data if coordinates are provided
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  // Find the user by employeeId
+  const user = await prisma.user.findUnique({
+    where: { employeeId: data.employeeId }
+  });
+  
+  if (!user) {
+    throw new Error(`User with employee ID ${data.employeeId} not found`);
+  }
+
+  // Check existing attendance record for attempt count
+  let existingAttendance = await prisma.attendance.findUnique({
+    where: {
+      userId_date: {
+        userId: user.id,
+        date: today
+      }
+    }
+  });
+
+  // If coordinates provided, validate location
   if (data.coordinates) {
-    locationData = await getLocationFromCoordinates(data.coordinates);
-    locationString = await getHumanReadableLocation(data.coordinates);
+    const locationValidation = await validateEmployeeLocation(data.employeeId, data.coordinates);
+    
+    if (!locationValidation.isValid) {
+      // Increment attempt count
+      let currentAttempts = 0;
+      if (existingAttendance) {
+        switch (existingAttendance.attemptCount) {
+          case 'ZERO': currentAttempts = 0; break;
+          case 'ONE': currentAttempts = 1; break;
+          case 'TWO': currentAttempts = 2; break;
+          case 'THREE': currentAttempts = 3; break;
+        }
+      }
+
+      currentAttempts++;
+      
+      // If this is the 3rd failed attempt, mark as ABSENT and lock
+      if (currentAttempts >= 3) {
+        await prisma.attendance.upsert({
+          where: {
+            userId_date: {
+              userId: user.id,
+              date: today
+            }
+          },
+          update: {
+            status: 'ABSENT',
+            attemptCount: 'THREE',
+            latitude: data.coordinates.latitude,
+            longitude: data.coordinates.longitude,
+            location: locationValidation.currentLocation || locationString,
+            ipAddress: data.ipAddress,
+            deviceInfo: `${getDeviceInfo(data.userAgent).os} - ${getDeviceInfo(data.userAgent).browser} - ${getDeviceInfo(data.userAgent).device}`,
+            lockedReason: "Maximum location validation attempts exceeded",
+            locked: true,
+            updatedAt: new Date()
+          },
+          create: {
+            userId: user.id,
+            date: today,
+            status: 'ABSENT',
+            attemptCount: 'THREE',
+            latitude: data.coordinates.latitude,
+            longitude: data.coordinates.longitude,
+            location: locationValidation.currentLocation || locationString,
+            ipAddress: data.ipAddress,
+            deviceInfo: `${getDeviceInfo(data.userAgent).os} - ${getDeviceInfo(data.userAgent).browser} - ${getDeviceInfo(data.userAgent).device}`,
+            lockedReason: "Maximum location validation attempts exceeded",
+            locked: true
+          }
+        });
+
+        throw new Error(`Maximum attempts exceeded. You have been marked as ABSENT for today. Reason: ${locationValidation.message}`);
+      }
+
+      // Update attempt count and throw error - NO ATTENDANCE RECORDED
+      const attemptCountMap = ['ZERO', 'ONE', 'TWO', 'THREE'] as const;
+      await prisma.attendance.upsert({
+        where: {
+          userId_date: {
+            userId: user.id,
+            date: today
+          }
+        },
+        update: {
+          attemptCount: attemptCountMap[currentAttempts] as any,
+          updatedAt: new Date()
+        },
+        create: {
+          userId: user.id,
+          date: today,
+          status: 'PRESENT', // Temporary status, will be updated when location is correct
+          attemptCount: attemptCountMap[currentAttempts] as any,
+          location: "",
+          ipAddress: data.ipAddress,
+          deviceInfo: `${getDeviceInfo(data.userAgent).os} - ${getDeviceInfo(data.userAgent).browser} - ${getDeviceInfo(data.userAgent).device}`,
+          lockedReason: ""
+        }
+      });
+
+      throw new Error(`${locationValidation.message} Attempt ${currentAttempts}/3. ${3 - currentAttempts} attempts remaining.`);
+    }
+
+    // Location is valid, get location data
+    locationString = locationValidation.currentLocation || await getHumanReadableLocation(data.coordinates);
+  } else {
+    throw new Error("Location coordinates are required for attendance");
   }
   
   // Get device information
   const deviceInfo = getDeviceInfo(data.userAgent);
   const deviceString = `${deviceInfo.os} - ${deviceInfo.browser} - ${deviceInfo.device}`;
   
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
   try {
-    // First, find the user by employeeId
-    const user = await prisma.user.findUnique({
-      where: { employeeId: data.employeeId }
-    });
-    
-    if (!user) {
-      throw new Error(`User with employee ID ${data.employeeId} not found`);
-    }
-    
-    // Check if attendance record exists for today
-    const existingAttendance = await prisma.attendance.findUnique({
-      where: {
-        userId_date: {
-          userId: user.id,
-          date: today
-        }
-      }
-    });
-    
     let savedRecord;
     
-    if (existingAttendance) {
-      // Update existing record (for check-out)
+    if (existingAttendance && !existingAttendance.locked) {
+      // Update existing record (for check-out or corrections)
       savedRecord = await prisma.attendance.update({
         where: { id: existingAttendance.id },
         data: {
@@ -62,10 +231,11 @@ export async function createAttendanceRecord(data: {
           deviceInfo: deviceString,
           photo: data.photo || existingAttendance.photo,
           status: data.status,
+          clockIn: data.status === 'PRESENT' && !existingAttendance.clockIn ? new Date() : existingAttendance.clockIn,
           updatedAt: new Date()
         }
       });
-    } else {
+    } else if (!existingAttendance) {
       // Create new record (for check-in)
       savedRecord = await prisma.attendance.create({
         data: {
@@ -79,9 +249,12 @@ export async function createAttendanceRecord(data: {
           deviceInfo: deviceString,
           photo: data.photo,
           status: data.status,
-          lockedReason: "" // Required field, empty by default
+          lockedReason: "",
+          attemptCount: 'ZERO'
         }
       });
+    } else {
+      throw new Error("Attendance record is locked or already processed for today");
     }
     
     // Convert to AttendanceRecord format
@@ -242,4 +415,72 @@ export async function getAttendanceOverrides(userId: string, startDate?: Date, e
     console.error('Error getting attendance overrides:', error);
     return [];
   }
+}
+
+// Get remaining location attempts for an employee today
+export async function getRemainingAttempts(employeeId: string): Promise<{ remainingAttempts: number; isLocked: boolean; status?: string }> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const user = await prisma.user.findUnique({
+    where: { employeeId }
+  });
+
+  if (!user) {
+    throw new Error(`User with employee ID ${employeeId} not found`);
+  }
+
+  const attendance = await prisma.attendance.findUnique({
+    where: {
+      userId_date: {
+        userId: user.id,
+        date: today
+      }
+    }
+  });
+
+  if (!attendance) {
+    return { remainingAttempts: 3, isLocked: false };
+  }
+
+  if (attendance.locked) {
+    return { remainingAttempts: 0, isLocked: true, status: attendance.status };
+  }
+
+  let usedAttempts = 0;
+  switch (attendance.attemptCount) {
+    case 'ZERO': usedAttempts = 0; break;
+    case 'ONE': usedAttempts = 1; break;
+    case 'TWO': usedAttempts = 2; break;
+    case 'THREE': usedAttempts = 3; break;
+  }
+
+  return { 
+    remainingAttempts: Math.max(0, 3 - usedAttempts), 
+    isLocked: false,
+    status: attendance.status 
+  };
+}
+
+// Get employee's assigned location for today
+export async function getTodayAssignedLocation(employeeId: string) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const user = await prisma.user.findUnique({
+    where: { employeeId }
+  });
+
+  if (!user) {
+    throw new Error(`User with employee ID ${employeeId} not found`);
+  }
+
+  return await prisma.dailyLocation.findUnique({
+    where: {
+      userId_date: {
+        userId: user.id,
+        date: today
+      }
+    }
+  });
 }

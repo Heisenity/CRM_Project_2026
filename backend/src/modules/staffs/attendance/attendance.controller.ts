@@ -209,3 +209,75 @@ export const getLocationData = async (req: Request, res: Response) => {
     })
   }
 }
+
+export const checkRemainingAttempts = async (req: Request, res: Response) => {
+  try {
+    const { employeeId } = req.params
+
+    if (!employeeId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Employee ID is required'
+      })
+    }
+
+    const { getRemainingAttempts } = await import('./attendance.service')
+    const attemptInfo = await getRemainingAttempts(employeeId)
+
+    return res.status(200).json({
+      success: true,
+      data: attemptInfo
+    })
+  } catch (error) {
+    console.error('Error checking remaining attempts:', error)
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to check remaining attempts'
+    })
+  }
+}
+
+export const getAssignedLocation = async (req: Request, res: Response) => {
+  try {
+    const { employeeId } = req.params
+
+    if (!employeeId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Employee ID is required'
+      })
+    }
+
+    const { getTodayAssignedLocation } = await import('./attendance.service')
+    const assignedLocation = await getTodayAssignedLocation(employeeId)
+
+    if (!assignedLocation) {
+      return res.status(404).json({
+        success: false,
+        error: 'No location assigned for today. Please contact your administrator.'
+      })
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        id: assignedLocation.id,
+        latitude: parseFloat(assignedLocation.latitude.toString()),
+        longitude: parseFloat(assignedLocation.longitude.toString()),
+        radius: assignedLocation.radius,
+        address: assignedLocation.address,
+        city: assignedLocation.city,
+        state: assignedLocation.state,
+        startTime: assignedLocation.startTime,
+        endTime: assignedLocation.endTime,
+        assignedBy: assignedLocation.assignedBy
+      }
+    })
+  } catch (error) {
+    console.error('Error getting assigned location:', error)
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get assigned location'
+    })
+  }
+}

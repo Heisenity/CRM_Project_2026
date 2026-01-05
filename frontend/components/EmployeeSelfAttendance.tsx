@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { 
   Camera, 
   MapPin, 
@@ -13,9 +14,19 @@ import {
   Monitor,
   User,
   Building,
+  AlertTriangle,
+  Clock,
+  MapPinIcon
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
-import { DeviceInfo, LocationInfo, createAttendance } from "@/lib/client-api"
+import { 
+  DeviceInfo, 
+  LocationInfo, 
+  createAttendance, 
+  getRemainingAttempts, 
+  getAssignedLocation,
+  AssignedLocationResponse 
+} from "@/lib/server-api"
 
 interface EmployeeSelfAttendanceProps {
   onAttendanceMarked?: (data: AttendanceData) => void
@@ -43,12 +54,17 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
   const [ipAddress, setIpAddress] = useState<string>("")
   const [userLocationInfo, setUserLocationInfo] = useState<LocationInfo | null>(null)
   const [locationLoading, setLocationLoading] = useState(false)
+  const [remainingAttempts, setRemainingAttempts] = useState<number>(3)
+  const [isLocked, setIsLocked] = useState(false)
+  const [assignedLocation, setAssignedLocation] = useState<AssignedLocationResponse['data'] | null>(null)
+  const [locationError, setLocationError] = useState<string>("")
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
 
   // Get user's current location
   const getUserLocation = async () => {
     setLocationLoading(true)
+    setLocationError("")
     try {
       // Get user's GPS coordinates
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
@@ -74,8 +90,41 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
       }
     } catch (error) {
       console.error('Error getting location:', error)
+      setLocationError('Failed to get your current location. Please enable location services.')
     } finally {
       setLocationLoading(false)
+    }
+  }
+
+  // Check remaining attempts when employee ID changes
+  const checkAttempts = async (empId: string) => {
+    if (!empId.trim()) return
+    
+    try {
+      const response = await getRemainingAttempts(empId)
+      if (response.success) {
+        setRemainingAttempts(response.data.remainingAttempts)
+        setIsLocked(response.data.isLocked)
+      }
+    } catch (error) {
+      console.error('Error checking attempts:', error)
+    }
+  }
+
+  // Get assigned location when employee ID changes
+  const checkAssignedLocation = async (empId: string) => {
+    if (!empId.trim()) return
+    
+    try {
+      const response = await getAssignedLocation(empId)
+      if (response.success && response.data) {
+        setAssignedLocation(response.data)
+      } else {
+        setAssignedLocation(null)
+      }
+    } catch (error) {
+      console.error('Error getting assigned location:', error)
+      setAssignedLocation(null)
     }
   }
 
@@ -87,7 +136,7 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
     return () => clearInterval(timer)
   }, [])
 
-  // Fetch IP address and get user location
+  // Fetch IP address
   useEffect(() => {
     const fetchIpAddress = async () => {
       try {
@@ -104,6 +153,18 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
 
     fetchIpAddress()
   }, [])
+
+  // Check attempts and assigned location when employee ID changes
+  useEffect(() => {
+    if (employeeId.trim()) {
+      checkAttempts(employeeId.trim())
+      checkAssignedLocation(employeeId.trim())
+    } else {
+      setRemainingAttempts(3)
+      setIsLocked(false)
+      setAssignedLocation(null)
+    }
+  }, [employeeId])
 
   const startCamera = async () => {
     try {
@@ -141,6 +202,16 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
 
     if (!cameraActive) {
       alert('Please start the camera first')
+      return
+    }
+
+    if (isLocked) {
+      alert('Your attendance is locked due to multiple failed location attempts. Contact your administrator.')
+      return
+    }
+
+    if (!userLocationInfo && !locationInfo) {
+      alert('Please get your current location first')
       return
     }
 
@@ -191,13 +262,22 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
         setTimeout(() => {
           setAttendanceMarked(false)
           setEmployeeId("")
+          setRemainingAttempts(3)
+          setIsLocked(false)
+          setAssignedLocation(null)
         }, 5000)
       } else {
         throw new Error(response.error || 'Failed to mark attendance')
       }
     } catch (error) {
       console.error('Error marking attendance:', error)
-      alert(`Failed to mark attendance: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      alert(`Failed to mark attendance: ${errorMessage}`)
+      
+      // Refresh attempts after error
+      if (employeeId.trim()) {
+        checkAttempts(employeeId.trim())
+      }
     } finally {
       setIsLoading(false)
     }
@@ -221,13 +301,24 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
     })
   }
 
+  const canMarkAttendance = () => {
+    return (
+      cameraActive && 
+      employeeId.trim() && 
+      !isLoading && 
+      !isLocked && 
+      remainingAttempts > 0 &&
+      (userLocationInfo || locationInfo)
+    )
+  }
+
   return (
     <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-blue-100 flex items-center justify-center p-6">
       <div className="w-full max-w-4xl space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-black text-gray-900">Employee Attendance</h1>
-          <p className="text-xl text-gray-600">Mark your attendance with photo verification</p>
+          <p className="text-xl text-gray-600">Mark your attendance with photo and location verification</p>
         </div>
 
         {/* Time Display */}
@@ -239,6 +330,62 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
             </div>
           </CardContent>
         </Card>
+
+        {/* Location Validation Status */}
+        {employeeId.trim() && (
+          <Card className="bg-white/80 backdrop-blur-sm border border-gray-200 shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPinIcon className="h-5 w-5 text-blue-600" />
+                Location Validation Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isLocked ? (
+                <Alert className="border-red-200 bg-red-50">
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-red-800">
+                    Your attendance is locked due to multiple failed location attempts. Please contact your administrator.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Remaining Attempts:</span>
+                      <Badge variant={remainingAttempts <= 1 ? "destructive" : remainingAttempts <= 2 ? "secondary" : "default"}>
+                        {remainingAttempts}/3
+                      </Badge>
+                    </div>
+                    {remainingAttempts <= 2 && (
+                      <p className="text-xs text-orange-600">
+                        Warning: {remainingAttempts === 0 ? "No attempts remaining" : `Only ${remainingAttempts} attempt${remainingAttempts === 1 ? '' : 's'} left`}
+                      </p>
+                    )}
+                  </div>
+                  
+                  {assignedLocation && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Assigned Location:</span>
+                        <Badge variant="outline" className="text-xs">
+                          Within 50m required
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        <div>{assignedLocation.address || `${assignedLocation.city}, ${assignedLocation.state}`}</div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Clock className="h-3 w-3" />
+                          {new Date(assignedLocation.startTime).toLocaleTimeString()} - {new Date(assignedLocation.endTime).toLocaleTimeString()}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Camera Section */}
@@ -322,6 +469,7 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
                       value={employeeId}
                       onChange={(e) => setEmployeeId(e.target.value)}
                       className="text-lg"
+                      disabled={isLocked}
                     />
                   </div>
 
@@ -342,13 +490,12 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
                       <div className="flex items-start justify-between">
                         <span className="text-gray-600 flex items-center gap-2">
                           <Building className="h-4 w-4" />
-                          Location:
+                          Current Location:
                         </span>
                         <div className="text-right max-w-xs">
-                          {/* User's current location only */}
                           {userLocationInfo ? (
                             <div className="space-y-1">
-                              <Badge variant="outline" className="text-xs bg-green-50 text-green-700">Current Location</Badge>
+                              <Badge variant="outline" className="text-xs bg-green-50 text-green-700">Located</Badge>
                               <div className="font-medium text-xs">
                                 {userLocationInfo.location.city}, {userLocationInfo.location.state}
                               </div>
@@ -360,15 +507,20 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
                               </Badge>
                             </div>
                           ) : (
-                            <Button 
-                              onClick={getUserLocation} 
-                              disabled={locationLoading}
-                              size="sm" 
-                              variant="outline" 
-                              className="text-xs"
-                            >
-                              {locationLoading ? 'Getting location...' : 'Get My Location'}
-                            </Button>
+                            <div className="space-y-2">
+                              <Button 
+                                onClick={getUserLocation} 
+                                disabled={locationLoading}
+                                size="sm" 
+                                variant="outline" 
+                                className="text-xs"
+                              >
+                                {locationLoading ? 'Getting location...' : 'Get My Location'}
+                              </Button>
+                              {locationError && (
+                                <p className="text-xs text-red-600">{locationError}</p>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -386,10 +538,15 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
 
                   {/* Attendance Buttons */}
                   <div className="space-y-3">
-                    {(!userLocationInfo && !locationInfo) && (
+                    {!canMarkAttendance() && (
                       <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                         <p className="text-sm text-yellow-800">
-                          📍 Location is required to mark attendance. Please click &quot;Get My Location&quot; above.
+                          {isLocked ? "🔒 Attendance locked due to failed location attempts" :
+                           remainingAttempts === 0 ? "❌ No attempts remaining" :
+                           !employeeId.trim() ? "👤 Please enter your Employee ID" :
+                           !cameraActive ? "📷 Please start the camera" :
+                           !userLocationInfo && !locationInfo ? "📍 Please get your current location" :
+                           "⚠️ Complete all requirements above"}
                         </p>
                       </div>
                     )}
@@ -397,8 +554,8 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
                     <div className="grid grid-cols-2 gap-3">
                       <Button
                         onClick={() => markAttendance('check-in')}
-                        disabled={!cameraActive || !employeeId.trim() || isLoading || (!userLocationInfo && !locationInfo)}
-                        className="bg-green-600 hover:bg-green-700 text-white"
+                        disabled={!canMarkAttendance()}
+                        className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
                         size="lg"
                       >
                         {isLoading ? (
@@ -415,8 +572,8 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
                       </Button>
                       <Button
                         onClick={() => markAttendance('check-out')}
-                        disabled={!cameraActive || !employeeId.trim() || isLoading || (!userLocationInfo && !locationInfo)}
-                        className="bg-red-600 hover:bg-red-700 text-white"
+                        disabled={!canMarkAttendance()}
+                        className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
                         size="lg"
                       >
                         {isLoading ? (
@@ -455,26 +612,33 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
         {/* Instructions */}
         <Card className="bg-white/80 backdrop-blur-sm border border-gray-200 shadow-lg">
           <CardContent className="p-6">
-            <div className="grid md:grid-cols-3 gap-6 text-center">
+            <div className="grid md:grid-cols-4 gap-6 text-center">
               <div className="space-y-2">
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
                   <User className="h-6 w-6 text-blue-600" />
                 </div>
                 <h4 className="font-semibold text-gray-900">1. Enter ID</h4>
-                <p className="text-sm text-gray-600">Enter your employee ID to identify yourself</p>
+                <p className="text-sm text-gray-600">Enter your employee ID to check location assignment</p>
+              </div>
+              <div className="space-y-2">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
+                  <MapPin className="h-6 w-6 text-blue-600" />
+                </div>
+                <h4 className="font-semibold text-gray-900">2. Get Location</h4>
+                <p className="text-sm text-gray-600">Allow location access and verify you&apos;re at the assigned location</p>
               </div>
               <div className="space-y-2">
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
                   <Camera className="h-6 w-6 text-blue-600" />
                 </div>
-                <h4 className="font-semibold text-gray-900">2. Start Camera</h4>
+                <h4 className="font-semibold text-gray-900">3. Start Camera</h4>
                 <p className="text-sm text-gray-600">Allow camera access for photo verification</p>
               </div>
               <div className="space-y-2">
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
                   <CheckCircle className="h-6 w-6 text-blue-600" />
                 </div>
-                <h4 className="font-semibold text-gray-900">3. Mark Attendance</h4>
+                <h4 className="font-semibold text-gray-900">4. Mark Attendance</h4>
                 <p className="text-sm text-gray-600">Click Check In or Check Out to record attendance</p>
               </div>
             </div>
