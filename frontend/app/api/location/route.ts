@@ -1,3 +1,4 @@
+// app/api/location/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -5,28 +6,30 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const latitude = searchParams.get('latitude')
     const longitude = searchParams.get('longitude')
-
+    
     if (!latitude || !longitude) {
       return NextResponse.json(
         { success: false, error: 'Latitude and longitude are required' },
         { status: 400 }
       )
     }
+    
+    // Forward the request to the backend
+    const res = await fetch(
+      `${process.env.BACKEND_URL}/attendance/location?latitude=${latitude}&longitude=${longitude}`
+    )
 
-    // Call backend API
-    const backendUrl = `${process.env.BACKEND_URL}/attendance/location?latitude=${latitude}&longitude=${longitude}`
-    const response = await fetch(backendUrl)
+    const data = await res.json()
 
-    if (!response.ok) {
-      throw new Error('Backend request failed')
+    if (!res.ok) {
+      return NextResponse.json(data, { status: res.status })
     }
 
-    const data = await response.json()
     return NextResponse.json(data)
   } catch (error) {
-    console.error('Location API error:', error)
+    console.error('API location error:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to get location data' },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     )
   }

@@ -15,7 +15,7 @@ import {
   Building,
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
-import { DeviceInfo, LocationInfo } from "@/lib/server-api"
+import { DeviceInfo, LocationInfo, createAttendance } from "@/lib/client-api"
 
 interface EmployeeSelfAttendanceProps {
   onAttendanceMarked?: (data: AttendanceData) => void
@@ -79,9 +79,6 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
     }
   }
 
-  // Debug logging
-  console.log('EmployeeSelfAttendance props:', { deviceInfo, locationInfo })
-
   // Update time every second
   useEffect(() => {
     const timer = setInterval(() => {
@@ -142,37 +139,67 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
       return
     }
 
+    if (!cameraActive) {
+      alert('Please start the camera first')
+      return
+    }
+
     setIsLoading(true)
     
     try {
-      // Here you would typically send the attendance data to your backend
-      // For now, we'll simulate the process
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      const attendanceData: AttendanceData = {
-        employeeId: employeeId.trim(),
-        timestamp: currentTime.toISOString(),
-        location: locationInfo?.humanReadableLocation || 'Location unavailable',
-        locationInfo: locationInfo || undefined,
-        ipAddress: ipAddress,
-        deviceInfo: deviceInfo || undefined,
-        status: type
+      // Capture photo from video stream
+      let photoData: string | undefined
+      if (videoRef.current) {
+        const canvas = document.createElement('canvas')
+        const context = canvas.getContext('2d')
+        if (context) {
+          canvas.width = videoRef.current.videoWidth
+          canvas.height = videoRef.current.videoHeight
+          context.drawImage(videoRef.current, 0, 0)
+          photoData = canvas.toDataURL('image/jpeg', 0.8)
+        }
       }
 
-      onAttendanceMarked?.(attendanceData)
-      setAttendanceMarked(true)
-      setIsLoading(false)
-      stopCamera()
+      // Use current location info if available
+      const locationData = userLocationInfo || locationInfo
+      
+      // Call the backend API
+      const response = await createAttendance({
+        employeeId: employeeId.trim(),
+        latitude: locationData?.coordinates.latitude,
+        longitude: locationData?.coordinates.longitude,
+        photo: photoData,
+        status: type === 'check-in' ? 'PRESENT' : 'PRESENT' 
+      })
 
-      // Reset after 5 seconds
-      setTimeout(() => {
-        setAttendanceMarked(false)
-        setEmployeeId("")
-      }, 5000)
+      if (response.success) {
+        const attendanceData: AttendanceData = {
+          employeeId: employeeId.trim(),
+          timestamp: response.data?.timestamp || currentTime.toISOString(),
+          location: response.data?.location || locationData?.humanReadableLocation || 'Location unavailable',
+          locationInfo: locationData || undefined,
+          ipAddress: response.data?.ipAddress || ipAddress,
+          deviceInfo: deviceInfo || undefined,
+          status: type
+        }
+
+        onAttendanceMarked?.(attendanceData)
+        setAttendanceMarked(true)
+        stopCamera()
+
+        // Reset after 5 seconds
+        setTimeout(() => {
+          setAttendanceMarked(false)
+          setEmployeeId("")
+        }, 5000)
+      } else {
+        throw new Error(response.error || 'Failed to mark attendance')
+      }
     } catch (error) {
       console.error('Error marking attendance:', error)
+      alert(`Failed to mark attendance: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
       setIsLoading(false)
-      alert('Failed to mark attendance. Please try again.')
     }
   }
 
@@ -358,43 +385,53 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
                   </div>
 
                   {/* Attendance Buttons */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button
-                      onClick={() => markAttendance('check-in')}
-                      disabled={!cameraActive || !employeeId.trim() || isLoading}
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                      size="lg"
-                    >
-                      {isLoading ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                          Processing...
-                        </div>
-                      ) : (
-                        <>
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Check In
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      onClick={() => markAttendance('check-out')}
-                      disabled={!cameraActive || !employeeId.trim() || isLoading}
-                      className="bg-red-600 hover:bg-red-700 text-white"
-                      size="lg"
-                    >
-                      {isLoading ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                          Processing...
-                        </div>
-                      ) : (
-                        <>
-                          <XCircle className="h-4 w-4 mr-2" />
-                          Check Out
-                        </>
-                      )}
-                    </Button>
+                  <div className="space-y-3">
+                    {(!userLocationInfo && !locationInfo) && (
+                      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-sm text-yellow-800">
+                          📍 Location is required to mark attendance. Please click &quot;Get My Location&quot; above.
+                        </p>
+                      </div>
+                    )}
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button
+                        onClick={() => markAttendance('check-in')}
+                        disabled={!cameraActive || !employeeId.trim() || isLoading || (!userLocationInfo && !locationInfo)}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                        size="lg"
+                      >
+                        {isLoading ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            Processing...
+                          </div>
+                        ) : (
+                          <>
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Check In
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        onClick={() => markAttendance('check-out')}
+                        disabled={!cameraActive || !employeeId.trim() || isLoading || (!userLocationInfo && !locationInfo)}
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                        size="lg"
+                      >
+                        {isLoading ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            Processing...
+                          </div>
+                        ) : (
+                          <>
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Check Out
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </>
               ) : (

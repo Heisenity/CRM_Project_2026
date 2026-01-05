@@ -62,7 +62,7 @@ model Attendance {
   locked       Boolean          @default(false)
   lockedReason String           @db.Text
   longitude    Decimal?         @db.Decimal(11, 8)
-  photo        String?
+  photo        String?          @db.LongText
   userId       String
   user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 

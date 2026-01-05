@@ -1,6 +1,4 @@
-// lib/server-api.ts
-import { headers } from 'next/headers'
-
+// lib/client-api.ts - Client-side API functions
 export type CreateAttendanceRequest = {
     employeeId: string
     latitude?: number
@@ -47,15 +45,15 @@ export type LocationInfo = {
   timestamp: string
 }
 
+// Client-side function for creating attendance
 export async function createAttendance(data: CreateAttendanceRequest): Promise<CreateAttendanceResponse> {
     try {
-        const res = await fetch(`${process.env.BACKEND_URL}/attendance`, {
+        const res = await fetch('/api/attendance', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(data),
-            cache: 'no-store'
         })
 
         const response = await res.json()
@@ -71,14 +69,9 @@ export async function createAttendance(data: CreateAttendanceRequest): Promise<C
     }
 }
 
-
+// Client-side function for getting device info
 export async function getDeviceInfo(): Promise<DeviceInfo> {
-    const ua = (await headers()).get('user-agent') ?? ''
-
-    const res = await fetch(`${process.env.BACKEND_URL}/attendance/device`, {
-        headers: { 'user-agent': ua },
-        cache: 'no-store'
-    })
+    const res = await fetch('/api/device')
 
     if (!res.ok) {
         throw new Error('Failed to fetch device info')
@@ -88,28 +81,17 @@ export async function getDeviceInfo(): Promise<DeviceInfo> {
     return device
 }
 
+// Client-side function for getting location info
 export async function getLocationInfo(latitude: number, longitude: number): Promise<LocationInfo> {
     try {
-        console.log('Making request to:', `${process.env.BACKEND_URL}/attendance/location?latitude=${latitude}&longitude=${longitude}`)
-        
-        const res = await fetch(
-            `${process.env.BACKEND_URL}/attendance/location?latitude=${latitude}&longitude=${longitude}`,
-            {
-                cache: 'no-store'
-            }
-        )
-
-        console.log('Response status:', res.status)
-        console.log('Response ok:', res.ok)
+        const res = await fetch(`/api/location?latitude=${latitude}&longitude=${longitude}`)
 
         if (!res.ok) {
             const errorText = await res.text()
-            console.error('Response error:', errorText)
             throw new Error(`Failed to fetch location info: ${res.status} ${errorText}`)
         }
 
         const locationInfo = await res.json()
-        console.log('Location info response:', locationInfo)
         return locationInfo
     } catch (error) {
         console.error('getLocationInfo error:', error)
