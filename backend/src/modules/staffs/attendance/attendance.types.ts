@@ -11,6 +11,7 @@ export interface AttendanceRecord {
   deviceInfo: string
   photo?: string
   status: AttendanceStatus
+  source?: 'SELF' | 'ADMIN'
 }
 
 export interface LocationData {

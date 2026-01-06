@@ -403,6 +403,7 @@ export async function createAttendanceRecord(data: {
       deviceInfo: deviceString,
       photo: data.photo ?? existing?.photo,
       status: data.status,
+      source: 'ADMIN', // Mark as admin-created
       updatedAt: new Date()
     }
 
@@ -431,6 +432,7 @@ export async function createAttendanceRecord(data: {
             deviceInfo: deviceString,
             photo: data.photo,
             status: data.status,
+            source: 'ADMIN', // Mark as admin-created
             lockedReason: '',
             locked: false,
             attemptCount: 'ZERO'
@@ -468,6 +470,7 @@ export async function createAttendanceRecord(data: {
       deviceInfo: deviceString,
       photo: data.photo ?? existing?.photo,
       status: data.status,
+      source: 'ADMIN', // Mark as admin bypass
       updatedAt: new Date()
     }
 
@@ -496,6 +499,7 @@ export async function createAttendanceRecord(data: {
             deviceInfo: deviceString,
             photo: data.photo,
             status: data.status,
+            source: 'ADMIN', // Mark as admin bypass
             lockedReason: '',
             locked: false,
             attemptCount: 'ZERO'
@@ -621,6 +625,7 @@ export async function createAttendanceRecord(data: {
     deviceInfo: deviceString,
     photo: data.photo ?? existing?.photo,
     status: data.status,
+    source: 'SELF', // Mark as employee self-attendance
     updatedAt: new Date(),
     attemptCount: 'ZERO' // reset attempts on success
   }
@@ -659,6 +664,7 @@ export async function createAttendanceRecord(data: {
           deviceInfo: deviceString,
           photo: data.photo,
           status: data.status,
+          source: 'SELF', // Mark as employee self-attendance
           lockedReason: '',
           locked: false,
           attemptCount: 'ZERO'

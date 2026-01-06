@@ -90,6 +90,7 @@ model Attendance {
   taskStartTime String?
   taskEndTime   String?
   taskLocation  String?
+  source       AttendanceSource @default(SELF)
   employeeId   String
   employee     FieldEngineer    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   assignedTask Task?            @relation(fields: [taskId], references: [id], onDelete: SetNull)
@@ -124,6 +125,11 @@ enum AttendanceStatus {
   ABSENT
   LATE
   MARKDOWN
+}
+
+enum AttendanceSource {
+  SELF
+  ADMIN
 }
 
 model Task {

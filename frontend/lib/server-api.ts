@@ -198,6 +198,7 @@ export type AttendanceRecord = {
     clockIn?: string
     clockOut?: string
     status: 'PRESENT' | 'ABSENT' | 'LATE' | 'MARKDOWN'
+    source: 'SELF' | 'ADMIN'
     location?: string
     latitude?: number
     longitude?: number

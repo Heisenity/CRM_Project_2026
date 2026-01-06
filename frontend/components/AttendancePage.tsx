@@ -18,8 +18,6 @@ import {
   Clock, 
   MapPin,  
   Users, 
-  TrendingUp,
-  TrendingDown,
   CheckCircle,
   XCircle,
   AlertCircle,
@@ -459,12 +457,8 @@ export function AttendancePage() {
               <div className="space-y-1">
                 <div className="flex items-baseline gap-2">
                   <span className="text-2xl font-bold text-gray-900">{stats.present}</span>
-                  <div className="flex items-center gap-1 text-green-600">
-                    <TrendingUp className="h-3 w-3" />
-                    <span className="text-xs font-medium">+5.2%</span>
-                  </div>
                 </div>
-                <p className="text-xs text-gray-500">vs yesterday</p>
+                <p className="text-xs text-gray-500">employees present</p>
               </div>
             </CardContent>
           </Card>
@@ -482,12 +476,8 @@ export function AttendancePage() {
               <div className="space-y-1">
                 <div className="flex items-baseline gap-2">
                   <span className="text-2xl font-bold text-gray-900">{stats.late}</span>
-                  <div className="flex items-center gap-1 text-red-600">
-                    <TrendingDown className="h-3 w-3" />
-                    <span className="text-xs font-medium">-2.1%</span>
-                  </div>
                 </div>
-                <p className="text-xs text-gray-500">vs yesterday</p>
+                <p className="text-xs text-gray-500">late arrivals</p>
               </div>
             </CardContent>
           </Card>
@@ -505,12 +495,8 @@ export function AttendancePage() {
               <div className="space-y-1">
                 <div className="flex items-baseline gap-2">
                   <span className="text-2xl font-bold text-gray-900">{stats.absent}</span>
-                  <div className="flex items-center gap-1 text-green-600">
-                    <TrendingDown className="h-3 w-3" />
-                    <span className="text-xs font-medium">-12.5%</span>
-                  </div>
                 </div>
-                <p className="text-xs text-gray-500">vs yesterday</p>
+                <p className="text-xs text-gray-500">employees absent</p>
               </div>
             </CardContent>
           </Card>
@@ -528,10 +514,6 @@ export function AttendancePage() {
               <div className="space-y-1">
                 <div className="flex items-baseline gap-2">
                   <span className="text-2xl font-bold text-gray-900">{stats.avgHours.toFixed(1)}</span>
-                  <div className="flex items-center gap-1 text-green-600">
-                    <TrendingUp className="h-3 w-3" />
-                    <span className="text-xs font-medium">+0.3h</span>
-                  </div>
                 </div>
                 <p className="text-xs text-gray-500">hours per day</p>
               </div>

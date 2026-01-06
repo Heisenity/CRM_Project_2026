@@ -135,11 +135,15 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
       
       if (response.success && response.data?.records && response.data.records.length > 0) {
         const record = response.data.records[0]
+        // Only consider it checked in/out if the employee did it themselves (source: 'SELF')
+        const selfCheckedIn = record.source === 'SELF' && !!record.clockIn
+        const selfCheckedOut = record.source === 'SELF' && !!record.clockOut
+        
         setCurrentAttendanceStatus({
-          hasCheckedIn: !!record.clockIn,
-          hasCheckedOut: !!record.clockOut,
-          clockIn: record.clockIn,
-          clockOut: record.clockOut
+          hasCheckedIn: selfCheckedIn,
+          hasCheckedOut: selfCheckedOut,
+          clockIn: selfCheckedIn ? record.clockIn : undefined,
+          clockOut: selfCheckedOut ? record.clockOut : undefined
         })
       } else {
         setCurrentAttendanceStatus({
@@ -495,7 +499,7 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-blue-600" />
-                Today's Attendance Status
+                Today&apos;s Attendance Status
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">

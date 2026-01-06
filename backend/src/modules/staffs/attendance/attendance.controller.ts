@@ -115,6 +115,7 @@ export const getAttendanceRecords = async (req: Request, res: Response) => {
       clockIn: attendance.clockIn?.toISOString(),
       clockOut: attendance.clockOut?.toISOString(),
       status: attendance.status,
+      source: attendance.source,
       location: attendance.location,
       latitude: attendance.latitude ? Number(attendance.latitude) : undefined,
       longitude: attendance.longitude ? Number(attendance.longitude) : undefined,
