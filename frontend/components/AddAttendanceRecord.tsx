@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, Loader2, CheckCircle, AlertCircle, User, MapPin, Camera, Calendar, Info, ArrowLeft, Save, Plus } from "lucide-react"
+import { Clock, Loader2, CheckCircle, AlertCircle, User, Camera, Calendar, Info, ArrowLeft, Save, Plus } from "lucide-react"
 import { createAttendance, CreateAttendanceRequest, AttendanceRecord, createFieldEngineer } from "@/lib/server-api"
 import { EmployeeIdGenerator } from "@/components/EmployeeIdGenerator"
 
@@ -30,7 +30,6 @@ export function AddAttendanceRecord({ onRecordAdded, onBack }: AddAttendanceReco
     phone: '',
     isTeamLeader: false,
     status: 'PRESENT' as 'PRESENT' | 'LATE',
-    location: '',
     photo: ''
   })
 
@@ -54,11 +53,6 @@ export function AddAttendanceRecord({ onRecordAdded, onBack }: AddAttendanceReco
 
     if (!formData.password.trim()) {
       setError('Password is required')
-      return
-    }
-
-    if (!formData.location.trim()) {
-      setError('Location is required')
       return
     }
 
@@ -89,7 +83,7 @@ export function AddAttendanceRecord({ onRecordAdded, onBack }: AddAttendanceReco
         latitude: 0, // Default coordinates for admin entries
         longitude: 0,
         status: formData.status,
-        location: formData.location.trim(),
+        location: 'Office', // Default location for admin entries
         photo: formData.photo || undefined
       }
 
@@ -108,7 +102,7 @@ export function AddAttendanceRecord({ onRecordAdded, onBack }: AddAttendanceReco
           date: new Date().toISOString().split('T')[0],
           clockIn: response.data.timestamp,
           status: response.data.status,
-          location: formData.location,
+          location: 'Office',
           latitude: 0,
           longitude: 0,
           ipAddress: response.data.ipAddress,
@@ -134,7 +128,6 @@ export function AddAttendanceRecord({ onRecordAdded, onBack }: AddAttendanceReco
             phone: '',
             isTeamLeader: false,
             status: 'PRESENT',
-            location: '',
             photo: ''
           })
           setShowSuccess(false)
@@ -297,96 +290,7 @@ export function AddAttendanceRecord({ onRecordAdded, onBack }: AddAttendanceReco
                   </CardContent>
                 </Card>
 
-                {/* Attendance Details */}
-                <Card className="border-gray-200 shadow-sm">
-                  <CardHeader className="pb-6">
-                    <CardTitle className="flex items-center gap-3 text-xl">
-                      <div className="p-2 bg-green-50 rounded-lg">
-                        <Clock className="h-5 w-5 text-green-600" />
-                      </div>
-                      Attendance Details
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-3">
-                        <Label htmlFor="status" className="text-base font-medium text-gray-700">
-                          Status
-                        </Label>
-                        <Select value={formData.status} onValueChange={(value: 'PRESENT' | 'LATE') => 
-                          setFormData(prev => ({ ...prev, status: value }))
-                        }>
-                          <SelectTrigger className="h-12 text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="PRESENT">
-                              <div className="flex items-center gap-2">
-                                <CheckCircle className="h-4 w-4 text-green-600" />
-                                Present
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="LATE">
-                              <div className="flex items-center gap-2">
-                                <AlertCircle className="h-4 w-4 text-amber-600" />
-                                Late
-                              </div>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
 
-                      <div className="space-y-3">
-                        <Label className="text-base font-medium text-gray-700">
-                          Date & Time
-                        </Label>
-                        <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200 h-12">
-                          <Calendar className="h-5 w-5 text-gray-500" />
-                          <span className="text-base text-gray-700 font-medium">
-                            {new Date().toLocaleDateString('en-US', {
-                              weekday: 'long',
-                              month: 'long',
-                              day: 'numeric',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Location Information */}
-                <Card className="border-gray-200 shadow-sm">
-                  <CardHeader className="pb-6">
-                    <CardTitle className="flex items-center gap-3 text-xl">
-                      <div className="p-2 bg-orange-50 rounded-lg">
-                        <MapPin className="h-5 w-5 text-orange-600" />
-                      </div>
-                      Location Information
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="space-y-3">
-                      <Label htmlFor="location" className="text-base font-medium text-gray-700">
-                        Work Location <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id="location"
-                        placeholder="Enter work location (e.g., Office - Floor 3, Remote, Client Site)"
-                        value={formData.location}
-                        onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-                        className="h-12 text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                      />
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <Info className="h-4 w-4" />
-                        <span>Specify where the employee is working today</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
 
                 {/* Photo Section */}
                 <Card className="border-gray-200 shadow-sm">
@@ -432,7 +336,7 @@ export function AddAttendanceRecord({ onRecordAdded, onBack }: AddAttendanceReco
                   </Button>
                   <Button
                     type="submit"
-                    disabled={loading || !formData.employeeId.trim() || !formData.employeeName.trim() || !formData.email.trim() || !formData.password.trim() || !formData.location.trim()}
+                    disabled={loading || !formData.employeeId.trim() || !formData.employeeName.trim() || !formData.email.trim() || !formData.password.trim()}
                     className="flex-1 h-14 text-base bg-blue-600 hover:bg-blue-700 disabled:opacity-50 font-medium shadow-sm"
                   >
                     {loading ? (
@@ -503,12 +407,6 @@ export function AddAttendanceRecord({ onRecordAdded, onBack }: AddAttendanceReco
                         {new Date().toLocaleTimeString()}
                       </span>
                     </div>
-                    <div className="pt-2 border-t border-gray-200">
-                      <span className="text-gray-500 block mb-1">Location:</span>
-                      <span className="font-medium text-gray-900 text-xs">
-                        {formData.location || 'Not specified'}
-                      </span>
-                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -543,16 +441,6 @@ export function AddAttendanceRecord({ onRecordAdded, onBack }: AddAttendanceReco
                       <div>
                         <p className="text-sm font-medium text-blue-900">Automatic Timestamp</p>
                         <p className="text-xs text-blue-700 mt-1">Time will be recorded automatically when you save</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start gap-3 p-3 bg-white/60 rounded-lg border border-blue-200/50">
-                      <div className="p-1 bg-orange-100 rounded-md shrink-0 mt-0.5">
-                        <MapPin className="h-3 w-3 text-orange-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-blue-900">Location Tracking</p>
-                        <p className="text-xs text-blue-700 mt-1">Specify where the employee is working today</p>
                       </div>
                     </div>
                     

@@ -202,7 +202,7 @@ function StaffLoginCard() {
         </div>
         <CardTitle className="text-2xl font-bold text-gray-900">Staff Login</CardTitle>
         <CardDescription className="text-gray-600 text-sm">
-          Technical support and operational monitoring
+          Field engineers and technical staff access
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -640,7 +640,7 @@ export default function LandingPage({ onGetStarted, isLoggedIn = false, userProf
                     onClick={() => onGetStarted()}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-3"
                   >
-                    Go to Dashboard
+                    {userProfile.role === 'Administrator' ? 'Go to Dashboard' : 'Access Features'}
                   </Button>
                 </div>
               </div>

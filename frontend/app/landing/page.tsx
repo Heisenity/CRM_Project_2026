@@ -19,13 +19,14 @@ export default function Landing() {
 
   const handleGetStarted = (type?: string) => {
     if (isLoggedIn) {
-      // If logged in as employee, stay on landing or go to attendance
+      // Only admins can access the dashboard
       const userType = (session?.user as any)?.userType
-      if (userType === 'employee') {
-        router.push("/attendance")
-      } else {
-        // If admin, go to dashboard
+      if (userType === 'admin') {
         router.push("/dashboard")
+      } else {
+        // Employees and users stay on landing page
+        // They can access attendance features from here
+        return
       }
     } else {
       // If not logged in, go to login

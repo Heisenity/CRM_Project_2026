@@ -299,7 +299,7 @@ export type ValidateEmployeeIdResponse = {
 // Employee ID Generator API Functions
 export async function generateNextEmployeeId(): Promise<GenerateEmployeeIdResponse> {
   try {
-    const response = await fetch('/api/v1/employee-id/generate', {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employee-id/generate`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -307,7 +307,7 @@ export async function generateNextEmployeeId(): Promise<GenerateEmployeeIdRespon
     })
 
     const data = await response.json()
-    console.log('API Response:', data)
+    console.log('Generate ID response:', data)
     return data
   } catch (error) {
     console.error('Error generating employee ID:', error)
@@ -321,7 +321,7 @@ export async function generateNextEmployeeId(): Promise<GenerateEmployeeIdRespon
 
 export async function checkEmployeeIdAvailability(employeeId: string): Promise<CheckEmployeeIdAvailabilityResponse> {
   try {
-    const response = await fetch(`/api/v1/employee-id/check/${employeeId}`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employee-id/check/${employeeId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -342,7 +342,7 @@ export async function checkEmployeeIdAvailability(employeeId: string): Promise<C
 
 export async function getNextAvailableEmployeeIds(count: number = 5): Promise<GetNextAvailableIdsResponse> {
   try {
-    const response = await fetch(`/api/v1/employee-id/preview?count=${count}`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employee-id/preview?count=${count}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -363,7 +363,7 @@ export async function getNextAvailableEmployeeIds(count: number = 5): Promise<Ge
 
 export async function validateEmployeeIdFormat(employeeId: string): Promise<ValidateEmployeeIdResponse> {
   try {
-    const response = await fetch('/api/v1/employee-id/validate', {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employee-id/validate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -441,7 +441,7 @@ export async function getAllFieldEngineers(params?: {
     if (params?.status) queryParams.append('status', params.status)
     if (params?.search) queryParams.append('search', params.search)
     
-    const url = `/api/v1/field-engineers${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+    const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/field-engineers${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
     
     const response = await fetch(url, {
       method: 'GET',
@@ -464,7 +464,7 @@ export async function getAllFieldEngineers(params?: {
 
 export async function getFieldEngineerByEmployeeId(employeeId: string): Promise<GetFieldEngineerResponse> {
   try {
-    const response = await fetch(`/api/v1/field-engineers/${employeeId}`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/field-engineers/${employeeId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -485,7 +485,7 @@ export async function getFieldEngineerByEmployeeId(employeeId: string): Promise<
 
 export async function createFieldEngineer(fieldEngineer: CreateFieldEngineerRequest): Promise<CreateFieldEngineerResponse> {
   try {
-    const response = await fetch('/api/v1/field-engineers', {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/field-engineers`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

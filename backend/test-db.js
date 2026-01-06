@@ -6,7 +6,9 @@ const adapter = new PrismaMariaDb({
   user: 'TRIDIP',
   password: 'prisma_password',
   database: 'prisma_db',
-  connectionLimit: 5
+  connectionLimit: 5,
+  allowPublicKeyRetrieval: true,
+  ssl: false
 });
 
 const prisma = new PrismaClient({ adapter });
