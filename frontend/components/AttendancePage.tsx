@@ -699,19 +699,29 @@ export function AttendancePage() {
               </div>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-gray-50/80 border-b border-gray-200">
-                  <TableHead className="w-[280px] py-4 px-6 font-semibold text-gray-700">Employee</TableHead>
-                  <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Status</TableHead>
-                  <TableHead className="w-[200px] py-4 px-6 font-semibold text-gray-700">Time In</TableHead>
-                  <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Hours</TableHead>
-                  <TableHead className="w-[200px] py-4 px-6 font-semibold text-gray-700">Assigned Task</TableHead>
-                  <TableHead className="w-[180px] py-4 px-6 font-semibold text-gray-700">Location</TableHead>
-                  <TableHead className="py-4 px-6 font-semibold text-gray-700">Device Info</TableHead>
-                  <TableHead className="w-[60px] py-4 px-6"></TableHead>
-                </TableRow>
-              </TableHeader>
+            <div className="overflow-x-auto">
+              <Table className="min-w-full">
+                <TableHeader>
+                  <TableRow className="bg-gray-50/80 border-b border-gray-200">
+                    <TableHead className="w-[280px] py-4 px-6 font-semibold text-gray-700">Employee</TableHead>
+                    <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Status</TableHead>
+                    <TableHead className="w-[200px] py-4 px-6 font-semibold text-gray-700">
+                      <div className="space-y-1">
+                        <span>Time In/Out</span>
+                        <div className="flex items-center gap-2 text-xs font-normal text-gray-500">
+                          <span className="text-green-600">In</span>
+                          <span>→</span>
+                          <span className="text-orange-600">Out</span>
+                        </div>
+                      </div>
+                    </TableHead>
+                    <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Hours</TableHead>
+                    <TableHead className="w-[200px] py-4 px-6 font-semibold text-gray-700">Assigned Task</TableHead>
+                    <TableHead className="w-[180px] py-4 px-6 font-semibold text-gray-700">Location</TableHead>
+                    <TableHead className="w-[200px] py-4 px-6 font-semibold text-gray-700">Device Info</TableHead>
+                    <TableHead className="w-[60px] py-4 px-6"></TableHead>
+                  </TableRow>
+                </TableHeader>
               <TableBody>
                 {combinedData.map((record, index) => (
                   <TableRow 
@@ -755,9 +765,22 @@ export function AttendancePage() {
                     </TableCell>
                     <TableCell className="py-4 px-6">
                       <div className="space-y-1">
-                        <div className="text-sm font-semibold text-gray-900">
-                          {record.hasAttendance ? formatTime(record.clockIn) : '-'}
-                        </div>
+                        {/* Show task timing if available, otherwise show clock in time */}
+                        {record.taskStartTime && record.taskEndTime ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-green-600">
+                              {record.taskStartTime}
+                            </span>
+                            <span className="text-gray-400">→</span>
+                            <span className="text-sm font-semibold text-orange-600">
+                              {record.taskEndTime}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="text-sm font-semibold text-gray-900">
+                            {record.hasAttendance ? formatTime(record.clockIn) : '-'}
+                          </div>
+                        )}
                         <div className="text-xs text-gray-500">
                           {record.hasAttendance && record.clockIn ? new Date(record.clockIn).toLocaleDateString() : '-'}
                         </div>
@@ -791,22 +814,16 @@ export function AttendancePage() {
                               </span>
                             )}
                           </div>
-                          {/* Display task timing from attendance record */}
-                          {(record.taskStartTime || record.taskEndTime) && (
-                            <div className="flex items-center gap-2 text-xs text-gray-600">
-                              <Clock className="h-3 w-3" />
-                              <span>
-                                {record.taskStartTime && `${record.taskStartTime}`}
-                                {record.taskStartTime && record.taskEndTime && ' - '}
-                                {record.taskEndTime && `${record.taskEndTime}`}
-                              </span>
-                            </div>
-                          )}
                           {/* Display task location from attendance record */}
                           {record.taskLocation && (
                             <div className="flex items-center gap-2 text-xs text-gray-600">
-                              <MapPin className="h-3 w-3" />
-                              <span className="truncate">{record.taskLocation}</span>
+                              <MapPin className="h-3 w-3 flex-shrink-0" />
+                              <span 
+                                className="truncate max-w-[120px]"
+                                title={record.taskLocation}
+                              >
+                                {record.taskLocation}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -814,18 +831,43 @@ export function AttendancePage() {
                         <span className="text-sm text-gray-500">No task assigned</span>
                       )}
                     </TableCell>
-                    <TableCell className="py-4 px-6">
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <MapPin className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm truncate">
-                          {record.hasAttendance ? (record.location || 'Not provided') : '-'}
-                        </span>
+                    <TableCell className="py-4 px-6 max-w-[180px]">
+                      <div className="flex items-start gap-2 text-gray-600">
+                        <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                        <div className="min-w-0 flex-1">
+                          {record.hasAttendance ? (
+                            <div className="space-y-1">
+                              <span 
+                                className="text-sm text-gray-900 block truncate"
+                                title={record.location || 'Not provided'}
+                              >
+                                {record.location || 'Not provided'}
+                              </span>
+                              {/* Show task location if different from main location */}
+                              {record.taskLocation && record.taskLocation !== record.location && (
+                                <span 
+                                  className="text-xs text-gray-500 block truncate"
+                                  title={`Task: ${record.taskLocation}`}
+                                >
+                                  Task: {record.taskLocation}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-sm text-gray-500">-</span>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
-                    <TableCell className="py-4 px-6">
-                      <span className="text-sm text-gray-600 line-clamp-2">
-                        {record.hasAttendance ? (record.deviceInfo || 'Not provided') : '-'}
-                      </span>
+                    <TableCell className="py-4 px-6 max-w-[200px]">
+                      <div className="min-w-0">
+                        <span 
+                          className="text-sm text-gray-600 block truncate"
+                          title={record.hasAttendance ? (record.deviceInfo || 'Not provided') : '-'}
+                        >
+                          {record.hasAttendance ? (record.deviceInfo || 'Not provided') : '-'}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell className="py-4 px-6">
                       <DropdownMenu>
@@ -851,6 +893,7 @@ export function AttendancePage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </Card>
 
