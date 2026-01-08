@@ -15,6 +15,7 @@
     "build:shared": "npm run build --workspace=packages/shared",
     "build:frontend": "npm run build --workspace=frontend",
     "build:backend": "npm run build --workspace=backend",
+    "build:vercel": "node build-for-vercel.js",
     "start": "npm run start --workspace=frontend",
     "start:frontend": "npm run start --workspace=frontend",
     "start:backend": "npm run start --workspace=backend",
