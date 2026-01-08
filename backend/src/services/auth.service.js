@@ -1,7 +1,8 @@
 import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
+import { sessionService } from './session.service';
 class AuthService {
-    async authenticate(email, password, employeeId, adminId, userType) {
+    async authenticate(email, password, employeeId, adminId, userType, deviceInfo, ipAddress) {
         try {
             if (userType === 'admin') {
                 const admin = await prisma.admin.findFirst({
@@ -15,12 +16,15 @@ class AuthService {
                 if (!admin || !await bcrypt.compare(password, admin.password)) {
                     return null;
                 }
+                // Create session for admin
+                const session = await sessionService.createSession(admin.id, 'ADMIN', deviceInfo, ipAddress);
                 return {
                     id: admin.id,
                     email: admin.email,
                     name: admin.name,
                     adminId: admin.adminId,
-                    userType: 'admin'
+                    userType: 'admin',
+                    sessionToken: session.sessionToken
                 };
             }
             else if (userType === 'employee') {
@@ -38,12 +42,15 @@ class AuthService {
                 if (!employee || password !== employee.password) {
                     return null;
                 }
+                // Create session for employee
+                const session = await sessionService.createSession(employee.id, 'EMPLOYEE', deviceInfo, ipAddress);
                 return {
                     id: employee.id,
                     email: employee.email,
                     name: employee.name,
                     employeeId: employee.employeeId,
-                    userType: 'employee'
+                    userType: 'employee',
+                    sessionToken: session.sessionToken
                 };
             }
             return null;

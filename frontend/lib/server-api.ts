@@ -969,6 +969,35 @@ export async function updateTeamMembers(teamId: string, updateData: UpdateTeamMe
   }
 }
 
+export type DeleteTeamResponse = {
+  success: boolean
+  message: string
+  error?: string
+}
+
+export async function deleteTeam(teamId: string): Promise<DeleteTeamResponse> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/teams/${teamId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+
+    if (!res.ok) {
+      throw new Error(response.error || `Failed to delete team: ${res.status}`)
+    }
+
+    return response
+  } catch (error) {
+    console.error('deleteTeam error:', error)
+    throw error
+  }
+}
+
 export type GetEmployeeTasksResponse = {
   success: boolean
   data?: {

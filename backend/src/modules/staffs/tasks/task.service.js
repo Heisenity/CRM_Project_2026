@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getCoordinatesFromLocation, getCoordinatesFromMapMyIndia } from "@/utils/geolocation";
 // Create a new task and update attendance record
 export async function createTask(data) {
     try {
@@ -20,6 +21,23 @@ export async function createTask(data) {
             startDateTime.setHours(startHour, startMinute, 0, 0);
             const endDateTime = new Date(today);
             endDateTime.setHours(endHour, endMinute, 0, 0);
+            // If start and end times are the same or end is before start, adjust end time
+            if (endDateTime <= startDateTime) {
+                // Set end time to 8 hours after start time (default work day)
+                endDateTime.setTime(startDateTime.getTime() + (8 * 60 * 60 * 1000));
+                console.log(`Adjusted end time for employee ${data.employeeId}: ${startDateTime.toLocaleTimeString()} - ${endDateTime.toLocaleTimeString()}`);
+            }
+            // Try geocoding with OpenStreetMap first, then fallback to MapMyIndia
+            let geo = await getCoordinatesFromLocation(data.location);
+            if (!geo) {
+                console.log(`OpenStreetMap geocoding failed for "${data.location}", trying MapMyIndia...`);
+                geo = await getCoordinatesFromMapMyIndia(data.location);
+            }
+            if (!geo) {
+                console.error(`Both geocoding services failed for location: "${data.location}"`);
+                throw new Error('UNABLE_TO_GEOCODE_TASK_LOCATION');
+            }
+            console.log(`Successfully geocoded "${data.location}" to coordinates: ${geo.latitude}, ${geo.longitude}`);
             // Create or update daily location
             await prisma.dailyLocation.upsert({
                 where: {
@@ -29,8 +47,8 @@ export async function createTask(data) {
                     }
                 },
                 update: {
-                    latitude: 0, // Default coordinates - will be updated when admin sets specific location
-                    longitude: 0,
+                    latitude: geo.latitude,
+                    longitude: geo.longitude,
                     radius: 100,
                     address: data.location,
                     city: data.location,
@@ -43,8 +61,8 @@ export async function createTask(data) {
                 create: {
                     employeeId: employee.id,
                     date: today,
-                    latitude: 0, // Default coordinates - will be updated when admin sets specific location
-                    longitude: 0,
+                    latitude: geo.latitude,
+                    longitude: geo.longitude,
                     radius: 100,
                     address: data.location,
                     city: data.location,
@@ -54,7 +72,7 @@ export async function createTask(data) {
                     assignedBy: data.assignedBy
                 }
             });
-            console.log(`Created/updated dailyLocation for employee ${data.employeeId} at ${data.location}`);
+            console.log(`Created/updated dailyLocation for employee ${data.employeeId} at ${data.location} (${startDateTime.toLocaleTimeString()} - ${endDateTime.toLocaleTimeString()})`);
         }
         // Create the task
         const task = await prisma.task.create({
@@ -405,6 +423,41 @@ export async function resetAttendanceAttempts(employeeId) {
     }
     catch (error) {
         console.error('Error resetting attendance attempts:', error);
+        throw error;
+    }
+}
+// Function to fix daily locations with same start/end times
+export async function fixDailyLocationTimes() {
+    try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        // Find daily locations where start time equals end time
+        const problematicLocations = await prisma.dailyLocation.findMany({
+            where: {
+                date: today,
+                // This will find locations where start and end times are the same
+            }
+        });
+        for (const location of problematicLocations) {
+            const startTime = new Date(location.startTime);
+            const endTime = new Date(location.endTime);
+            if (endTime <= startTime) {
+                // Set end time to 8 hours after start time
+                const newEndTime = new Date(startTime.getTime() + (8 * 60 * 60 * 1000));
+                await prisma.dailyLocation.update({
+                    where: { id: location.id },
+                    data: {
+                        endTime: newEndTime,
+                        updatedAt: new Date()
+                    }
+                });
+                console.log(`Fixed daily location for employee: ${startTime.toLocaleTimeString()} - ${newEndTime.toLocaleTimeString()}`);
+            }
+        }
+        console.log(`Fixed ${problematicLocations.length} daily location time issues`);
+    }
+    catch (error) {
+        console.error('Error fixing daily location times:', error);
         throw error;
     }
 }

@@ -1,37 +1,55 @@
 // modules/staffs/attendance/attendance.route.ts
-import { Router } from 'express';
-import { detectDevice, getLocationData, createAttendance, checkRemainingAttempts, getAssignedLocation, getAttendanceRecords } from '@/modules/staffs/attendance/attendance.controller';
+import { Router } from "express";
+import { createAttendance, detectDevice, getLocationData, checkRemainingAttempts, getAssignedLocation, getAttendanceRecords, deleteAttendanceRecord, } from "@/modules/staffs/attendance/attendance.controller";
+import { exportAttendanceToExcel, exportAttendanceToPDF, } from "@/modules/staffs/attendance/attendance.export";
 const router = Router();
-// Get attendance records - GET (this will be mounted at /attendance, so this becomes /attendance/)
-router.get('/', (req, res) => {
-    return getAttendanceRecords(req, res);
-});
-// Attendance endpoint - POST (this will be mounted at /attendance, so this becomes /attendance/)
-router.post('/', (req, res) => {
-    return createAttendance(req, res);
-});
-// Check remaining attempts for location validation
-router.get('/attempts/:employeeId', (req, res) => {
-    return checkRemainingAttempts(req, res);
-});
-// Get assigned location for today
-router.get('/assigned-location/:employeeId', (req, res) => {
-    return getAssignedLocation(req, res);
-});
-// Device detection endpoint
-router.get('/device', (req, res) => {
-    return detectDevice(req, res);
-});
-// Location data endpoint - GET with query parameters
-router.get('/location', (req, res) => {
-    return getLocationData(req, res);
-});
-// Location data endpoint - POST
-router.post('/location', (req, res) => {
-    return getLocationData(req, res);
-});
-// Location data endpoint - URL params
-router.get('/location/:latitude/:longitude', (req, res) => {
-    return getLocationData(req, res);
-});
+/**
+ * =========================
+ * Attendance Core
+ * =========================
+ */
+// Get attendance records
+// GET /attendance
+router.get("/", getAttendanceRecords);
+// Mark attendance (with location validation)
+// POST /attendance
+router.post("/", createAttendance);
+// Delete attendance record
+// DELETE /attendance/:id
+router.delete("/:id", deleteAttendanceRecord);
+// Detect device (browser, OS, etc.)
+// GET /attendance/device
+router.get("/device", detectDevice);
+// Resolve location data (lat/lng → address)
+// Supports:
+//  - GET /attendance/location?latitude=..&longitude=..
+//  - POST /attendance/location
+//  - GET /attendance/location/:latitude/:longitude
+router
+    .route("/location")
+    .get(getLocationData)
+    .post(getLocationData);
+router.get("/location/:latitude/:longitude", getLocationData);
+/**
+ * =========================
+ * Location & Validation
+ * =========================
+ */
+// Check remaining location validation attempts
+// GET /attendance/attempts/:employeeId
+router.get("/attempts/:employeeId", checkRemainingAttempts);
+// Get assigned location for employee (today)
+// GET /attendance/assigned-location/:employeeId
+router.get("/assigned-location/:employeeId", getAssignedLocation);
+/**
+ * =========================
+ * Export Functions
+ * =========================
+ */
+// Export attendance to Excel
+// GET /attendance/export/excel
+router.get("/export/excel", exportAttendanceToExcel);
+// Export attendance to PDF
+// GET /attendance/export/pdf", exportAttendanceToPDF);
+router.get("/export/pdf", exportAttendanceToPDF);
 export default router;

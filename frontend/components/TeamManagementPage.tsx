@@ -6,10 +6,9 @@ import {
   Users,
   Plus,
   Shield,
-  Edit,
   Trash2
 } from "lucide-react"
-import { getAllTeams, Team } from "@/lib/server-api"
+import { getAllTeams, Team, deleteTeam } from "@/lib/server-api"
 import { CreateTeamPage } from "./CreateTeamPage"
 
 type ViewMode = 'list' | 'create'
@@ -18,6 +17,7 @@ export function TeamManagementPage() {
   const [teams, setTeams] = React.useState<Team[]>([])
   const [loading, setLoading] = React.useState(true)
   const [viewMode, setViewMode] = React.useState<ViewMode>('list')
+  const [deletingTeamId, setDeletingTeamId] = React.useState<string | null>(null)
 
   // Fetch teams on component mount
   React.useEffect(() => {
@@ -40,6 +40,30 @@ export function TeamManagementPage() {
 
   const handleTeamCreated = () => {
     fetchTeams() // Refresh the teams list
+  }
+
+  const handleDeleteTeam = async (teamId: string, teamName: string) => {
+    if (!confirm(`Are you sure you want to delete the team "${teamName}"? This action cannot be undone and will remove all members from the team.`)) {
+      return
+    }
+
+    try {
+      setDeletingTeamId(teamId)
+      const response = await deleteTeam(teamId)
+      
+      if (response.success) {
+        // Remove the team from the local state
+        setTeams(prevTeams => prevTeams.filter(team => team.id !== teamId))
+        alert('Team deleted successfully')
+      } else {
+        alert(response.error || 'Failed to delete team')
+      }
+    } catch (error) {
+      console.error('Error deleting team:', error)
+      alert('Failed to delete team. Please try again.')
+    } finally {
+      setDeletingTeamId(null)
+    }
   }
 
   if (viewMode === 'create') {
@@ -118,10 +142,13 @@ export function TeamManagementPage() {
                       {team.name}
                     </CardTitle>
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-600 hover:text-red-700">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleDeleteTeam(team.id, team.name)}
+                        disabled={deletingTeamId === team.id}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>

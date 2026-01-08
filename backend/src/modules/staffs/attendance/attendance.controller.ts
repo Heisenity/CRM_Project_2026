@@ -2,7 +2,7 @@
 import { Request, Response } from 'express'
 import { prisma } from '@/lib/prisma'
 import { getDeviceInfo } from '@/utils/deviceinfo'
-import { getHumanReadableLocation, getCoordinatesFromLocation } from '@/utils/geolocation'
+import { getHumanReadableLocation, getCoordinatesFromMapMyIndia } from '@/utils/geolocation'
 import { createAttendanceRecord, getRemainingAttempts, getTodayAssignedLocation } from './attendance.service'
 import { GeolocationCoordinates } from './attendance.types'
 
@@ -279,7 +279,7 @@ export const getLocationData = async (req: Request, res: Response) => {
     
     // For locationData, we can use the coordinates string format for forward geocoding if needed
     const coordinatesString = `${latitude},${longitude}`
-    const locationData = await getCoordinatesFromLocation(coordinatesString)
+    const locationData = await getCoordinatesFromMapMyIndia(coordinatesString)
 
     const response = {
       success: true,

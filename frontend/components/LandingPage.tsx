@@ -9,7 +9,6 @@ import { signOut, signIn } from "next-auth/react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { 
-  Package, 
   Headphones, 
   Phone,
   Mail,
@@ -19,6 +18,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react"
+import Image from "next/image"
 
 interface LandingPageProps {
   onGetStarted: (type?: string) => void
@@ -508,15 +508,19 @@ export default function LandingPage({ onGetStarted, isLoggedIn = false, userProf
       <nav className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 bg-card/90 backdrop-blur-md rounded-full px-8 py-3 shadow-lg border border-border">
         <div className="flex items-center space-x-8">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-linear-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-              <Package className="h-4 w-4 text-white" />
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center">
+              <Image 
+                src="/Media_Infotech.webp" 
+                alt="MediaTechInfo Logo" 
+                width={40} 
+                height={40}
+                className="rounded-lg object-contain"
+                priority
+              />
             </div>
-            <span className="font-bold text-foreground">Mediainfotech</span>
+            <span className="font-bold text-foreground">MediaTechInfo</span>
           </div>
-          <div className="hidden md:flex space-x-6 text-sm">
-            <a href="#login" className="text-muted-foreground hover:text-blue-600 transition-colors">Login</a>
-            <a href="#contact" className="text-muted-foreground hover:text-blue-600 transition-colors">Contact</a>
-          </div>
+  
         </div>
       </nav>
 
@@ -609,13 +613,20 @@ export default function LandingPage({ onGetStarted, isLoggedIn = false, userProf
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center space-x-2 mb-4 md:mb-0">
-              <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
-                <Package className="h-4 w-4 text-white" />
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center">
+                <Image 
+                  src="/Media_Infotech.webp" 
+                  alt="MediaTechInfo Logo" 
+                  width={40} 
+                  height={40}
+                  className="rounded-lg object-contain"
+                  priority
+                />
               </div>
-              <span className="font-bold text-white">Mediacomputer</span>
+              <span className="font-bold text-white">MediaTechInfo</span>
             </div>
             <div className="text-center md:text-right">
-              <p>&copy; 2026 Mediacomputer. Internal Management System.</p>
+              <p>&copy; 2026 MediaTechInfo. Internal Management System.</p>
               <p className="text-sm mt-1">For authorized personnel only. Secure access required.</p>
             </div>
           </div>

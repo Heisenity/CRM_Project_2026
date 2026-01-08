@@ -258,14 +258,16 @@ export const exportAttendanceToExcel = async (req: Request, res: Response) => {
 
     // Auto-fit columns
     worksheet.columns.forEach((column) => {
-      let maxLength = 0
-      column.eachCell({ includeEmpty: true }, (cell) => {
-        const columnLength = cell.value ? cell.value.toString().length : 10
-        if (columnLength > maxLength) {
-          maxLength = columnLength
-        }
-      })
-      column.width = Math.min(maxLength + 2, 50) // Max width of 50
+      if (column && column.eachCell) {
+        let maxLength = 0
+        column.eachCell({ includeEmpty: true }, (cell) => {
+          const columnLength = cell.value ? cell.value.toString().length : 10
+          if (columnLength > maxLength) {
+            maxLength = columnLength
+          }
+        })
+        column.width = Math.min(maxLength + 2, 50) // Max width of 50
+      }
     })
 
     // Add summary at the top

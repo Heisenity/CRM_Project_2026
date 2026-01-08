@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { getTeams, getTeam, createNewTeam, updateTeam } from './team.controller';
+import { getTeams, getTeam, createNewTeam, updateTeam, deleteTeamById } from './team.controller';
 
 const router = Router();
 
@@ -21,6 +21,11 @@ router.post('/', (req: Request, res: Response) => {
 // Update team members
 router.put('/:id/members', (req: Request, res: Response) => {
   return updateTeam(req, res);
+});
+
+// Delete team
+router.delete('/:id', (req: Request, res: Response) => {
+  return deleteTeamById(req, res);
 });
 
 export default router;

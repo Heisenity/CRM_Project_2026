@@ -251,3 +251,30 @@ export async function updateTeamMembers(
 
   return await getTeamById(teamId);
 }
+
+export async function deleteTeam(teamId: string): Promise<boolean> {
+  try {
+    // First, remove all members from this team
+    await prisma.fieldEngineer.updateMany({
+      where: {
+        teamId: teamId
+      },
+      data: {
+        teamId: null,
+        isTeamLeader: false
+      }
+    });
+
+    // Delete the team
+    await prisma.team.delete({
+      where: {
+        id: teamId
+      }
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Error deleting team:', error);
+    throw error;
+  }
+}

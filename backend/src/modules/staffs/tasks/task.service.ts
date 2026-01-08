@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getCoordinatesFromLocation } from "@/utils/geolocation";
+import { getCoordinatesFromMapMyIndia } from "@/utils/geolocation";
 
 export type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 
@@ -47,6 +47,8 @@ export async function createTask(data: CreateTaskData): Promise<TaskRecord> {
 
     // Create or update dailyLocation record for today (required for attendance validation)
     if (data.location && data.startTime && data.endTime) {
+      console.log(`Processing task location: "${data.location}" for employee ${data.employeeId}`);
+      
       // Parse start and end times
       const [startHour, startMinute] = data.startTime.split(':').map(Number);
       const [endHour, endMinute] = data.endTime.split(':').map(Number);
@@ -64,12 +66,29 @@ export async function createTask(data: CreateTaskData): Promise<TaskRecord> {
         console.log(`Adjusted end time for employee ${data.employeeId}: ${startDateTime.toLocaleTimeString()} - ${endDateTime.toLocaleTimeString()}`);
       }
 
-      const geo = await getCoordinatesFromLocation(data.location);
+      // Geocode location using MapMyIndia
+      const geo = await getCoordinatesFromMapMyIndia(data.location);
 
       if (!geo) {
+        console.error(`MapMyIndia geocoding failed for location: "${data.location}"`);
         throw new Error('UNABLE_TO_GEOCODE_TASK_LOCATION');
       }
 
+      console.log(`Successfully geocoded "${data.location}" to coordinates: ${geo.latitude}, ${geo.longitude}`);
+
+      // Use dynamic radius based on geocoding accuracy
+      // If we got exact coordinates, use smaller radius; if fallback/area-based, use larger radius
+      let radius = geo.estimatedRadiusMeters || 100;
+      
+      // For fallback coordinates (low confidence), use larger radius
+      if (geo.importance && geo.importance < 0.5) {
+        radius = Math.max(radius, 2000); // At least 2km for low confidence geocoding
+      }
+      
+      // Ensure minimum radius for practical GPS accuracy
+      radius = Math.max(radius, 500); // Minimum 500m for real-world GPS variations
+      
+      console.log(`Using radius: ${radius}m for location "${data.location}" (granularity: ${geo.granularity}, confidence: ${geo.importance})`);
 
       // Create or update daily location
       await prisma.dailyLocation.upsert({
@@ -82,7 +101,7 @@ export async function createTask(data: CreateTaskData): Promise<TaskRecord> {
         update: {
           latitude: geo.latitude,
           longitude: geo.longitude,
-          radius: 100,
+          radius: radius,
           address: data.location,
           city: data.location,
           state: "Task Location",
@@ -96,7 +115,7 @@ export async function createTask(data: CreateTaskData): Promise<TaskRecord> {
           date: today,
           latitude: geo.latitude,
           longitude: geo.longitude,
-          radius: 100,
+          radius: radius,
           address: data.location,
           city: data.location,
           state: "Task Location",
@@ -161,15 +180,15 @@ export async function createTask(data: CreateTaskData): Promise<TaskRecord> {
       taskLocation: data.location,
       location: data.location || "Task Assignment",
       status: attendanceStatus, // This will be PRESENT or LATE
+      source: 'ADMIN' as const, // Mark as admin task assignment
       updatedAt: currentTime
     };
 
     if (existingAttendance) {
       // Update existing attendance record with task assignment and timing
-      // If no clockIn time exists, set it to current time
+      // DO NOT automatically set clockIn - employee must check in themselves
       const updateData = {
-        ...attendanceData,
-        ...(existingAttendance.clockIn ? {} : { clockIn: currentTime })
+        ...attendanceData
       };
 
       console.log(`Updating attendance for employee ${data.employeeId} with status: ${attendanceStatus}`);
@@ -180,13 +199,14 @@ export async function createTask(data: CreateTaskData): Promise<TaskRecord> {
       });
     } else {
       // Create new attendance record with task assignment and timing
+      // DO NOT automatically set clockIn - employee must check in themselves
       console.log(`Creating new attendance record for employee ${data.employeeId} with status: ${attendanceStatus}`);
 
       await prisma.attendance.create({
         data: {
           employeeId: employee.id,
           date: today,
-          clockIn: currentTime, // Set clockIn time when task is assigned
+          // clockIn: null, // Employee must check in themselves
           attemptCount: 'ZERO',
           ...attendanceData
         }

@@ -5,7 +5,7 @@ import {
 } from './attendance.types'
 import {
   getHumanReadableLocation,
-  getCoordinatesFromLocation,
+  getCoordinatesFromMapMyIndia,
   calculateDistanceMeters
 } from '@/utils/geolocation'
 import { getDeviceInfo } from '@/utils/deviceinfo'
@@ -123,9 +123,9 @@ async function validateLocationByArea(
   assignedLocationText: string
 ): Promise<ValidationResult> {
   try {
-    // Use reverse geocoding by calling getCoordinatesFromLocation with coordinate string
+    // Use reverse geocoding by calling getCoordinatesFromMapMyIndia with coordinate string
     const coordinatesString = `${userCoordinates.latitude},${userCoordinates.longitude}`
-    const userLocation = await getCoordinatesFromLocation(coordinatesString)
+    const userLocation = await getCoordinatesFromMapMyIndia(coordinatesString)
     
     if (!userLocation) {
       return { isMatch: false, confidence: 'none', details: 'Could not reverse geocode user coordinates', code: 'LOCATION_SERVICE_ERROR' }

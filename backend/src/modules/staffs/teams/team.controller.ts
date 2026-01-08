@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { getAllTeams, getTeamById, createTeam, createTeamWithMembers, updateTeamMembers } from './team.service';
+import { getAllTeams, getTeamById, createTeam, createTeamWithMembers, updateTeamMembers, deleteTeam } from './team.service';
 
 export const getTeams = async (req: Request, res: Response) => {
   try {
@@ -147,6 +147,42 @@ export const updateTeam = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to update team',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+export const deleteTeamById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Team ID is required'
+      });
+    }
+
+    // Check if team exists
+    const team = await getTeamById(id);
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        message: 'Team not found'
+      });
+    }
+
+    await deleteTeam(id);
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Team deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting team:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to delete team',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }

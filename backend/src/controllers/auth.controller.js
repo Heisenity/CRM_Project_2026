@@ -1,4 +1,5 @@
 import { authService } from '../services/auth.service';
+import { sessionService } from '../services/session.service';
 class AuthController {
     async login(req, res) {
         try {
@@ -12,7 +13,10 @@ class AuthController {
             if (userType === 'admin' && !adminId) {
                 return res.status(400).json({ error: 'Admin ID is required for admin login' });
             }
-            const user = await authService.authenticate(email, password, employeeId, adminId, userType);
+            // Get device info and IP
+            const deviceInfo = req.headers['user-agent'];
+            const ipAddress = req.ip || req.connection.remoteAddress;
+            const user = await authService.authenticate(email, password, employeeId, adminId, userType, deviceInfo, ipAddress);
             if (!user) {
                 return res.status(401).json({ error: 'Invalid credentials' });
             }
@@ -20,6 +24,49 @@ class AuthController {
         }
         catch (error) {
             console.error('Login error:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+    async logout(req, res) {
+        try {
+            const { sessionToken } = req.body;
+            if (!sessionToken) {
+                return res.status(400).json({ error: 'Session token is required' });
+            }
+            await sessionService.invalidateSession(sessionToken);
+            res.json({ message: 'Logged out successfully' });
+        }
+        catch (error) {
+            console.error('Logout error:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+    async logoutAll(req, res) {
+        try {
+            const { userId, userType } = req.body;
+            if (!userId || !userType) {
+                return res.status(400).json({ error: 'User ID and user type are required' });
+            }
+            await sessionService.invalidateAllUserSessions(userId, userType.toUpperCase());
+            res.json({ message: 'Logged out from all devices successfully' });
+        }
+        catch (error) {
+            console.error('Logout all error:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+    async getSessions(req, res) {
+        try {
+            const { userId } = req.params;
+            const { userType } = req.query;
+            if (!userId || !userType) {
+                return res.status(400).json({ error: 'User ID and user type are required' });
+            }
+            const sessions = await sessionService.getActiveSessions(userId, userType.toString().toUpperCase());
+            res.json(sessions);
+        }
+        catch (error) {
+            console.error('Get sessions error:', error);
             res.status(500).json({ error: 'Internal server error' });
         }
     }
