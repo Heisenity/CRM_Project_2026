@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { getAllVehicles, getAllPetrolBills, createVehicle, deleteVehicle, Vehicle, PetrolBill } from "@/lib/server-api"
+import { showToast, showConfirm } from "@/lib/toast-utils"
 import {
   Car,
   Plus,
@@ -108,7 +109,7 @@ export function VehiclesPage() {
     e.preventDefault()
     
     if (!vehicleForm.vehicleNumber || !vehicleForm.make || !vehicleForm.model) {
-      alert('Please fill in all required fields')
+      showToast.error('Please fill in all required fields')
       return
     }
 
@@ -143,37 +144,39 @@ export function VehiclesPage() {
         // Refresh data
         await fetchData()
         
-        alert('Vehicle added successfully!')
+        showToast.success('Vehicle added successfully!')
       } else {
-        alert(response.error || 'Failed to add vehicle')
+        showToast.error(response.error || 'Failed to add vehicle')
       }
     } catch (error) {
       console.error('Error adding vehicle:', error)
-      alert('Failed to add vehicle: ' + (error instanceof Error ? error.message : 'Unknown error'))
+      showToast.error('Failed to add vehicle: ' + (error instanceof Error ? error.message : 'Unknown error'))
     } finally {
       setSubmitting(false)
     }
   }
 
   const handleDeleteVehicle = async (vehicleId: string, vehicleNumber: string) => {
-    if (!confirm(`Are you sure you want to delete vehicle ${vehicleNumber}? This action cannot be undone.`)) {
-      return
-    }
-
-    try {
-      const response = await deleteVehicle(vehicleId)
-      
-      if (response.success) {
-        // Refresh data
-        await fetchData()
-        alert('Vehicle deleted successfully!')
-      } else {
-        alert(response.error || 'Failed to delete vehicle')
-      }
-    } catch (error) {
-      console.error('Error deleting vehicle:', error)
-      alert('Failed to delete vehicle: ' + (error instanceof Error ? error.message : 'Unknown error'))
-    }
+    showConfirm(
+      `Are you sure you want to delete vehicle ${vehicleNumber}? This action cannot be undone.`,
+      async () => {
+        try {
+          const response = await deleteVehicle(vehicleId)
+          
+          if (response.success) {
+            // Refresh data
+            await fetchData()
+            showToast.success('Vehicle deleted successfully!')
+          } else {
+            showToast.error(response.error || 'Failed to delete vehicle')
+          }
+        } catch (error) {
+          console.error('Error deleting vehicle:', error)
+          showToast.error('Failed to delete vehicle: ' + (error instanceof Error ? error.message : 'Unknown error'))
+        }
+      },
+      'Delete Vehicle'
+    )
   }
 
   const filteredVehicles = React.useMemo(() => {

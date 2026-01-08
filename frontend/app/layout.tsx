@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AuthProvider } from "@/components/providers/session-provider";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { Toaster } from "@/components/ui/toaster";
 
 interface CustomUser {
   id: string
@@ -76,6 +77,7 @@ export default function RootLayout({
       >
         <AuthProvider>
           <LayoutContent>{children}</LayoutContent>
+          <Toaster />
         </AuthProvider>
       </body>
     </html>

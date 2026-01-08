@@ -132,7 +132,7 @@ export function EmployeeSelector({
           {/* Employee ID Generator - Only Method */}
           <EmployeeIdGenerator
             value={selectedEmployeeId}
-            onChange={(value) => onEmployeeChange(value, '')}
+            onChange={(value) => onEmployeeChange(value)}
             disabled={disabled}
           />
 

@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 import { getAllTeams, Team, deleteTeam } from "@/lib/server-api"
 import { CreateTeamPage } from "./CreateTeamPage"
+import { showToast, showConfirm } from "@/lib/toast-utils"
 
 type ViewMode = 'list' | 'create'
 
@@ -43,27 +44,29 @@ export function TeamManagementPage() {
   }
 
   const handleDeleteTeam = async (teamId: string, teamName: string) => {
-    if (!confirm(`Are you sure you want to delete the team "${teamName}"? This action cannot be undone and will remove all members from the team.`)) {
-      return
-    }
-
-    try {
-      setDeletingTeamId(teamId)
-      const response = await deleteTeam(teamId)
-      
-      if (response.success) {
-        // Remove the team from the local state
-        setTeams(prevTeams => prevTeams.filter(team => team.id !== teamId))
-        alert('Team deleted successfully')
-      } else {
-        alert(response.error || 'Failed to delete team')
-      }
-    } catch (error) {
-      console.error('Error deleting team:', error)
-      alert('Failed to delete team. Please try again.')
-    } finally {
-      setDeletingTeamId(null)
-    }
+    showConfirm(
+      `Are you sure you want to delete the team "${teamName}"? This action cannot be undone and will remove all members from the team.`,
+      async () => {
+        try {
+          setDeletingTeamId(teamId)
+          const response = await deleteTeam(teamId)
+          
+          if (response.success) {
+            // Remove the team from the local state
+            setTeams(prevTeams => prevTeams.filter(team => team.id !== teamId))
+            showToast.success('Team deleted successfully')
+          } else {
+            showToast.error(response.error || 'Failed to delete team')
+          }
+        } catch (error) {
+          console.error('Error deleting team:', error)
+          showToast.error('Failed to delete team. Please try again.')
+        } finally {
+          setDeletingTeamId(null)
+        }
+      },
+      'Delete Team'
+    )
   }
 
   if (viewMode === 'create') {

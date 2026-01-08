@@ -18,6 +18,7 @@ import {
   Plus
 } from "lucide-react"
 import { getAllEmployees, Employee, createTeam, CreateTeamRequest } from "@/lib/server-api"
+import { showToast } from "@/lib/toast-utils"
 
 interface CreateTeamPageProps {
   onBack: () => void
@@ -92,17 +93,17 @@ export function CreateTeamPage({ onBack, onTeamCreated }: CreateTeamPageProps) {
     e.preventDefault()
     
     if (!teamData.name.trim()) {
-      alert('Please enter a team name')
+      showToast.error('Please enter a team name')
       return
     }
 
     if (selectedEmployees.size === 0) {
-      alert('Please select at least one employee for the team')
+      showToast.error('Please select at least one employee for the team')
       return
     }
 
     if (teamLeaderId && !selectedEmployees.has(teamLeaderId)) {
-      alert('Team leader must be one of the selected members')
+      showToast.error('Team leader must be one of the selected members')
       return
     }
 
@@ -119,7 +120,7 @@ export function CreateTeamPage({ onBack, onTeamCreated }: CreateTeamPageProps) {
       const response = await createTeam(teamRequest)
       
       if (response.success) {
-        alert(`Team "${teamData.name}" created successfully with ${selectedEmployees.size} member${selectedEmployees.size !== 1 ? 's' : ''}!`)
+        showToast.success(`Team "${teamData.name}" created successfully with ${selectedEmployees.size} member${selectedEmployees.size !== 1 ? 's' : ''}!`)
         if (onTeamCreated) {
           onTeamCreated()
         }
@@ -129,7 +130,7 @@ export function CreateTeamPage({ onBack, onTeamCreated }: CreateTeamPageProps) {
       }
     } catch (error) {
       console.error('Error creating team:', error)
-      alert('Failed to create team. Please try again.')
+      showToast.error('Failed to create team. Please try again.')
     } finally {
       setSubmitting(false)
     }

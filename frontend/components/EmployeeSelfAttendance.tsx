@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useSession } from "next-auth/react"
+import { showToast } from "@/lib/toast-utils"
 import {
   Camera,
   MapPin,
@@ -336,7 +337,7 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
         }
       }
 
-      alert(errorMessage)
+      showToast.error(errorMessage)
     } finally {
       setCameraLoading(false)
     }
@@ -360,40 +361,40 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
 
   const markAttendance = async (type: 'check-in' | 'check-out') => {
     if (!employeeId.trim()) {
-      alert('Please enter your Employee ID')
+      showToast.error('Please enter your Employee ID')
       return
     }
 
     if (!cameraActive) {
-      alert('Please start the camera first')
+      showToast.error('Please start the camera first')
       return
     }
 
     if (isLocked) {
-      alert('Your attendance is locked due to multiple failed location attempts. Contact your administrator.')
+      showToast.error('Your attendance is locked due to multiple failed location attempts. Contact your administrator.')
       return
     }
 
     if (!userLocationInfo && !locationInfo) {
-      alert('Please get your current location first')
+      showToast.error('Please get your current location first')
       return
     }
 
     // Check if trying to check-in when already checked in
     if (type === 'check-in' && currentAttendanceStatus?.hasCheckedIn) {
-      alert('You have already checked in today.')
+      showToast.warning('You have already checked in today.')
       return
     }
 
     // Check if trying to check-out without checking in first
     if (type === 'check-out' && !currentAttendanceStatus?.hasCheckedIn) {
-      alert('You need to check in first before checking out.')
+      showToast.warning('You need to check in first before checking out.')
       return
     }
 
     // Check if trying to check-out when already checked out
     if (type === 'check-out' && currentAttendanceStatus?.hasCheckedOut) {
-      alert('You have already checked out today.')
+      showToast.warning('You have already checked out today.')
       return
     }
 
@@ -437,6 +438,12 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
           status: type
         }
 
+        // Show success toast
+        showToast.success(
+          `${type === 'check-in' ? 'Check-in' : 'Check-out'} successful!`,
+          'Attendance Marked'
+        )
+
         onAttendanceMarked?.(attendanceData)
         setAttendanceMarked(true)
         stopCamera()
@@ -473,7 +480,7 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
     } catch (error) {
       console.error('Error marking attendance:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      alert(`Failed to mark attendance: ${errorMessage}`)
+      showToast.error(`Failed to mark attendance: ${errorMessage}`)
 
       // Refresh attempts after error
       if (employeeId.trim()) {

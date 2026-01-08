@@ -20,6 +20,7 @@ import {
   Car
 } from "lucide-react"
 import { getAllEmployees, Employee, assignTask, CreateTaskRequest, getAllTeams, Team, getAllVehicles, Vehicle, assignVehicle } from "@/lib/server-api"
+import { showToast } from "@/lib/toast-utils"
 
 interface AssignTaskPageProps {
   onBack: () => void
@@ -104,17 +105,17 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
     e.preventDefault()
     
     if (!taskData.title || !taskData.description) {
-      alert('Please fill in all required fields')
+      showToast.error('Please fill in all required fields')
       return
     }
 
     if (assignmentType === 'team' && !selectedTeam) {
-      alert('Please select a team')
+      showToast.error('Please select a team')
       return
     }
 
     if (assignmentType === 'individual' && !selectedEmployee) {
-      alert('Please select an employee')
+      showToast.error('Please select an employee')
       return
     }
 
@@ -149,10 +150,10 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
         }
 
         if (assignmentType === 'team') {
-          alert(`Task assigned successfully to team "${response.data?.teamName}" with ${response.data?.memberCount} members! All team members' attendance status has been automatically updated to PRESENT.`)
+          showToast.success(`Task assigned successfully to team "${response.data?.teamName}" with ${response.data?.memberCount} members! All team members' attendance status has been automatically updated to PRESENT.`)
         } else {
           const vehicleMessage = selectedVehicle && selectedVehicle !== "none" ? ' Vehicle has also been assigned to the employee.' : ''
-          alert(`Task assigned successfully! Employee attendance status has been automatically updated to PRESENT.${vehicleMessage}`)
+          showToast.success(`Task assigned successfully! Employee attendance status has been automatically updated to PRESENT.${vehicleMessage}`)
         }
         
         if (onTaskAssigned) {
@@ -164,7 +165,7 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
       }
     } catch (error) {
       console.error('Error assigning task:', error)
-      alert('Failed to assign task. Please try again.')
+      showToast.error('Failed to assign task. Please try again.')
     } finally {
       setSubmitting(false)
     }

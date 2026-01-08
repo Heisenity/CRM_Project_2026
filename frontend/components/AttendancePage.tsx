@@ -11,6 +11,7 @@ import { AddAttendanceRecord } from "@/components/AddAttendanceRecord"
 import { AssignTaskPage } from "@/components/AssignTaskPage"
 import { DateRangePicker } from "@/components/DateRangePicker"
 import { VehiclesPage } from "@/components/VehiclesPage"
+import { showToast, showConfirm } from "@/lib/toast-utils"
 import {
   ChevronLeft,
   ChevronRight,
@@ -373,28 +374,29 @@ export function AttendancePage() {
       return // Can't delete placeholder records
     }
 
-    const confirmDelete = window.confirm(
-      `Are you sure you want to delete the attendance record for ${record.employeeName} on ${new Date(record.date).toLocaleDateString()}?`
+    showConfirm(
+      `Are you sure you want to delete the attendance record for ${record.employeeName} on ${new Date(record.date).toLocaleDateString()}?`,
+      async () => {
+        try {
+          setDeleteLoading(record.id)
+          const response = await deleteAttendanceRecord(record.id)
+          
+          if (response.success) {
+            // Refresh the data to reflect the deletion
+            fetchAttendanceData()
+            showToast.success('Attendance record deleted successfully')
+          } else {
+            showToast.error(response.error || 'Failed to delete attendance record')
+          }
+        } catch (error) {
+          console.error('Error deleting attendance record:', error)
+          showToast.error('Failed to delete attendance record')
+        } finally {
+          setDeleteLoading(null)
+        }
+      },
+      'Delete Attendance Record'
     )
-
-    if (!confirmDelete) return
-
-    try {
-      setDeleteLoading(record.id)
-      const response = await deleteAttendanceRecord(record.id)
-      
-      if (response.success) {
-        // Refresh the data to reflect the deletion
-        fetchAttendanceData()
-      } else {
-        alert(response.error || 'Failed to delete attendance record')
-      }
-    } catch (error) {
-      console.error('Error deleting attendance record:', error)
-      alert('Failed to delete attendance record')
-    } finally {
-      setDeleteLoading(null)
-    }
   }
 
   const handleExport = async (format: 'excel' | 'pdf') => {
@@ -435,7 +437,7 @@ export function AttendancePage() {
       }
     } catch (error) {
       console.error(`Error exporting to ${format}:`, error)
-      alert(`Failed to export to ${format.toUpperCase()}`)
+      showToast.error(`Failed to export to ${format.toUpperCase()}`)
     } finally {
       setExportLoading(null)
     }

@@ -19,6 +19,7 @@ import {
   X
 } from "lucide-react"
 import { Ticket as TicketType, generateId } from "@crmdemo/shared"
+import { showToast } from "@/lib/toast-utils"
 
 // Success popup component
 interface SuccessPopupProps {
@@ -119,22 +120,22 @@ export function CreateTicketForm() {
     
     // Basic validation
     if (!formData.title.trim()) {
-      alert('Please enter a ticket title')
+      showToast.error('Please enter a ticket title')
       return
     }
     
     if (!formData.description.trim()) {
-      alert('Please enter a description')
+      showToast.error('Please enter a description')
       return
     }
     
     if (!formData.category) {
-      alert('Please select a category')
+      showToast.error('Please select a category')
       return
     }
     
     if (!formData.priority) {
-      alert('Please select a priority')
+      showToast.error('Please select a priority')
       return
     }
     
