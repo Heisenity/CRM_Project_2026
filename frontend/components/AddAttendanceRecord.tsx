@@ -411,7 +411,7 @@ export function AddAttendanceRecord({ onRecordAdded, onBack }: AddAttendanceReco
               </Card>
 
               {/* Help Card */}
-              <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100/50 shadow-sm">
+              <Card className="border-blue-200 bg-linear-to-br from-blue-50 to-blue-100/50 shadow-sm">
                 <CardHeader className="pb-4">
                   <div className="flex items-center gap-2">
                     <div className="p-1.5 bg-blue-100 rounded-lg">

@@ -548,7 +548,7 @@ export function AttendancePage() {
               className="border-gray-300 hover:bg-gray-50 mb-4"
             >
               <ChevronLeft className="h-4 w-4 mr-2" />
-              Back to Attendance
+              Back to Task Management
             </Button>
           </div>
           <VehiclesPage />
@@ -559,8 +559,8 @@ export function AttendancePage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div className="space-y-1">
-                <h1 className="text-2xl font-bold text-gray-900">Employee Attendance</h1>
-                <p className="text-gray-600">Monitor and manage employee attendance records</p>
+                <h1 className="text-2xl font-bold text-gray-900">Task Management</h1>
+                <p className="text-gray-600">Monitor and manage employee everyday task records</p>
               </div>
               <div className="flex items-center gap-2">
                 <Button

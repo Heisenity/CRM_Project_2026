@@ -22,9 +22,12 @@ import {
   FileText,
   DollarSign,
   Car,
-  Upload
+  Upload,
+  ClockIcon
 } from "lucide-react"
 import { EmployeeSelfAttendance } from "./EmployeeSelfAttendance"
+import { createAttendance } from "@/lib/server-api"
+import { showToast } from "@/lib/toast-utils"
 
 interface StaffPortalProps {
   deviceInfo: any
@@ -57,6 +60,7 @@ export function StaffPortal({ deviceInfo }: StaffPortalProps) {
   const [assignedVehicle, setAssignedVehicle] = useState<AssignedVehicle | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'attendance' | 'payroll' | 'vehicle'>('attendance')
+  const [clockOutLoading, setClockOutLoading] = useState(false)
 
   useEffect(() => {
     if (status === "loading") return
@@ -164,6 +168,34 @@ export function StaffPortal({ deviceInfo }: StaffPortalProps) {
     })
   }
 
+  const handleClockOut = async () => {
+    if (!employeeProfile?.employeeId) {
+      showToast.error('Employee ID not found')
+      return
+    }
+
+    setClockOutLoading(true)
+    try {
+      const response = await createAttendance({
+        employeeId: employeeProfile.employeeId,
+        status: 'PRESENT',
+        action: 'check-out'
+      })
+
+      if (response.success) {
+        showToast.success('Clock-out successful!', 'End of Day')
+      } else {
+        throw new Error(response.error || 'Failed to clock out')
+      }
+    } catch (error) {
+      console.error('Error clocking out:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      showToast.error(`Failed to clock out: ${errorMessage}`)
+    } finally {
+      setClockOutLoading(false)
+    }
+  }
+
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -219,6 +251,25 @@ export function StaffPortal({ deviceInfo }: StaffPortalProps) {
               <h1 className="text-xl font-semibold text-gray-900">Staff Portal</h1>
             </div>
             <div className="flex items-center space-x-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleClockOut}
+                disabled={clockOutLoading}
+                className="text-red-600 hover:text-red-700 border-red-300 hover:border-red-400"
+              >
+                {clockOutLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Clocking Out...
+                  </>
+                ) : (
+                  <>
+                    <ClockIcon className="h-4 w-4 mr-2" />
+                    Clock Out
+                  </>
+                )}
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"

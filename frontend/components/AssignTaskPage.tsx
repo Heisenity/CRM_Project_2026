@@ -188,7 +188,7 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
               className="border-gray-300 hover:bg-gray-50"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Attendance
+              Back to Task Management
             </Button>
             <div className="flex-1">
               <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -312,7 +312,7 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
                             filteredEmployees.map((employee) => (
                               <SelectItem key={employee.employeeId} value={employee.employeeId}>
                                 <div className="flex items-center gap-3 py-1">
-                                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-xs">
+                                  <div className="w-8 h-8 bg-linear-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-xs">
                                     {employee.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                                   </div>
                                   <div className="flex-1 min-w-0">

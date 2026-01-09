@@ -140,15 +140,15 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
 
       if (response.success && response.data?.records && response.data.records.length > 0) {
         const record = response.data.records[0]
-        // Only consider it checked in/out if the employee did it themselves (source: 'SELF')
+        // Track if employee has checked in themselves (source: 'SELF') - this sets the clock-in time
         // Admin-created records (source: 'ADMIN') should not prevent employee from checking in
-        const selfCheckedIn = record.source === 'SELF' && !!record.clockIn
-        const selfCheckedOut = record.source === 'SELF' && !!record.clockOut
+        const hasFirstCheckedIn = record.source === 'SELF' && !!record.clockIn
+        const hasCheckedOut = record.source === 'SELF' && !!record.clockOut
         const hasAdminRecord = record.source === 'ADMIN' // Track admin-created records
 
         // Check if there are new tasks assigned after the last check-out
         let canCheckInForNewTask = false
-        if (selfCheckedOut && currentTasks.length > 0) {
+        if (hasCheckedOut && currentTasks.length > 0) {
           // If employee has checked out but there are pending tasks, allow check-in for new task
           const lastCheckOut = new Date(record.clockOut!)
           const hasNewTasks = currentTasks.some(task => {
@@ -159,10 +159,10 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
         }
 
         setCurrentAttendanceStatus({
-          hasCheckedIn: selfCheckedIn && !canCheckInForNewTask, // Allow check-in if there's a new task
-          hasCheckedOut: selfCheckedOut && !canCheckInForNewTask, // Reset check-out status for new task
-          clockIn: selfCheckedIn ? record.clockIn : undefined,
-          clockOut: selfCheckedOut ? record.clockOut : undefined,
+          hasCheckedIn: hasFirstCheckedIn, // This tracks if the first check-in (clock-in time) has been set
+          hasCheckedOut: hasCheckedOut && !canCheckInForNewTask, // Reset check-out status for new task
+          clockIn: hasFirstCheckedIn ? record.clockIn : undefined,
+          clockOut: hasCheckedOut ? record.clockOut : undefined,
           hasAdminRecord: hasAdminRecord
         })
       } else {
@@ -381,10 +381,12 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
     }
 
     // Check if trying to check-in when already checked in
-    if (type === 'check-in' && currentAttendanceStatus?.hasCheckedIn) {
-      showToast.warning('You have already checked in today.')
-      return
-    }
+    // Note: We now allow multiple check-ins, but only the first one sets the clock-in time
+    // Remove this restriction to allow multiple check-ins throughout the day
+    // if (type === 'check-in' && currentAttendanceStatus?.hasCheckedIn) {
+    //   showToast.warning('You have already checked in today.')
+    //   return
+    // }
 
     // Check if trying to check-out without checking in first
     if (type === 'check-out' && !currentAttendanceStatus?.hasCheckedIn) {
@@ -450,11 +452,16 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
 
         // Update current attendance status
         if (type === 'check-in') {
-          setCurrentAttendanceStatus({
-            hasCheckedIn: true,
-            hasCheckedOut: false,
-            clockIn: new Date().toISOString()
-          })
+          // Only update hasCheckedIn to true if this was the first check-in (clock-in time was set)
+          // If employee already had a clock-in time, don't change the status
+          if (!currentAttendanceStatus?.hasCheckedIn) {
+            setCurrentAttendanceStatus({
+              hasCheckedIn: true,
+              hasCheckedOut: false,
+              clockIn: new Date().toISOString()
+            })
+          }
+          // If already checked in, just show success but don't change status
         } else if (type === 'check-out') {
           setCurrentAttendanceStatus(prev => ({
             ...prev!,
@@ -833,7 +840,7 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
                     <div className="grid grid-cols-2 gap-3">
                       <Button
                         onClick={() => markAttendance('check-in')}
-                        disabled={!canMarkAttendance() || currentAttendanceStatus?.hasCheckedIn}
+                        disabled={!canMarkAttendance()}
                         className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
                         size="lg"
                       >
@@ -845,7 +852,7 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
                         ) : (
                           <>
                             <CheckCircle className="h-4 w-4 mr-2" />
-                            {currentAttendanceStatus?.hasCheckedIn ? "Already Checked In" : "Check In"}
+                            {currentAttendanceStatus?.hasCheckedIn ? "Check In Again" : "Check In"}
                           </>
                         )}
                       </Button>

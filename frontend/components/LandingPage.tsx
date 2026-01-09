@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { signOut, signIn } from "next-auth/react"
+import { signIn } from "next-auth/react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { 
@@ -63,7 +63,7 @@ function UserLoginCard() {
       } else {
         router.push("/landing")
       }
-    } catch (error) {
+    } catch {
       setError("An error occurred during login")
     } finally {
       setIsLoading(false)
@@ -176,7 +176,7 @@ function StaffLoginCard() {
       } else {
         router.push("/landing")
       }
-    } catch (error) {
+    } catch {
       setError("An error occurred during login")
     } finally {
       setIsLoading(false)
@@ -348,7 +348,7 @@ function AdminLoginCard() {
           router.push("/dashboard")
         }
       }
-    } catch (error) {
+    } catch {
       setError("An error occurred")
     } finally {
       setIsLoading(false)
@@ -356,9 +356,9 @@ function AdminLoginCard() {
   }
 
   return (
-    <Card className="group p-6 bg-linear-to-br from-blue-50 to-blue-100 rounded-2xl border-2 border-blue-200 transition-all duration-300 hover:shadow-xl hover:from-blue-100 hover:to-blue-150">
+    <Card className="group p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl border-2 border-blue-200 transition-all duration-300 hover:shadow-xl hover:from-blue-100 hover:to-blue-150">
       <CardHeader className="text-center pb-4">
-        <div className="w-16 h-16 bg-linear-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shadow-lg">
+        <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shadow-lg">
           <ShieldCheck className="h-8 w-8 text-white" />
         </div>
         <CardTitle className="text-2xl font-bold text-gray-900">Admin Portal</CardTitle>
@@ -475,7 +475,7 @@ function AdminLoginCard() {
           {error && <p className="text-sm text-red-600">{error}</p>}
           <Button 
             type="submit" 
-            className="w-full bg-linear-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl py-3 shadow-lg"
+            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl py-3 shadow-lg"
             disabled={isLoading}
           >
             {isLoading 
@@ -490,46 +490,35 @@ function AdminLoginCard() {
 }
 
 export default function LandingPage({ onGetStarted, isLoggedIn = false, userProfile }: LandingPageProps) {
-  const handleLogout = () => {
-    console.log('Landing page logout clicked')
-    signOut({ 
-      callbackUrl: '/',
-      redirect: true 
-    }).then(() => {
-      console.log('Landing page logout successful')
-    }).catch((error) => {
-      console.error('Landing page logout error:', error)
-    })
-  }
-
   return (
     <div className="min-h-screen bg-background">
-      {/* Floating Navigation */}
-      <nav className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 bg-card/90 backdrop-blur-md rounded-full px-8 py-3 shadow-lg border border-border">
-        <div className="flex items-center space-x-8">
-          <div className="flex items-center space-x-2">
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center">
-              <Image 
-                src="/Media_Infotech.webp" 
-                alt="MediaTechInfo Logo" 
-                width={40} 
-                height={40}
-                className="rounded-lg object-contain"
-                priority
-              />
+      {/* Header Navigation */}
+      <header className="bg-white border-b border-gray-200">
+        <nav className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-center">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-linear-to-br from-blue-50 to-blue-100">
+                <Image 
+                  src="/Media_Infotech.webp" 
+                  alt="MediaTechInfo Logo" 
+                  width={40} 
+                  height={40}
+                  className="rounded-lg object-contain"
+                  priority
+                />
+              </div>
+              <span className="font-bold text-gray-900 text-xl">MediaInfoTech</span>
             </div>
-            <span className="font-bold text-foreground">MediaInfoTech</span>
           </div>
-  
-        </div>
-      </nav>
+        </nav>
+      </header>
 
       {/* Login feature */}
-      <section id="login" className="pt-36 py-20 bg-card border-t border-border">
+      <section id="login" className="py-20 bg-gray-50/50">
         <div className="container mx-auto px-6">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12">
-              <Badge variant="outline" className="mb-4 text-blue-600 border-blue-200">
+              <Badge variant="outline" className="mb-4 text-blue-600 border-blue-200 bg-blue-50">
                 Access Portal
               </Badge>
               <h2 className="text-4xl font-black text-gray-900 mb-4">
@@ -579,8 +568,8 @@ export default function LandingPage({ onGetStarted, isLoggedIn = false, userProf
       </section>
 
       {/* Contact Section */}
-      <section id="contact" className="py-24 bg-linear-to-br from-gray-900 via-gray-800 to-gray-900 text-white relative overflow-hidden">
-        <div className="absolute inset-0 bg-linear-to-r from-blue-900/20 via-transparent to-blue-900/20"></div>
+      <section id="contact" className="py-24 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-900/20 via-transparent to-blue-900/20"></div>
         <div className="container mx-auto px-6 relative z-10">       
           <div className="grid lg:grid-cols-3 gap-8 mb-12">
             <div className="text-center p-8 bg-gray-800/50 rounded-2xl border border-gray-700">
@@ -626,7 +615,7 @@ export default function LandingPage({ onGetStarted, isLoggedIn = false, userProf
               <span className="font-bold text-white">MediaTechInfo</span>
             </div>
             <div className="text-center md:text-right">
-              <p>&copy; 2026 MediaTechInfo. Internal Management System.</p>
+              <p>&copy; 2026 MediaInfoTech.</p>
               <p className="text-sm mt-1">For authorized personnel only. Secure access required.</p>
             </div>
           </div>

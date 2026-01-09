@@ -23,11 +23,11 @@ import {
     Users, 
     Ticket, 
     Package,
-    Building2,
     ChevronRight,
     LogOut,
     DollarSign,
-    UsersRound
+    UsersRound,
+    Clock
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -42,11 +42,18 @@ const navigationItems = [
         description: "Overview and analytics"
     },
     {
-        title: "Attendance",
+        title: "Staff Management",
         url: "/attendance",
         icon: Users,
         badge: "12",
         description: "Employee time tracking"
+    },
+    {
+        title: "Attendance Management",
+        url: "/attendance-management",
+        icon: Clock,
+        badge: null,
+        description: "Clock-in/out records"
     },
     {
         title: "Teams",
@@ -89,9 +96,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         const userType = (session.user as any).userType
         
         if (userType === 'employee') {
-            // Employees can see Attendance
+            // Employees can see Attendance and Attendance Management
             return navigationItems.filter(item => 
-                item.url === '/attendance'
+                item.url === '/attendance' || item.url === '/attendance-management'
             )
         }
         

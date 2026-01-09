@@ -409,14 +409,14 @@ export async function createAttendanceRecord(data: {
     }
   }
 
-  // Normal path: coordinates must be present (unless bypass)
-  if (!data.coordinates && !data.bypassLocationValidation) {
+  // Normal path: coordinates must be present (unless bypass or check-out)
+  if (!data.coordinates && !data.bypassLocationValidation && data.action !== 'check-out') {
     throw new Error('MISSING_COORDINATES')
   }
 
-  // If bypass requested, create or update without validation
-  if (data.bypassLocationValidation) {
-    const human = data.coordinates ? await getHumanReadableLocation(data.coordinates) : data.locationText ?? 'Bypass'
+  // If bypass requested or check-out action, create or update without validation
+  if (data.bypassLocationValidation || data.action === 'check-out') {
+    const human = data.coordinates ? await getHumanReadableLocation(data.coordinates) : data.locationText ?? (data.action === 'check-out' ? 'Clock-out location' : 'Bypass')
     const deviceInfo = getDeviceInfo(data.userAgent)
     const deviceString = `${deviceInfo.os} - ${deviceInfo.browser} - ${deviceInfo.device}`
     if (existing && existing.locked) throw new Error('ATTENDANCE_LOCKED')
@@ -429,13 +429,16 @@ export async function createAttendanceRecord(data: {
       deviceInfo: deviceString,
       photo: data.photo ?? existing?.photo,
       status: data.status,
-      source: 'ADMIN', // Mark as admin bypass
+      source: data.action === 'check-out' ? 'SELF' : 'ADMIN', // Mark check-out as SELF, bypass as ADMIN
       updatedAt: new Date()
     }
 
     // Handle check-in/check-out for bypass entries
     if (data.action === 'check-in') {
-      updateData.clockIn = new Date()
+      // Only set clockIn if there's no existing clockIn time
+      if (!existing?.clockIn) {
+        updateData.clockIn = new Date()
+      }
     } else if (data.action === 'check-out') {
       updateData.clockOut = new Date()
     } else {
@@ -468,7 +471,7 @@ export async function createAttendanceRecord(data: {
             deviceInfo: deviceString,
             photo: data.photo,
             status: data.status,
-            source: 'ADMIN', // Mark as admin bypass
+            source: data.action === 'check-out' ? 'SELF' : 'ADMIN', // Mark check-out as SELF, bypass as ADMIN
             lockedReason: '',
             locked: false,
             attemptCount: 'ZERO'
@@ -486,35 +489,64 @@ export async function createAttendanceRecord(data: {
     }
   }
 
-  // Real validation: validate coordinates
-  const validation = await validateEmployeeLocation(data.employeeId, data.coordinates as GeolocationCoordinates)
+  // Real validation: validate coordinates (skip for check-out)
+  const isCheckOut = (data.action as string) === 'check-out'
+  if (!isCheckOut) {
+    const validation = await validateEmployeeLocation(data.employeeId, data.coordinates as GeolocationCoordinates)
 
-  if (!validation.isValid) {
-    // Atomic increment of attemptCount using transaction
-    const txResult = await prisma.$transaction(async (tx) => {
-      // re-fetch inside tx to avoid race
-      const att = await tx.attendance.findUnique({
-        where: { employeeId_date: { employeeId: employee.id, date: today } }
-      })
+    if (!validation.isValid) {
+      // Atomic increment of attemptCount using transaction
+      const txResult = await prisma.$transaction(async (tx) => {
+        // re-fetch inside tx to avoid race
+        const att = await tx.attendance.findUnique({
+          where: { employeeId_date: { employeeId: employee.id, date: today } }
+        })
 
-      const prevAttempts = att ? attemptCountToNumber(att.attemptCount) : 0
-      const nextAttempts = Math.min(MAX_ATTEMPTS, prevAttempts + 1)
+        const prevAttempts = att ? attemptCountToNumber(att.attemptCount) : 0
+        const nextAttempts = Math.min(MAX_ATTEMPTS, prevAttempts + 1)
 
-      // If reached max attempts -> mark ABSENT and lock
-      if (nextAttempts >= MAX_ATTEMPTS) {
+        // If reached max attempts -> mark ABSENT and lock
+        if (nextAttempts >= MAX_ATTEMPTS) {
+          const up = att
+            ? await tx.attendance.update({
+                where: { id: att.id },
+                data: {
+                  status: 'ABSENT',
+                  attemptCount: numberToAttemptCount(nextAttempts),
+                  latitude: data.coordinates?.latitude ?? att.latitude,
+                  longitude: data.coordinates?.longitude ?? att.longitude,
+                  location: validation.details || att.location,
+                  ipAddress: data.ipAddress,
+                  deviceInfo: `${getDeviceInfo(data.userAgent).os} - ${getDeviceInfo(data.userAgent).browser} - ${getDeviceInfo(data.userAgent).device}`,
+                  lockedReason: 'Maximum location validation attempts exceeded',
+                  locked: true,
+                  updatedAt: new Date()
+                }
+              })
+            : await tx.attendance.create({
+                data: {
+                  employeeId: employee.id,
+                  date: today,
+                  status: 'ABSENT',
+                  attemptCount: numberToAttemptCount(nextAttempts),
+                  latitude: data.coordinates?.latitude ?? null,
+                  longitude: data.coordinates?.longitude ?? null,
+                  location: validation.details,
+                  ipAddress: data.ipAddress,
+                  deviceInfo: `${getDeviceInfo(data.userAgent).os} - ${getDeviceInfo(data.userAgent).browser} - ${getDeviceInfo(data.userAgent).device}`,
+                  lockedReason: 'Maximum location validation attempts exceeded',
+                  locked: true
+                }
+              })
+          return { action: 'locked', record: up, attempts: nextAttempts }
+        }
+
+        // Otherwise upsert with PRESENT status (not PENDING as it's not in enum)
         const up = att
           ? await tx.attendance.update({
               where: { id: att.id },
               data: {
-                status: 'ABSENT',
                 attemptCount: numberToAttemptCount(nextAttempts),
-                latitude: data.coordinates?.latitude ?? att.latitude,
-                longitude: data.coordinates?.longitude ?? att.longitude,
-                location: validation.details || att.location,
-                ipAddress: data.ipAddress,
-                deviceInfo: `${getDeviceInfo(data.userAgent).os} - ${getDeviceInfo(data.userAgent).browser} - ${getDeviceInfo(data.userAgent).device}`,
-                lockedReason: 'Maximum location validation attempts exceeded',
-                locked: true,
                 updatedAt: new Date()
               }
             })
@@ -522,62 +554,37 @@ export async function createAttendanceRecord(data: {
               data: {
                 employeeId: employee.id,
                 date: today,
-                status: 'ABSENT',
+                status: 'PRESENT', // Use PRESENT instead of PENDING
                 attemptCount: numberToAttemptCount(nextAttempts),
                 latitude: data.coordinates?.latitude ?? null,
                 longitude: data.coordinates?.longitude ?? null,
-                location: validation.details,
+                location: validation.details || '',
                 ipAddress: data.ipAddress,
-                deviceInfo: `${getDeviceInfo(data.userAgent).os} - ${getDeviceInfo(data.userAgent).browser} - ${getDeviceInfo(data.userAgent).device}`,
-                lockedReason: 'Maximum location validation attempts exceeded',
-                locked: true
+                deviceInfo: `${getDeviceInfo(data.userAgent).os} - ${getDeviceInfo(data.userAgent).browser} - ${getDeviceInfo(data.userAgent).device}`
               }
             })
-        return { action: 'locked', record: up, attempts: nextAttempts }
+        return { action: 'attempt_incremented', record: up, attempts: nextAttempts }
+      })
+
+      // Return informative error (do not create attendance as PRESENT)
+      if (txResult.action === 'locked') {
+        console.warn({ event: 'max_attempts_exceeded', employeeId: data.employeeId, attempts: txResult.attempts })
+        const e = new Error(`Maximum attempts exceeded. Marked ABSENT. ${validation.details}`)
+        ;(e as any).code = 'MAX_ATTEMPTS_EXCEEDED'
+        throw e
       }
 
-      // Otherwise upsert with PRESENT status (not PENDING as it's not in enum)
-      const up = att
-        ? await tx.attendance.update({
-            where: { id: att.id },
-            data: {
-              attemptCount: numberToAttemptCount(nextAttempts),
-              updatedAt: new Date()
-            }
-          })
-        : await tx.attendance.create({
-            data: {
-              employeeId: employee.id,
-              date: today,
-              status: 'PRESENT', // Use PRESENT instead of PENDING
-              attemptCount: numberToAttemptCount(nextAttempts),
-              latitude: data.coordinates?.latitude ?? null,
-              longitude: data.coordinates?.longitude ?? null,
-              location: validation.details || '',
-              ipAddress: data.ipAddress,
-              deviceInfo: `${getDeviceInfo(data.userAgent).os} - ${getDeviceInfo(data.userAgent).browser} - ${getDeviceInfo(data.userAgent).device}`
-            }
-          })
-      return { action: 'attempt_incremented', record: up, attempts: nextAttempts }
-    })
-
-    // Return informative error (do not create attendance as PRESENT)
-    if (txResult.action === 'locked') {
-      console.warn({ event: 'max_attempts_exceeded', employeeId: data.employeeId, attempts: txResult.attempts })
-      const e = new Error(`Maximum attempts exceeded. Marked ABSENT. ${validation.details}`)
-      ;(e as any).code = 'MAX_ATTEMPTS_EXCEEDED'
-      throw e
+      // else inform user of failed validation and attempts left
+      const attemptsLeft = Math.max(0, MAX_ATTEMPTS - (txResult as any).attempts)
+      const err = new Error(`${validation.details} Attempt ${ (txResult as any).attempts }/${MAX_ATTEMPTS}. ${attemptsLeft} attempt(s) remaining.`)
+      ;(err as any).code = validation.code || 'LOCATION_MISMATCH'
+      throw err
     }
-
-    // else inform user of failed validation and attempts left
-    const attemptsLeft = Math.max(0, MAX_ATTEMPTS - (txResult as any).attempts)
-    const err = new Error(`${validation.details} Attempt ${ (txResult as any).attempts }/${MAX_ATTEMPTS}. ${attemptsLeft} attempt(s) remaining.`)
-    ;(err as any).code = validation.code || 'LOCATION_MISMATCH'
-    throw err
   }
 
-  // If validation is ok -> persist as PRESENT (or given status)
-  const humanReadable = await getHumanReadableLocation(data.coordinates as GeolocationCoordinates)
+  // If validation is ok OR it's a check-out action -> persist as PRESENT (or given status)
+  const isCheckOutAction = (data.action as string) === 'check-out'
+  const humanReadable = data.coordinates ? await getHumanReadableLocation(data.coordinates as GeolocationCoordinates) : (isCheckOutAction ? 'Clock-out location' : 'Unknown location')
   const deviceInfo = getDeviceInfo(data.userAgent)
   const deviceString = `${deviceInfo.os} - ${deviceInfo.browser} - ${deviceInfo.device}`
 
@@ -600,14 +607,19 @@ export async function createAttendanceRecord(data: {
   }
 
   // Handle check-in/check-out logic
-  // - check-in: Sets clockIn to current time
+  // - check-in: Sets clockIn to current time ONLY if it's the very first check-in of the day from SELF source
   // - check-out: Sets clockOut to current time (preserves existing clockIn)
   // - no action: Sets clockIn if not exists and status is PRESENT/LATE (backward compatibility)
   if (data.action === 'check-in') {
-    updateData.clockIn = new Date()
+    // Only set clockIn if there's NO existing clockIn time at all (first check-in of the day)
+    // Never overwrite an existing clockIn time, even for new tasks
+    if (!existing?.clockIn) {
+      updateData.clockIn = new Date()
+    }
+    // If there's already a clockIn time, preserve it and don't update it
     // Don't modify clockOut on check-in
     // If existing record is ADMIN-created, allow employee to override with their own check-in
-    if (existing && existing.source === 'ADMIN') {
+    if (existing && existing.source === 'ADMIN' && !existing.clockIn) {
       updateData.clockOut = null // Reset clockOut for fresh employee check-in
     }
   } else if (data.action === 'check-out') {
