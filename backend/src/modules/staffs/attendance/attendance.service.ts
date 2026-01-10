@@ -9,6 +9,8 @@ import {
   calculateDistanceMeters
 } from '@/utils/geolocation'
 import { getDeviceInfo } from '@/utils/deviceinfo'
+import { VehicleService } from '../vehicles/vehicle.service'
+import { NotificationService } from '../../notifications/notification.service'
 
 // Environment-configurable defaults
 const DEFAULT_ATTENDANCE_RADIUS_METERS = Number(process.env.DEFAULT_ATTENDANCE_RADIUS_METERS || 50)
@@ -487,6 +489,46 @@ export async function createAttendanceRecord(data: {
         }
       })
 
+    // Auto-unassign vehicle on checkout
+    if (data.action === 'check-out') {
+      try {
+        const vehicleService = new VehicleService()
+        const notificationService = new NotificationService()
+        
+        // Get employee's assigned vehicle
+        const vehicleResult = await vehicleService.getEmployeeVehicle(data.employeeId)
+        
+        if (vehicleResult.success && vehicleResult.data) {
+          const vehicle = vehicleResult.data
+          
+          // Unassign the vehicle
+          const unassignResult = await vehicleService.unassignVehicle(vehicle.id)
+          
+          if (unassignResult.success) {
+            // Create admin notification
+            await notificationService.createAdminNotification({
+              type: 'VEHICLE_UNASSIGNED',
+              title: 'Vehicle Auto-Unassigned',
+              message: `Vehicle ${vehicle.vehicleNumber} (${vehicle.make} ${vehicle.model}) has been automatically unassigned from ${employee.name} (${data.employeeId}) after checkout.`,
+              data: {
+                vehicleId: vehicle.id,
+                vehicleNumber: vehicle.vehicleNumber,
+                employeeId: data.employeeId,
+                employeeName: employee.name,
+                checkoutTime: saved.clockOut?.toISOString(),
+                location: saved.location
+              }
+            })
+            
+            console.log(`Vehicle ${vehicle.vehicleNumber} auto-unassigned from employee ${data.employeeId} after checkout`)
+          }
+        }
+      } catch (error) {
+        console.error('Error auto-unassigning vehicle on checkout:', error)
+        // Don't fail the checkout if vehicle unassignment fails
+      }
+    }
+
     return {
       employeeId: data.employeeId,
       timestamp: saved.createdAt.toISOString(),
@@ -585,8 +627,7 @@ export async function createAttendanceRecord(data: {
 
       // else inform user of failed validation and attempts left
       const attemptsLeft = Math.max(0, MAX_ATTEMPTS - (txResult as any).attempts)
-      const err = new Error(`${validation.details} Attempt ${(txResult as any).attempts}/${MAX_ATTEMPTS}. ${attemptsLeft} attempt(s) remaining.`)
-        ; (err as any).code = validation.code || 'LOCATION_MISMATCH'
+      const err = new Error(`${validation.details} Attempt ${(txResult as any).attempts}/${MAX_ATTEMPTS}. ${attemptsLeft} attempt(s) remaining.`); (err as any).code = validation.code || 'LOCATION_MISMATCH'
       throw err
     }
   }

@@ -312,3 +312,24 @@ enum PayrollStatus {
   PROCESSED
   PAID
 }
+model AdminNotification {
+  id        String                 @id @default(cuid())
+  type      AdminNotificationType
+  title     String
+  message   String                 @db.Text
+  data      String?                @db.Text // JSON data
+  isRead    Boolean                @default(false)
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+
+  @@index([isRead])
+  @@index([type])
+  @@index([createdAt])
+  @@map("admin_notifications")
+}
+
+enum AdminNotificationType {
+  VEHICLE_UNASSIGNED
+  TASK_COMPLETED
+  ATTENDANCE_ALERT
+}
