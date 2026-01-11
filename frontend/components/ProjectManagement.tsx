@@ -62,6 +62,7 @@ export function ProjectManagement() {
   const [selectedProject, setSelectedProject] = React.useState<Project | null>(null)
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = React.useState(false)
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false)
+  const [isViewAllUpdatesDialogOpen, setIsViewAllUpdatesDialogOpen] = React.useState(false)
 
   // Form states
   const [projectForm, setProjectForm] = React.useState({
@@ -398,28 +399,105 @@ export function ProjectManagement() {
                 <TabsContent value="updates" className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-gray-700">Recent Updates</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedProject(project)
-                        setIsUpdateDialogOpen(true)
-                      }}
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Add
-                    </Button>
+                    <div className="flex gap-2">
+                      {project.updates.length > 3 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedProject(project)
+                            setIsViewAllUpdatesDialogOpen(true)
+                          }}
+                        >
+                          <FolderOpen className="h-3 w-3 mr-1" />
+                          View All ({project.updates.length})
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedProject(project)
+                          setIsUpdateDialogOpen(true)
+                        }}
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Add
+                      </Button>
+                    </div>
                   </div>
-                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                  <div className="space-y-3 max-h-80 overflow-y-auto">
                     {project.updates.length === 0 ? (
                       <p className="text-sm text-gray-500 text-center py-4">No updates yet</p>
                     ) : (
-                      project.updates.slice(0, 2).map((update) => (
-                        <div key={update.id} className="p-2 bg-gray-50 rounded text-sm">
-                          <p className="text-gray-900">{update.update}</p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {new Date(update.createdAt).toLocaleDateString()}
-                          </p>
+                      project.updates.slice(0, 3).map((update) => (
+                        <div key={update.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                                Latest Update
+                              </span>
+                              <div className="flex items-center gap-1">
+                                {update.issues && (
+                                  <span className="text-xs text-red-600 bg-red-50 px-1 py-0.5 rounded flex items-center gap-1">
+                                    <AlertCircle className="h-2 w-2" />
+                                    Issues
+                                  </span>
+                                )}
+                                {update.pendingTasks && (
+                                  <span className="text-xs text-orange-600 bg-orange-50 px-1 py-0.5 rounded flex items-center gap-1">
+                                    <Clock className="h-2 w-2" />
+                                    Tasks
+                                  </span>
+                                )}
+                                {update.workProgress && (
+                                  <span className="text-xs text-green-600 bg-green-50 px-1 py-0.5 rounded flex items-center gap-1">
+                                    <CheckCircle className="h-2 w-2" />
+                                    Progress
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              {new Date(update.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <div>
+                              <p className="text-gray-900 leading-relaxed">{update.update}</p>
+                            </div>
+                            
+                            {update.issues && (
+                              <div className="border-t pt-2">
+                                <div className="flex items-center gap-1 mb-1">
+                                  <AlertCircle className="h-3 w-3 text-red-500" />
+                                  <span className="text-xs font-medium text-red-700">Issues Faced</span>
+                                </div>
+                                <p className="text-gray-700 text-xs leading-relaxed pl-4">{update.issues}</p>
+                              </div>
+                            )}
+                            
+                            {update.pendingTasks && (
+                              <div className="border-t pt-2">
+                                <div className="flex items-center gap-1 mb-1">
+                                  <Clock className="h-3 w-3 text-orange-500" />
+                                  <span className="text-xs font-medium text-orange-700">Pending Tasks</span>
+                                </div>
+                                <p className="text-gray-700 text-xs leading-relaxed pl-4">{update.pendingTasks}</p>
+                              </div>
+                            )}
+                            
+                            {update.workProgress && (
+                              <div className="border-t pt-2">
+                                <div className="flex items-center gap-1 mb-1">
+                                  <CheckCircle className="h-3 w-3 text-green-500" />
+                                  <span className="text-xs font-medium text-green-700">Work Progress</span>
+                                </div>
+                                <p className="text-gray-700 text-xs leading-relaxed pl-4">{update.workProgress}</p>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ))
                     )}
@@ -541,51 +619,79 @@ export function ProjectManagement() {
 
       {/* Add Update Dialog */}
       <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add Project Update</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Add Project Update
+            </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleAddUpdate} className="space-y-4">
+          <form onSubmit={handleAddUpdate} className="space-y-6">
             <div>
-              <Label htmlFor="update">Latest Update</Label>
+              <Label htmlFor="update" className="flex items-center gap-2 text-sm font-medium">
+                <CheckCircle className="h-4 w-4 text-blue-500" />
+                Latest Update *
+              </Label>
               <Textarea
                 id="update"
                 value={updateForm.update}
                 onChange={(e) => setUpdateForm({ ...updateForm, update: e.target.value })}
-                placeholder="Describe the latest progress..."
+                placeholder="Describe the latest progress, milestones achieved, or current status..."
+                className="mt-1 min-h-[80px]"
                 required
               />
             </div>
+            
             <div>
-              <Label htmlFor="issues">Issues Faced</Label>
+              <Label htmlFor="issues" className="flex items-center gap-2 text-sm font-medium">
+                <AlertCircle className="h-4 w-4 text-red-500" />
+                Issues Faced
+              </Label>
               <Textarea
                 id="issues"
                 value={updateForm.issues}
                 onChange={(e) => setUpdateForm({ ...updateForm, issues: e.target.value })}
-                placeholder="Any challenges or issues..."
+                placeholder="Any challenges, blockers, or problems encountered..."
+                className="mt-1 min-h-[60px]"
               />
             </div>
+            
             <div>
-              <Label htmlFor="pendingTasks">Pending Tasks</Label>
+              <Label htmlFor="pendingTasks" className="flex items-center gap-2 text-sm font-medium">
+                <Clock className="h-4 w-4 text-orange-500" />
+                Pending Tasks
+              </Label>
               <Textarea
                 id="pendingTasks"
                 value={updateForm.pendingTasks}
                 onChange={(e) => setUpdateForm({ ...updateForm, pendingTasks: e.target.value })}
-                placeholder="Tasks that need to be completed..."
+                placeholder="Tasks that need to be completed, upcoming deliverables..."
+                className="mt-1 min-h-[60px]"
               />
             </div>
+            
             <div>
-              <Label htmlFor="workProgress">Work Progress Notes</Label>
+              <Label htmlFor="workProgress" className="flex items-center gap-2 text-sm font-medium">
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                Work Progress Notes
+              </Label>
               <Textarea
                 id="workProgress"
                 value={updateForm.workProgress}
                 onChange={(e) => setUpdateForm({ ...updateForm, workProgress: e.target.value })}
-                placeholder="Additional progress notes..."
+                placeholder="Additional progress notes, technical details, or observations..."
+                className="mt-1 min-h-[60px]"
               />
             </div>
-            <div className="flex gap-2 pt-4">
-              <Button type="submit" className="flex-1">Add Update</Button>
-              <Button type="button" variant="outline" onClick={() => setIsUpdateDialogOpen(false)}>Cancel</Button>
+            
+            <div className="flex gap-3 pt-4 border-t">
+              <Button type="submit" className="flex-1">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Update
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setIsUpdateDialogOpen(false)}>
+                Cancel
+              </Button>
             </div>
           </form>
         </DialogContent>
@@ -647,6 +753,94 @@ export function ProjectManagement() {
               <Button type="button" variant="outline" onClick={() => setIsPaymentDialogOpen(false)}>Cancel</Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* View All Updates Dialog */}
+      <Dialog open={isViewAllUpdatesDialogOpen} onOpenChange={setIsViewAllUpdatesDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderOpen className="h-5 w-5" />
+              All Updates - {selectedProject?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedProject?.updates.length === 0 ? (
+              <p className="text-center text-gray-500 py-8">No updates available</p>
+            ) : (
+              selectedProject?.updates.map((update, index) => (
+                <div key={update.id} className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+                        Update #{selectedProject.updates.length - index}
+                      </span>
+                      {index === 0 && (
+                        <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
+                          Latest
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-sm text-gray-500">
+                      {new Date(update.createdAt).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <CheckCircle className="h-4 w-4 text-blue-500" />
+                        <span className="text-sm font-medium text-blue-700">Progress Update</span>
+                      </div>
+                      <p className="text-gray-900 leading-relaxed pl-6">{update.update}</p>
+                    </div>
+                    
+                    {update.issues && (
+                      <div className="border-t pt-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <AlertCircle className="h-4 w-4 text-red-500" />
+                          <span className="text-sm font-medium text-red-700">Issues Faced</span>
+                        </div>
+                        <p className="text-gray-700 leading-relaxed pl-6">{update.issues}</p>
+                      </div>
+                    )}
+                    
+                    {update.pendingTasks && (
+                      <div className="border-t pt-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Clock className="h-4 w-4 text-orange-500" />
+                          <span className="text-sm font-medium text-orange-700">Pending Tasks</span>
+                        </div>
+                        <p className="text-gray-700 leading-relaxed pl-6">{update.pendingTasks}</p>
+                      </div>
+                    )}
+                    
+                    {update.workProgress && (
+                      <div className="border-t pt-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                          <span className="text-sm font-medium text-green-700">Work Progress Notes</span>
+                        </div>
+                        <p className="text-gray-700 leading-relaxed pl-6">{update.workProgress}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="flex justify-end pt-4 border-t">
+            <Button variant="outline" onClick={() => setIsViewAllUpdatesDialogOpen(false)}>
+              Close
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -31,7 +31,7 @@ export default withAuth(
       }
     } else {
       // Not authenticated - redirect to root for protected pages
-      const publicPaths = ['/login', '/landing']
+      const publicPaths = ['/landing']
       
       // Redirect /landing to root for consistency
       if (pathname === '/landing') {
@@ -50,7 +50,7 @@ export default withAuth(
         const { pathname } = req.nextUrl
         
         // Public pages that don't require authentication
-        const publicPaths = ['/login', '/landing']
+        const publicPaths = ['/landing']
         if (publicPaths.includes(pathname)) {
           return true
         }

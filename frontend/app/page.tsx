@@ -47,8 +47,8 @@ export default function RootPage() {
         router.push("/staff-portal")
       }
     } else {
-      // If not logged in, go to login
-      router.push(`/login?type=${type || 'user'}`)
+      // If not logged in, stay on root page (landing page handles login)
+      // The landing page will show login forms for unauthenticated users
     }
   }
 

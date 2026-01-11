@@ -33,7 +33,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession()
   
   // Pages that should not show sidebar (public/auth pages)
-  const isAuthPage = pathname === '/' || pathname === '/landing' || pathname === '/login'
+  const isAuthPage = pathname === '/' || pathname === '/landing'
   const isEmployeePage = pathname === '/employee-attendance' || pathname === '/staff-portal'
   
   // Check if user is employee

@@ -15,7 +15,7 @@ export default function LeaveManagementPage() {
     if (status === "loading") return
 
     if (!session) {
-      router.push("/login")
+      router.push("/")
       return
     }
 

@@ -70,7 +70,7 @@ export function StaffPortal({ deviceInfo }: StaffPortalProps) {
     if (status === "loading") return
 
     if (!session || (session.user as any)?.userType !== "employee") {
-      router.push("/login")
+      router.push("/")
       return
     }
 
@@ -236,8 +236,8 @@ export function StaffPortal({ deviceInfo }: StaffPortalProps) {
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <h2 className="text-lg font-semibold mb-2">Profile Not Found</h2>
             <p className="text-gray-600 mb-4">Unable to load your employee profile.</p>
-            <Button onClick={() => router.push("/login")}>
-              Back to Login
+            <Button onClick={() => router.push("/")}>
+              Back to Home
             </Button>
           </CardContent>
         </Card>
