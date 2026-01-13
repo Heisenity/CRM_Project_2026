@@ -112,6 +112,13 @@ model Attendance {
   taskEndTime   String?
   taskLocation  String?          // Add task location field
   source        AttendanceSource @default(SELF)
+  // Attendance approval fields
+  approvalStatus AttendanceApprovalStatus @default(PENDING)
+  approvedBy     String?
+  approvedAt     DateTime?
+  rejectedBy     String?
+  rejectedAt     DateTime?
+  approvalReason String?          @db.Text
   employeeId    String
   employee      Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   assignedTask  Task?            @relation(fields: [taskId], references: [id], onDelete: SetNull)
@@ -120,6 +127,7 @@ model Attendance {
   @@index([date])
   @@index([status])
   @@index([taskId])
+  @@index([approvalStatus])
   @@map("attendances")
 }
 
@@ -188,6 +196,12 @@ enum AttemptCount {
   ONE
   TWO
   THREE
+}
+
+enum AttendanceApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model UserSession {
@@ -338,6 +352,9 @@ enum AdminNotificationType {
   VEHICLE_UNASSIGNED
   TASK_COMPLETED
   ATTENDANCE_ALERT
+  ATTENDANCE_APPROVAL_REQUEST
+  ATTENDANCE_APPROVED
+  ATTENDANCE_REJECTED
 }
 
 model EmployeeDocument {

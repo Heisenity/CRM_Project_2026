@@ -2,7 +2,7 @@
 import { Request, Response } from 'express'
 import { prisma } from '../../../lib/prisma'
 import { getDeviceInfo } from '../../../utils/deviceinfo'
-import { createAttendanceRecord, getRemainingAttempts } from './attendance.service'
+import { createAttendanceRecord, getRemainingAttempts, approveAttendance, rejectAttendance, getPendingAttendanceApprovals } from './attendance.service'
 
 export const getAttendanceRecords = async (req: Request, res: Response) => {
   try {
@@ -136,6 +136,13 @@ export const getAttendanceRecords = async (req: Request, res: Response) => {
       taskStartTime: attendance.taskStartTime,
       taskEndTime: attendance.taskEndTime,
       taskLocation: attendance.taskLocation,
+      // Add approval fields
+      approvalStatus: attendance.approvalStatus,
+      approvedBy: attendance.approvedBy,
+      approvedAt: attendance.approvedAt?.toISOString(),
+      rejectedBy: attendance.rejectedBy,
+      rejectedAt: attendance.rejectedAt?.toISOString(),
+      approvalReason: attendance.approvalReason,
       createdAt: attendance.createdAt.toISOString(),
       updatedAt: attendance.updatedAt.toISOString(),
       assignedTask: attendance.assignedTask ? {
@@ -305,6 +312,86 @@ export const createAttendance = async (req: Request, res: Response) => {
       }
     }
     return res.status(statusCode).json({ success: false, error: errorMessage })
+  }
+}
+
+// Get pending attendance approvals
+export const getPendingApprovals = async (req: Request, res: Response) => {
+  try {
+    const result = await getPendingAttendanceApprovals()
+
+    if (result.success) {
+      return res.status(200).json({
+        success: true,
+        data: result.data
+      })
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: result.error
+      })
+    }
+  } catch (error) {
+    console.error({ event: 'get_pending_approvals_error', error: error instanceof Error ? error.message : error })
+    return res.status(500).json({ success: false, error: 'Failed to get pending approvals' })
+  }
+}
+
+// Approve attendance
+export const approveAttendanceRecord = async (req: Request, res: Response) => {
+  try {
+    const { attendanceId } = req.params
+    const { adminId, reason } = req.body
+
+    if (!attendanceId) {
+      return res.status(400).json({ success: false, error: 'Attendance ID is required' })
+    }
+
+    if (!adminId) {
+      return res.status(400).json({ success: false, error: 'Admin ID is required' })
+    }
+
+    const result = await approveAttendance(attendanceId, adminId, reason)
+
+    if (result.success) {
+      return res.status(200).json(result)
+    } else {
+      return res.status(400).json(result)
+    }
+  } catch (error) {
+    console.error({ event: 'approve_attendance_error', error: error instanceof Error ? error.message : error })
+    return res.status(500).json({ success: false, error: 'Failed to approve attendance' })
+  }
+}
+
+// Reject attendance
+export const rejectAttendanceRecord = async (req: Request, res: Response) => {
+  try {
+    const { attendanceId } = req.params
+    const { adminId, reason } = req.body
+
+    if (!attendanceId) {
+      return res.status(400).json({ success: false, error: 'Attendance ID is required' })
+    }
+
+    if (!adminId) {
+      return res.status(400).json({ success: false, error: 'Admin ID is required' })
+    }
+
+    if (!reason) {
+      return res.status(400).json({ success: false, error: 'Rejection reason is required' })
+    }
+
+    const result = await rejectAttendance(attendanceId, adminId, reason)
+
+    if (result.success) {
+      return res.status(200).json(result)
+    } else {
+      return res.status(400).json(result)
+    }
+  } catch (error) {
+    console.error({ event: 'reject_attendance_error', error: error instanceof Error ? error.message : error })
+    return res.status(500).json({ success: false, error: 'Failed to reject attendance' })
   }
 }
 

@@ -66,10 +66,15 @@ export async function createAttendanceRecord(data: {
     attemptCount: 'ZERO'
   }
 
+  // Check if this is the first check-in of the day (requires approval)
+  const isFirstCheckIn = !existing?.clockIn && (data.action === 'check-in' || (!data.action && (data.status === 'PRESENT' || data.status === 'LATE')))
+
   // Handle check-in/check-out logic
   if (data.action === 'check-in') {
     if (!existing?.clockIn) {
       updateData.clockIn = new Date()
+      // Set approval status to PENDING for first check-in
+      updateData.approvalStatus = 'PENDING'
     }
     
     const taskCheckinTime = new Date().toLocaleTimeString('en-US', {
@@ -109,6 +114,8 @@ export async function createAttendanceRecord(data: {
   } else {
     if (!existing?.clockIn && (data.status === 'PRESENT' || data.status === 'LATE')) {
       updateData.clockIn = new Date()
+      // Set approval status to PENDING for first check-in
+      updateData.approvalStatus = 'PENDING'
     }
   }
 
@@ -118,7 +125,8 @@ export async function createAttendanceRecord(data: {
         data: {
           ...updateData,
           clockIn: updateData.clockIn !== undefined ? updateData.clockIn : existing.clockIn,
-          clockOut: updateData.clockOut !== undefined ? updateData.clockOut : existing.clockOut
+          clockOut: updateData.clockOut !== undefined ? updateData.clockOut : existing.clockOut,
+          approvalStatus: updateData.approvalStatus !== undefined ? updateData.approvalStatus : existing.approvalStatus
         }
       })
     : await prisma.attendance.create({
@@ -134,9 +142,35 @@ export async function createAttendanceRecord(data: {
           source: 'SELF',
           lockedReason: '',
           locked: false,
-          attemptCount: 'ZERO'
+          attemptCount: 'ZERO',
+          approvalStatus: updateData.approvalStatus || 'PENDING'
         }
       })
+
+  // Create notification for admin when employee checks in for the first time
+  if (isFirstCheckIn) {
+    try {
+      const notificationService = new NotificationService()
+      await notificationService.createAdminNotification({
+        type: 'ATTENDANCE_APPROVAL_REQUEST',
+        title: 'Attendance Approval Required',
+        message: `${employee.name} (${data.employeeId}) has checked in and requires attendance approval.`,
+        data: {
+          attendanceId: saved.id,
+          employeeId: data.employeeId,
+          employeeName: employee.name,
+          employeeRole: employee.role,
+          checkInTime: saved.clockIn?.toISOString(),
+          location: locationText,
+          status: data.status
+        }
+      })
+      
+      console.log(`Attendance approval notification created for employee ${data.employeeId}`)
+    } catch (error) {
+      console.error('Error creating attendance approval notification:', error)
+    }
+  }
 
   // Auto-unassign vehicle on checkout
   if (data.action === 'check-out') {
@@ -237,5 +271,195 @@ export function formatMinutes(minutes: number): string {
   const h = Math.floor(minutes / 60)
   const m = minutes % 60
   return `${h}h ${m}m`
+}
+
+// Approve attendance
+export async function approveAttendance(attendanceId: string, adminId: string, reason?: string): Promise<{ success: boolean; message: string; data?: any }> {
+  try {
+    const attendance = await prisma.attendance.findUnique({
+      where: { id: attendanceId },
+      include: {
+        employee: {
+          select: {
+            name: true,
+            employeeId: true,
+            role: true
+          }
+        }
+      }
+    })
+
+    if (!attendance) {
+      return { success: false, message: 'Attendance record not found' }
+    }
+
+    if (attendance.approvalStatus === 'APPROVED') {
+      return { success: false, message: 'Attendance already approved' }
+    }
+
+    // Update attendance record
+    const updatedAttendance = await prisma.attendance.update({
+      where: { id: attendanceId },
+      data: {
+        approvalStatus: 'APPROVED',
+        approvedBy: adminId,
+        approvedAt: new Date(),
+        approvalReason: reason || 'Approved by admin'
+      }
+    })
+
+    // Create notification for approval
+    const notificationService = new NotificationService()
+    await notificationService.createAdminNotification({
+      type: 'ATTENDANCE_APPROVED',
+      title: 'Attendance Approved',
+      message: `Attendance for ${attendance.employee.name} (${attendance.employee.employeeId}) has been approved.`,
+      data: {
+        attendanceId: attendanceId,
+        employeeId: attendance.employee.employeeId,
+        employeeName: attendance.employee.name,
+        employeeRole: attendance.employee.role,
+        approvedBy: adminId,
+        approvedAt: updatedAttendance.approvedAt?.toISOString(),
+        reason: reason || 'Approved by admin'
+      }
+    })
+
+    console.log(`Attendance approved for employee ${attendance.employee.employeeId} by admin ${adminId}`)
+
+    return {
+      success: true,
+      message: 'Attendance approved successfully',
+      data: updatedAttendance
+    }
+  } catch (error) {
+    console.error('Error approving attendance:', error)
+    return { success: false, message: 'Failed to approve attendance' }
+  }
+}
+
+// Reject attendance
+export async function rejectAttendance(attendanceId: string, adminId: string, reason: string): Promise<{ success: boolean; message: string; data?: any }> {
+  try {
+    const attendance = await prisma.attendance.findUnique({
+      where: { id: attendanceId },
+      include: {
+        employee: {
+          select: {
+            name: true,
+            employeeId: true,
+            role: true
+          }
+        }
+      }
+    })
+
+    if (!attendance) {
+      return { success: false, message: 'Attendance record not found' }
+    }
+
+    if (attendance.approvalStatus === 'REJECTED') {
+      return { success: false, message: 'Attendance already rejected' }
+    }
+
+    // Update attendance record
+    const updatedAttendance = await prisma.attendance.update({
+      where: { id: attendanceId },
+      data: {
+        approvalStatus: 'REJECTED',
+        rejectedBy: adminId,
+        rejectedAt: new Date(),
+        approvalReason: reason,
+        // Reset clock in/out times when rejected
+        clockIn: null,
+        clockOut: null,
+        status: 'ABSENT'
+      }
+    })
+
+    // Create notification for rejection
+    const notificationService = new NotificationService()
+    await notificationService.createAdminNotification({
+      type: 'ATTENDANCE_REJECTED',
+      title: 'Attendance Rejected',
+      message: `Attendance for ${attendance.employee.name} (${attendance.employee.employeeId}) has been rejected. Reason: ${reason}`,
+      data: {
+        attendanceId: attendanceId,
+        employeeId: attendance.employee.employeeId,
+        employeeName: attendance.employee.name,
+        employeeRole: attendance.employee.role,
+        rejectedBy: adminId,
+        rejectedAt: updatedAttendance.rejectedAt?.toISOString(),
+        reason: reason
+      }
+    })
+
+    console.log(`Attendance rejected for employee ${attendance.employee.employeeId} by admin ${adminId}`)
+
+    return {
+      success: true,
+      message: 'Attendance rejected successfully',
+      data: updatedAttendance
+    }
+  } catch (error) {
+    console.error('Error rejecting attendance:', error)
+    return { success: false, message: 'Failed to reject attendance' }
+  }
+}
+
+// Get pending attendance approvals
+export async function getPendingAttendanceApprovals(): Promise<{ success: boolean; data?: any; error?: string }> {
+  try {
+    const pendingAttendances = await prisma.attendance.findMany({
+      where: {
+        approvalStatus: 'PENDING'
+      },
+      include: {
+        employee: {
+          select: {
+            name: true,
+            employeeId: true,
+            email: true,
+            phone: true,
+            role: true,
+            teamId: true,
+            isTeamLeader: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+
+    const formattedData = pendingAttendances.map(attendance => ({
+      id: attendance.id,
+      employeeId: attendance.employee.employeeId,
+      employeeName: attendance.employee.name,
+      email: attendance.employee.email,
+      phone: attendance.employee.phone,
+      role: attendance.employee.role,
+      teamId: attendance.employee.teamId,
+      isTeamLeader: attendance.employee.isTeamLeader,
+      date: attendance.date.toISOString().split('T')[0],
+      clockIn: attendance.clockIn?.toISOString(),
+      status: attendance.status,
+      location: attendance.location || 'Office Location',
+      photo: attendance.photo,
+      approvalStatus: attendance.approvalStatus,
+      createdAt: attendance.createdAt.toISOString()
+    }))
+
+    return {
+      success: true,
+      data: formattedData
+    }
+  } catch (error) {
+    console.error('Error getting pending attendance approvals:', error)
+    return {
+      success: false,
+      error: 'Failed to get pending attendance approvals'
+    }
+  }
 }
 

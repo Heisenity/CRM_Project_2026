@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { VehicleUnassignedPopup } from "@/components/VehicleUnassignedPopup"
+import { AttendanceApprovalPopup } from "@/components/AttendanceApprovalPopup"
 
 interface VehicleUnassignedData {
   vehicleId: string
@@ -12,8 +13,20 @@ interface VehicleUnassignedData {
   location: string
 }
 
+interface AttendanceApprovalData {
+  attendanceId: string
+  employeeId: string
+  employeeName: string
+  employeeRole: string
+  checkInTime: string
+  location: string
+  status: string
+  photo?: string
+}
+
 interface NotificationContextType {
   showVehicleUnassignedNotification: (data: VehicleUnassignedData) => void
+  showAttendanceApprovalNotification: (data: AttendanceApprovalData) => void
 }
 
 const NotificationContext = React.createContext<NotificationContextType | undefined>(undefined)
@@ -21,15 +34,28 @@ const NotificationContext = React.createContext<NotificationContextType | undefi
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const [vehicleUnassignedData, setVehicleUnassignedData] = React.useState<VehicleUnassignedData | null>(null)
   const [showVehiclePopup, setShowVehiclePopup] = React.useState(false)
+  
+  const [attendanceApprovalData, setAttendanceApprovalData] = React.useState<AttendanceApprovalData | null>(null)
+  const [showAttendancePopup, setShowAttendancePopup] = React.useState(false)
 
   const showVehicleUnassignedNotification = React.useCallback((data: VehicleUnassignedData) => {
     setVehicleUnassignedData(data)
     setShowVehiclePopup(true)
   }, [])
 
+  const showAttendanceApprovalNotification = React.useCallback((data: AttendanceApprovalData) => {
+    setAttendanceApprovalData(data)
+    setShowAttendancePopup(true)
+  }, [])
+
   const closeVehiclePopup = React.useCallback(() => {
     setShowVehiclePopup(false)
     setVehicleUnassignedData(null)
+  }, [])
+
+  const closeAttendancePopup = React.useCallback(() => {
+    setShowAttendancePopup(false)
+    setAttendanceApprovalData(null)
   }, [])
 
   // Poll for new notifications every 10 seconds (only for admin users)
@@ -38,24 +64,39 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     const pollNotifications = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/admin/notifications?isRead=false&limit=1`)
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/admin/notifications?isRead=false&limit=5`)
         
         if (response.ok) {
           const result = await response.json()
           if (result.success && result.data && result.data.length > 0) {
-            const latestNotification = result.data[0]
-            
-            // Check if it's a vehicle unassigned notification that we haven't shown yet
-            if (latestNotification.type === 'VEHICLE_UNASSIGNED' && 
-                latestNotification.data &&
-                (!vehicleUnassignedData || vehicleUnassignedData.vehicleId !== latestNotification.data.vehicleId)) {
+            for (const notification of result.data) {
+              // Handle vehicle unassigned notifications
+              if (notification.type === 'VEHICLE_UNASSIGNED' && 
+                  notification.data &&
+                  (!vehicleUnassignedData || vehicleUnassignedData.vehicleId !== notification.data.vehicleId)) {
+                
+                showVehicleUnassignedNotification(notification.data)
+                
+                // Mark as read
+                await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/admin/notifications/${notification.id}/read`, {
+                  method: 'PUT'
+                })
+                break // Show only one notification at a time
+              }
               
-              showVehicleUnassignedNotification(latestNotification.data)
-              
-              // Mark as read
-              await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/admin/notifications/${latestNotification.id}/read`, {
-                method: 'PUT'
-              })
+              // Handle attendance approval notifications
+              if (notification.type === 'ATTENDANCE_APPROVAL_REQUEST' && 
+                  notification.data &&
+                  (!attendanceApprovalData || attendanceApprovalData.attendanceId !== notification.data.attendanceId)) {
+                
+                showAttendanceApprovalNotification(notification.data)
+                
+                // Mark as read
+                await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/admin/notifications/${notification.id}/read`, {
+                  method: 'PUT'
+                })
+                break // Show only one notification at a time
+              }
             }
           }
         }
@@ -89,11 +130,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         clearInterval(interval)
       }
     }
-  }, [vehicleUnassignedData, showVehicleUnassignedNotification])
+  }, [vehicleUnassignedData, attendanceApprovalData, showVehicleUnassignedNotification, showAttendanceApprovalNotification])
 
   const value = React.useMemo(() => ({
-    showVehicleUnassignedNotification
-  }), [showVehicleUnassignedNotification])
+    showVehicleUnassignedNotification,
+    showAttendanceApprovalNotification
+  }), [showVehicleUnassignedNotification, showAttendanceApprovalNotification])
 
   return (
     <NotificationContext.Provider value={value}>
@@ -102,6 +144,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         isOpen={showVehiclePopup}
         onClose={closeVehiclePopup}
         data={vehicleUnassignedData}
+      />
+      <AttendanceApprovalPopup
+        isOpen={showAttendancePopup}
+        onClose={closeAttendancePopup}
+        data={attendanceApprovalData}
       />
     </NotificationContext.Provider>
   )

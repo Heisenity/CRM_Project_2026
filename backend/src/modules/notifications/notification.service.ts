@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma'
 
 export interface AdminNotification {
   id: string
-  type: 'VEHICLE_UNASSIGNED' | 'TASK_COMPLETED' | 'ATTENDANCE_ALERT'
+  type: 'VEHICLE_UNASSIGNED' | 'TASK_COMPLETED' | 'ATTENDANCE_ALERT' | 'ATTENDANCE_APPROVAL_REQUEST' | 'ATTENDANCE_APPROVED' | 'ATTENDANCE_REJECTED'
   title: string
   message: string
   data?: any

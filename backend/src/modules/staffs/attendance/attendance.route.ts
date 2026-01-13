@@ -7,6 +7,9 @@ import {
   checkRemainingAttempts,
   getAttendanceRecords,
   deleteAttendanceRecord,
+  getPendingApprovals,
+  approveAttendanceRecord,
+  rejectAttendanceRecord,
 } from "./attendance.controller";
 
 import {
@@ -37,6 +40,24 @@ router.delete("/:id", deleteAttendanceRecord);
 // Detect device (browser, OS, etc.)
 // GET /attendance/device
 router.get("/device", detectDevice);
+
+/**
+ * =========================
+ * Attendance Approval
+ * =========================
+ */
+
+// Get pending attendance approvals
+// GET /attendance/pending-approvals
+router.get("/pending-approvals", getPendingApprovals);
+
+// Approve attendance
+// POST /attendance/:attendanceId/approve
+router.post("/:attendanceId/approve", approveAttendanceRecord);
+
+// Reject attendance
+// POST /attendance/:attendanceId/reject
+router.post("/:attendanceId/reject", rejectAttendanceRecord);
 
 /**
  * =========================
