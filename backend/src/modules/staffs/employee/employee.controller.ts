@@ -1,7 +1,7 @@
 import { Request, Response } from 'express'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '../../../lib/prisma'
 import bcrypt from 'bcryptjs'
-import { EmployeeIdGeneratorService } from '@/services/employeeIdGenerator.service'
+import { EmployeeIdGeneratorService } from '../../../services/employeeIdGenerator.service'
 
 // Generate next employee ID
 export const generateEmployeeId = async (): Promise<string> => {

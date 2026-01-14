@@ -2,18 +2,29 @@
   "compilerOptions": {
     "module": "CommonJS",
     "moduleResolution": "node",
-    "noImplicitAny": false,
     "target": "es2020",
     "strict": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "ignoreDeprecations": "5.0",
+
+    "rootDir": "./src",
     "outDir": "./dist",
+
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@/lib/*": ["src/lib/*"],
-      "@/generated/*": ["generated/*"]
+      "@/lib/*": ["src/lib/*"]
     }
-  }
+  },
+
+  "include": ["src/**/*.ts"],
+
+  "exclude": [
+    "node_modules",
+    "dist",
+    "generated",
+    "prisma",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ]
 }

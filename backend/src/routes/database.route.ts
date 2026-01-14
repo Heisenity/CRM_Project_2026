@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { DatabaseController } from '@/controllers/database.controller'
+import { DatabaseController } from '../controllers/database.controller'
 
 const router = Router()
 const databaseController = new DatabaseController()

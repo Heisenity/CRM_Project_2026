@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { prisma } from '../../../lib/prisma'
 import { createTask, CreateTaskData, TaskRecord } from '../tasks/task.service';
 
 export interface Team {

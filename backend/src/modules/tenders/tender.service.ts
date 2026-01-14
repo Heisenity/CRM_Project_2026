@@ -1,5 +1,5 @@
-import { prisma } from '@/lib/prisma';
-import { TenderType, TenderStatus, TenderDocumentType, DocumentStatus, EMDStatus, TenderAuditAction } from '@/generated/prisma';
+import { prisma } from '../../lib/prisma';
+import { TenderType, TenderStatus, TenderDocumentType, DocumentStatus, EMDStatus, TenderAuditAction } from '../../../generated/prisma';
 
 export class TenderService {
   // Generate unique tender number

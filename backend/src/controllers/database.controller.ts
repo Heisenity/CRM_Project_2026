@@ -1,5 +1,5 @@
 import { Request, Response } from 'express'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '../lib/prisma'
 
 export class DatabaseController {
   // DELETE /api/database/reset - Reset all data (DANGEROUS!)
