@@ -3,6 +3,7 @@ import {
   AttendanceRecord
 } from './attendance.types'
 import { getDeviceInfo } from '../../../utils/deviceinfo'
+import { getTodayDate } from '../../../utils/date'
 import { VehicleService } from '../vehicles/vehicle.service'
 import { NotificationService } from '../../notifications/notification.service'
 
@@ -37,8 +38,7 @@ export async function createAttendanceRecord(data: {
   locationText?: string
   action?: 'check-in' | 'check-out' | 'task-checkout'
 }): Promise<AttendanceRecord> {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const today = getTodayDate()
 
   const employee = await prisma.employee.findUnique({ where: { employeeId: data.employeeId } })
   if (!employee) throw new Error('EMPLOYEE_NOT_FOUND')
@@ -275,8 +275,7 @@ export async function createAttendanceRecord(data: {
 
 // Get remaining attempts (updated to numeric)
 export async function getRemainingAttempts(employeeId: string): Promise<{ remainingAttempts: number; isLocked: boolean; status?: string }> {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const today = getTodayDate()
 
   const employee = await prisma.employee.findUnique({ where: { employeeId } })
   if (!employee) throw new Error('EMPLOYEE_NOT_FOUND')
@@ -531,8 +530,7 @@ export async function getPendingAttendanceApprovals(): Promise<{ success: boolea
 // Day-level clock-out for field engineers (separate from task check-out)
 export async function dayClockOut(employeeId: string): Promise<{ success: boolean; message: string; data?: any }> {
   try {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    const today = getTodayDate()
 
     const employee = await prisma.employee.findUnique({ where: { employeeId } })
     if (!employee) {

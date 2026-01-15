@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { formatDateLocal, getTodayDate } from "@/utils/date";
 
 export type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 
@@ -29,9 +30,10 @@ export interface TaskRecord {
 }
 
 // Create a new task and update attendance record
+
 export async function createTask(data: CreateTaskData): Promise<TaskRecord> {
   try {
-    // Find the employee by employeeId
+    // 1) Find the employee by employeeId
     const employee = await prisma.employee.findUnique({
       where: { employeeId: data.employeeId }
     });
@@ -40,128 +42,152 @@ export async function createTask(data: CreateTaskData): Promise<TaskRecord> {
       throw new Error(`Employee with employee ID ${data.employeeId} not found`);
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // 2) Compute the local-midnight and the UTC-midnight for the same calendar day
+    const localMidnight = getTodayDate(); // your correct local midnight
+    // Construct UTC-midnight for the same Y-M-D (this forces the date to be "YYYY-MM-DDT00:00:00.000Z")
+    const utcMidnightForLocalDate = new Date(Date.UTC(
+      localMidnight.getFullYear(),
+      localMidnight.getMonth(),
+      localMidnight.getDate(),
+      0, 0, 0, 0
+    ));
 
-    await prisma.attendance.updateMany({
-      where: {
-        employee: {
-          employeeId: data.employeeId
-        },
-        date: today
-      },
-      data: {
-        attemptCount: 'ZERO'
-      }
-    })
+    // Also compute end of day UTC for safe range queries
+    const utcNextDayMidnight = new Date(Date.UTC(
+      localMidnight.getFullYear(),
+      localMidnight.getMonth(),
+      localMidnight.getDate() + 1,
+      0, 0, 0, 0
+    ));
 
-    // Create the task
-    const task = await prisma.task.create({
-      data: {
-        employeeId: employee.id,
-        title: data.title,
-        description: data.description,
-        category: data.category,
-        startTime: data.startTime,
-        assignedBy: data.assignedBy,
-        status: 'PENDING'
-      }
-    });
-
-    // Check if attendance record exists for today
-    const existingAttendance = await prisma.attendance.findUnique({
-      where: {
-        employeeId_date: {
-          employeeId: employee.id,
-          date: today
-        }
-      }
-    });
-
-    // Prepare attendance data with task information
     const currentTime = new Date();
 
-    // When a task is assigned, automatically mark employee as PRESENT
-    // This indicates the employee is working and has been assigned a task
-    let attendanceStatus: 'PRESENT' | 'LATE' = 'PRESENT';
+    // 3) Transaction: reset attempts, create task, update/create attendance
+    let createdTask: any = null;
 
-    // If task has start time, check if current time is significantly after start time
-    if (data.startTime) {
-      const [startHour, startMinute] = data.startTime.split(':').map(Number);
-      const taskStartTime = new Date(today);
-      taskStartTime.setHours(startHour, startMinute, 0, 0);
-
-      // If current time is more than 30 minutes after task start time, mark as late
-      const lateThreshold = new Date(taskStartTime.getTime() + 30 * 60 * 1000); // 30 minutes grace period
-      if (currentTime > lateThreshold) {
-        attendanceStatus = 'LATE';
-      }
-    }
-
-    const attendanceData = {
-      taskId: task.id,
-      taskStartTime: data.startTime, // Initially set to assigned start time
-      taskEndTime: null, // Don't set task end time during assignment
-      taskLocation: data.location,
-      location: data.location || "Task Assignment",
-      status: attendanceStatus, // This will be PRESENT or LATE
-      source: 'ADMIN' as const, // Mark as admin task assignment
-      updatedAt: currentTime
-    };
-
-    if (existingAttendance) {
-      // Update existing attendance record with task assignment and timing
-      // For FIELD_ENGINEER: Reset clockOut to allow new check-in for new task
-      const updateData: any = {
-        ...attendanceData
-      };
-      
-      // If employee is FIELD_ENGINEER and has checked out, reset clockOut to allow new check-in for new task
-      // Do NOT reset clockIn - let it stay from previous check-in until employee checks in again
-      if (employee.role === 'FIELD_ENGINEER' && existingAttendance.clockOut) {
-        updateData.clockOut = null;
-        // Also reset clockIn so employee must check in fresh for new task
-        updateData.clockIn = null;
-        console.log(`Resetting clockOut and clockIn for field engineer ${data.employeeId} to allow new task check-in`);
-      }
-
-      console.log(`Updating attendance for employee ${data.employeeId} with status: ${attendanceStatus}`);
-
-      await prisma.attendance.update({
-        where: { id: existingAttendance.id },
-        data: updateData
-      });
-    } else {
-      // Create new attendance record with task assignment and timing
-      // DO NOT automatically set clockIn - employee must check in themselves
-      console.log(`Creating new attendance record for employee ${data.employeeId} with status: ${attendanceStatus}`);
-
-      await prisma.attendance.create({
-        data: {
+    await prisma.$transaction(async (tx) => {
+      // Reset attemptCount for today's attendance (use range to be safe)
+      await tx.attendance.updateMany({
+        where: {
           employeeId: employee.id,
-          date: today,
-          // clockIn: null, // Employee must check in themselves
-          attemptCount: 'ZERO',
-          ...attendanceData
+          date: {
+            gte: utcMidnightForLocalDate,
+            lt: utcNextDayMidnight
+          }
+        },
+        data: {
+          attemptCount: 'ZERO'
         }
       });
+
+      // Create the task
+      createdTask = await tx.task.create({
+        data: {
+          employeeId: employee.id,
+          title: data.title,
+          description: data.description,
+          category: data.category,
+          startTime: data.startTime,
+          assignedBy: data.assignedBy,
+          status: 'PENDING'
+        }
+      });
+
+      // Try to find today's attendance record using safe range
+      const existingAttendance = await tx.attendance.findFirst({
+        where: {
+          employeeId: employee.id,
+          date: {
+            gte: utcMidnightForLocalDate,
+            lt: utcNextDayMidnight
+          }
+        }
+      });
+
+      // Determine attendanceStatus (PRESENT or LATE)
+      let attendanceStatus: 'PRESENT' | 'LATE' = 'PRESENT';
+      if (data.startTime) {
+        const [startHour, startMinute] = data.startTime.split(':').map(Number);
+        const taskStartTime = new Date(
+          localMidnight.getFullYear(),
+          localMidnight.getMonth(),
+          localMidnight.getDate(),
+          startHour,
+          startMinute,
+          0,
+          0
+        );
+
+        const lateThreshold = new Date(taskStartTime.getTime() + 30 * 60 * 1000); // 30 minutes grace period
+        if (currentTime > lateThreshold) {
+          attendanceStatus = 'LATE';
+        }
+      }
+
+      const attendanceDataForWrite: any = {
+        taskId: createdTask.id,
+        taskStartTime: data.startTime ?? null,
+        taskEndTime: null,
+        taskLocation: data.location ?? null,
+        location: data.location || "Task Assignment",
+        status: attendanceStatus,
+        source: 'ADMIN',
+        updatedAt: currentTime
+      };
+
+      if (existingAttendance) {
+        // Update
+        const updateData: any = {
+          ...attendanceDataForWrite
+        };
+
+        // FIELD_ENGINEER reset logic
+        if (employee.role === 'FIELD_ENGINEER' && existingAttendance.clockOut) {
+          updateData.clockOut = null;
+          updateData.clockIn = null;
+          console.log(`Resetting clockOut and clockIn for field engineer ${data.employeeId}`);
+        }
+
+        console.log(`Updating attendance for employee ${data.employeeId} with status: ${attendanceStatus}`);
+
+        await tx.attendance.update({
+          where: { id: existingAttendance.id },
+          data: updateData
+        });
+      } else {
+        // Create new attendance record. Use utcMidnightForLocalDate when writing to date field to force the DB to store the intended calendar date.
+        console.log(`Creating new attendance record for employee ${data.employeeId} with status: ${attendanceStatus}`);
+        await tx.attendance.create({
+          data: {
+            employeeId: employee.id,
+            // IMPORTANT: write UTC-midnight corresponding to the intended local date
+            date: utcMidnightForLocalDate,
+            attemptCount: 'ZERO',
+            ...attendanceDataForWrite
+          }
+        });
+      }
+    }); // end transaction
+
+    if (!createdTask) {
+      throw new Error('Task creation failed inside transaction');
     }
 
-    // Return the task record
+    // 4) Return the created task record
     return {
-      id: task.id,
+      id: createdTask.id,
       employeeId: data.employeeId,
-      title: task.title,
-      description: task.description,
-      category: task.category || undefined,
-      location: task.location || undefined,
-      startTime: task.startTime || undefined,
-      endTime: task.endTime || undefined,
-      assignedBy: task.assignedBy,
-      assignedAt: task.assignedAt.toISOString(),
-      status: task.status,
-      createdAt: task.createdAt.toISOString(),
-      updatedAt: task.updatedAt.toISOString()
+      title: createdTask.title,
+      description: createdTask.description,
+      category: createdTask.category || undefined,
+      location: createdTask.location || data.location || undefined,
+      startTime: createdTask.startTime || undefined,
+      endTime: createdTask.endTime || undefined,
+      assignedBy: createdTask.assignedBy,
+      assignedAt: createdTask.assignedAt ? createdTask.assignedAt.toISOString() : new Date().toISOString(),
+      status: createdTask.status as TaskStatus,
+      createdAt: createdTask.createdAt.toISOString(),
+      updatedAt: createdTask.updatedAt.toISOString()
     };
   } catch (error) {
     console.error('Error creating task:', error);
@@ -231,8 +257,7 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus): Prom
     });
 
     // Update attendance status based on task status
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getTodayDate();
 
     // Find today's attendance record for this employee
     const attendance = await prisma.attendance.findUnique({
@@ -382,8 +407,7 @@ export async function updateAttendanceStatus(employeeId: string, status: 'PRESEN
       throw new Error(`Employee with employee ID ${employeeId} not found`);
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getTodayDate();
 
     // Update or create attendance record
     await prisma.attendance.upsert({
@@ -432,8 +456,7 @@ export async function completeTask(taskId: string, employeeId: string): Promise<
       }
     });
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getTodayDate();
 
     // Update attendance record with task completion time (but don't set clockOut)
     await prisma.attendance.updateMany({
@@ -469,8 +492,7 @@ export async function resetAttendanceAttempts(employeeId: string): Promise<void>
       throw new Error(`Employee with employee ID ${employeeId} not found`);
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getTodayDate();
 
     // Reset attendance attempts and unlock if locked
     await prisma.attendance.updateMany({

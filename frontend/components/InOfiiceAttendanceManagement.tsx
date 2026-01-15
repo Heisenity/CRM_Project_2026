@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
-import { DateRangePicker } from "@/components/DateRangePicker"
 import { AddAttendanceRecord } from "@/components/AddAttendanceRecord"
 import { showToast, showConfirm } from "@/lib/toast-utils"
 
@@ -396,33 +395,6 @@ export function AttendanceManagementPage() {
     setPagination(prev => ({ ...prev, page: 1 }))
   }
 
-  const handleDateRangeChange = (range: DateRange) => {
-    setFilters(prev => ({ ...prev, dateRange: range }))
-    setDeletedRecords(new Set())
-
-    if (range.from) {
-      if (range.to && range.from.toDateString() !== range.to.toDateString()) {
-        setCurrentDate(`${range.from.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${range.to.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`)
-      } else {
-        setCurrentDate(range.from.toLocaleDateString('en-US', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        }))
-      }
-    } else {
-      setCurrentDate(new Date().toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      }))
-    }
-
-    setPagination(prev => ({ ...prev, page: 1 }))
-  }
-
   // Calculate statistics
   const stats = React.useMemo(() => {
     const total = combinedData.length
@@ -684,16 +656,6 @@ export function AttendanceManagementPage() {
                   />
                 </div>
 
-                {/* Date Range Picker */}
-                <div className="shrink-0">
-                  <DateRangePicker
-                    value={filters.dateRange}
-                    onChange={handleDateRangeChange}
-                    placeholder="Select date range"
-                    className="w-[240px]"
-                  />
-                </div>
-
                 {/* Status Filter */}
                 <div className="shrink-0">
                   <DropdownMenu>
@@ -724,7 +686,7 @@ export function AttendanceManagementPage() {
               </div>
 
               {/* Filter Summary Row */}
-              {(filters.search || filters.status || filters.dateRange.from) && (
+              {(filters.search || filters.status) && (
                 <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                   <div className="flex items-center gap-2">
                     {filters.search && (
@@ -743,19 +705,6 @@ export function AttendanceManagementPage() {
                         <X
                           className="ml-1 h-3 w-3 cursor-pointer hover:text-green-900"
                           onClick={() => setFilters(prev => ({ ...prev, status: '' }))}
-                        />
-                      </Badge>
-                    )}
-
-                    {filters.dateRange.from && (
-                      <Badge variant="secondary" className="bg-purple-50 text-purple-700 border-purple-200">
-                        {filters.dateRange.from.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        {filters.dateRange.to && filters.dateRange.from.toDateString() !== filters.dateRange.to.toDateString() &&
-                          ` - ${filters.dateRange.to.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
-                        }
-                        <X
-                          className="ml-1 h-3 w-3 cursor-pointer hover:text-purple-900"
-                          onClick={() => setFilters(prev => ({ ...prev, dateRange: { from: null, to: null } }))}
                         />
                       </Badge>
                     )}
