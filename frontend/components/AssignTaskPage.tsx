@@ -135,25 +135,42 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
       const response = await assignTask(taskRequest)
       
       if (response.success) {
-        // If individual assignment and vehicle is selected, assign the vehicle
-        if (assignmentType === 'individual' && selectedVehicle && selectedVehicle !== "none" && selectedEmployee) {
+        // Handle vehicle assignment
+        let vehicleAssigned = false
+        
+        if (selectedVehicle && selectedVehicle !== "none") {
           try {
-            const vehicleResponse = await assignVehicle(selectedVehicle, { employeeId: selectedEmployee })
-            if (vehicleResponse.success) {
-              console.log('Vehicle assigned successfully')
-            } else {
-              console.warn('Task assigned but vehicle assignment failed:', vehicleResponse.error)
+            let targetEmployeeId: string | undefined
+            
+            if (assignmentType === 'individual') {
+              targetEmployeeId = selectedEmployee
+            } else if (assignmentType === 'team' && selectedTeamData?.teamLeader) {
+              targetEmployeeId = selectedTeamData.teamLeader.employeeId
+            }
+            
+            if (targetEmployeeId) {
+              const vehicleResponse = await assignVehicle(selectedVehicle, { employeeId: targetEmployeeId })
+              if (vehicleResponse.success) {
+                vehicleAssigned = true
+                console.log('Vehicle assigned successfully')
+              } else {
+                console.warn('Task assigned but vehicle assignment failed:', vehicleResponse.error)
+              }
             }
           } catch (vehicleError) {
             console.warn('Task assigned but vehicle assignment failed:', vehicleError)
           }
         }
 
+        // Show success message
         if (assignmentType === 'team') {
-          showToast.success(`Task assigned successfully to team "${response.data?.teamName}" with ${response.data?.memberCount} members! All team members' attendance status has been automatically updated to PRESENT.`)
+          const vehicleMsg = vehicleAssigned && selectedTeamData?.teamLeader 
+            ? ` Vehicle has been assigned to team leader ${selectedTeamData.teamLeader.name}.` 
+            : ''
+          showToast.success(`Task assigned successfully to team "${response.data?.teamName}" with ${response.data?.memberCount} members! All team members' attendance status has been automatically updated to PRESENT.${vehicleMsg}`)
         } else {
-          const vehicleMessage = selectedVehicle && selectedVehicle !== "none" ? ' Vehicle has also been assigned to the employee.' : ''
-          showToast.success(`Task assigned successfully! Employee attendance status has been automatically updated to PRESENT.${vehicleMessage}`)
+          const vehicleMsg = vehicleAssigned ? ' Vehicle has also been assigned to the employee.' : ''
+          showToast.success(`Task assigned successfully! Employee attendance status has been automatically updated to PRESENT.${vehicleMsg}`)
         }
         
         if (onTaskAssigned) {
@@ -465,66 +482,99 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
                     />
                   </div>
                   
-                  {/* Vehicle Assignment (Only for individual assignments) */}
-                  {assignmentType === 'individual' && (
-                    <div className="space-y-2">
-                      <Label htmlFor="vehicle" className="flex items-center gap-2">
-                        <Car className="h-4 w-4 text-gray-500" />
-                        Assign Vehicle (Optional)
-                      </Label>
-                      <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
-                        <SelectTrigger className="border-gray-300 focus:border-blue-500 focus:ring-blue-500">
-                          <SelectValue placeholder="Select a vehicle to assign..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">No vehicle assignment</SelectItem>
-                          {vehicles.filter(v => v.status === 'AVAILABLE').map((vehicle) => (
-                            <SelectItem key={vehicle.id} value={vehicle.id}>
-                              <div className="flex items-center gap-2">
-                                <Car className="h-4 w-4" />
-                                <span>
-                                  {vehicle.vehicleNumber} - {vehicle.make} {vehicle.model}
-                                  {vehicle.year && ` (${vehicle.year})`}
-                                </span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {selectedVehicle && selectedVehicle !== "none" && (
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                          <p className="text-sm text-blue-700 font-medium">
-                            ✓ Vehicle will be assigned to the selected employee
-                          </p>
-                          <p className="text-xs text-blue-600 mt-1">
-                            The vehicle status will be updated to "ASSIGNED" after task creation
-                          </p>
-                        </div>
-                      )}
-                      {vehicles.filter(v => v.status === 'AVAILABLE').length === 0 && (
-                        <p className="text-sm text-gray-500">
-                          No available vehicles to assign. All vehicles are currently assigned or under maintenance.
+                  {/* Vehicle Assignment */}
+                  <div className="space-y-2">
+                    <Label htmlFor="vehicle" className="flex items-center gap-2">
+                      <Car className="h-4 w-4 text-gray-500" />
+                      Assign Vehicle (Optional)
+                    </Label>
+                    {assignmentType === 'team' && selectedTeamData && !selectedTeamData.teamLeader && (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        <p className="text-sm text-yellow-700 font-medium">
+                          ⚠ This team has no team leader
                         </p>
-                      )}
-                    </div>
-                  )}
-
-                  {assignmentType === 'team' && (
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-2 text-gray-400">
-                        <Car className="h-4 w-4" />
-                        Vehicle Assignment
-                      </Label>
-                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                        <p className="text-sm text-gray-600">
-                          Vehicle assignment is only available for individual task assignments.
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Switch to "Individual" assignment type to assign vehicles.
+                        <p className="text-xs text-yellow-600 mt-1">
+                          Vehicle can only be assigned to the team leader. Please assign a team leader first.
                         </p>
                       </div>
-                    </div>
-                  )}
+                    )}
+                    {assignmentType === 'team' && selectedTeamData && selectedTeamData.teamLeader && (
+                      <>
+                        <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
+                          <SelectTrigger className="border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                            <SelectValue placeholder="Select a vehicle to assign to team leader..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No vehicle assignment</SelectItem>
+                            {vehicles.filter(v => v.status === 'AVAILABLE').map((vehicle) => (
+                              <SelectItem key={vehicle.id} value={vehicle.id}>
+                                <div className="flex items-center gap-2">
+                                  <Car className="h-4 w-4" />
+                                  <span>
+                                    {vehicle.vehicleNumber} - {vehicle.make} {vehicle.model}
+                                    {vehicle.year && ` (${vehicle.year})`}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {selectedVehicle && selectedVehicle !== "none" && (
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <p className="text-sm text-blue-700 font-medium">
+                              ✓ Vehicle will be assigned to team leader: {selectedTeamData.teamLeader.name}
+                            </p>
+                            <p className="text-xs text-blue-600 mt-1">
+                              The vehicle status will be updated to &quot;ASSIGNED&quot; after task creation
+                            </p>
+                          </div>
+                        )}
+                        {vehicles.filter(v => v.status === 'AVAILABLE').length === 0 && (
+                          <p className="text-sm text-gray-500">
+                            No available vehicles to assign. All vehicles are currently assigned.
+                          </p>
+                        )}
+                      </>
+                    )}
+                    {assignmentType === 'individual' && (
+                      <>
+                        <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
+                          <SelectTrigger className="border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                            <SelectValue placeholder="Select a vehicle to assign..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No vehicle assignment</SelectItem>
+                            {vehicles.filter(v => v.status === 'AVAILABLE').map((vehicle) => (
+                              <SelectItem key={vehicle.id} value={vehicle.id}>
+                                <div className="flex items-center gap-2">
+                                  <Car className="h-4 w-4" />
+                                  <span>
+                                    {vehicle.vehicleNumber} - {vehicle.make} {vehicle.model}
+                                    {vehicle.year && ` (${vehicle.year})`}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {selectedVehicle && selectedVehicle !== "none" && (
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <p className="text-sm text-blue-700 font-medium">
+                              ✓ Vehicle will be assigned to the selected employee
+                            </p>
+                            <p className="text-xs text-blue-600 mt-1">
+                              The vehicle status will be updated to &quot;ASSIGNED&quot; after task creation
+                            </p>
+                          </div>
+                        )}
+                        {vehicles.filter(v => v.status === 'AVAILABLE').length === 0 && (
+                          <p className="text-sm text-gray-500">
+                            No available vehicles to assign. All vehicles are currently assigned.
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
 
                   <Separator />
 
