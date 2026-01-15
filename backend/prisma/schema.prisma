@@ -673,7 +673,7 @@ model Tender {
   tenderType      TenderType
   submissionDate  DateTime      @db.Date
   deadline        DateTime      @db.Date
-  status          TenderStatus  @default(DRAFT)
+  status          TenderStatus  @default(ACCEPTED)
   totalValue      Decimal?      @db.Decimal(15, 2)
   requiredDocuments String?     @db.Text // List of required document names
   totalEMDInvested  Decimal?    @db.Decimal(15, 2) // Total EMD invested
@@ -781,13 +781,8 @@ enum TenderType {
 }
 
 enum TenderStatus {
-  DRAFT
-  SUBMITTED
-  APPROVED
+  ACCEPTED
   REJECTED
-  AWARDED
-  NOT_AWARDED
-  CLOSED
 }
 
 enum TenderDocumentType {

@@ -29,7 +29,7 @@ import {
   CheckCircle, 
   XCircle, 
   Clock, 
-  DollarSign,
+  IndianRupee,
   Calendar,
   Building,
   Gavel
@@ -103,13 +103,8 @@ const TENDER_TYPES = [
 ]
 
 const TENDER_STATUSES = [
-  { value: 'DRAFT', label: 'Draft', color: 'bg-gray-100 text-gray-800' },
-  { value: 'SUBMITTED', label: 'Submitted', color: 'bg-blue-100 text-blue-800' },
-  { value: 'APPROVED', label: 'Approved', color: 'bg-green-100 text-green-800' },
-  { value: 'REJECTED', label: 'Rejected', color: 'bg-red-100 text-red-800' },
-  { value: 'AWARDED', label: 'Awarded', color: 'bg-purple-100 text-purple-800' },
-  { value: 'NOT_AWARDED', label: 'Not Awarded', color: 'bg-orange-100 text-orange-800' },
-  { value: 'CLOSED', label: 'Closed', color: 'bg-gray-100 text-gray-800' }
+  { value: 'ACCEPTED', label: 'Accepted', color: 'bg-green-100 text-green-800' },
+  { value: 'REJECTED', label: 'Rejected', color: 'bg-red-100 text-red-800' }
 ]
 
 const DOCUMENT_TYPES = [
@@ -145,6 +140,7 @@ export default function TenderManagement() {
   const [formData, setFormData] = useState({
     name: '',
     department: '',
+    status: 'ACCEPTED',
     requiredDocuments: '',
     totalEMDInvested: '',
     totalEMDRefunded: '',
@@ -218,6 +214,49 @@ export default function TenderManagement() {
     }
   }
 
+  const handleDownloadDocument = async (documentId: string, fileName: string) => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/tenders/documents/${documentId}/download`, {
+        headers: {
+          'Authorization': `Bearer ${(session?.user as any)?.sessionToken}`
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to download document')
+      }
+
+      // Get the blob from response
+      const blob = await response.blob()
+      
+      // Create a temporary URL for the blob
+      const url = window.URL.createObjectURL(blob)
+      
+      // Create a temporary anchor element and trigger download
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName
+      document.body.appendChild(a)
+      a.click()
+      
+      // Cleanup
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      
+      toast({
+        title: "Success",
+        description: "Document downloaded successfully"
+      })
+    } catch (error) {
+      console.error('Error downloading document:', error)
+      toast({
+        title: "Error",
+        description: "Failed to download document",
+        variant: "destructive"
+      })
+    }
+  }
+
   const handleCreateTender = async () => {
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/tenders`, {
@@ -245,12 +284,14 @@ export default function TenderManagement() {
         setFormData({
           name: '',
           department: '',
+          status: 'ACCEPTED',
           requiredDocuments: '',
           totalEMDInvested: '',
           totalEMDRefunded: '',
           totalEMDForfeited: ''
         })
         fetchTenders()
+        fetchEMDSummary()
       } else {
         toast({
           title: "Error",
@@ -387,6 +428,24 @@ export default function TenderManagement() {
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="status">Status *</Label>
+                <Select 
+                  value={formData.status} 
+                  onValueChange={(value) => setFormData({ ...formData, status: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TENDER_STATUSES.map(status => (
+                      <SelectItem key={status.value} value={status.value}>
+                        {status.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="requiredDocuments">Required Documents</Label>
                 <Textarea
                   id="requiredDocuments"
@@ -454,7 +513,7 @@ export default function TenderManagement() {
             <Card className="border-l-4 border-l-blue-500 shadow-sm hover:shadow-md transition-shadow">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-gray-600">Total EMD Invested</CardTitle>
-                <DollarSign className="h-5 w-5 text-blue-600" />
+                <IndianRupee className="h-5 w-5 text-blue-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-gray-900">₹{emdSummary.totalInvested.toLocaleString()}</div>
@@ -564,7 +623,7 @@ export default function TenderManagement() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <DollarSign className="h-4 w-4 text-blue-600" />
+                          <IndianRupee className="h-4 w-4 text-blue-600" />
                           <span className="text-sm font-medium text-blue-900">
                             {tender.totalEMDInvested ? `₹${Number(tender.totalEMDInvested).toLocaleString()}` : '₹0'}
                           </span>
@@ -572,7 +631,7 @@ export default function TenderManagement() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <DollarSign className="h-4 w-4 text-green-600" />
+                          <IndianRupee className="h-4 w-4 text-green-600" />
                           <span className="text-sm font-medium text-green-900">
                             {tender.totalEMDRefunded ? `₹${Number(tender.totalEMDRefunded).toLocaleString()}` : '₹0'}
                           </span>
@@ -580,7 +639,7 @@ export default function TenderManagement() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <DollarSign className="h-4 w-4 text-red-600" />
+                          <IndianRupee className="h-4 w-4 text-red-600" />
                           <span className="text-sm font-medium text-red-900">
                             {tender.totalEMDForfeited ? `₹${Number(tender.totalEMDForfeited).toLocaleString()}` : '₹0'}
                           </span>
@@ -731,12 +790,11 @@ export default function TenderManagement() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge className={doc.status === 'VERIFIED' ? 'bg-green-100 text-green-800' : 
-                                         doc.status === 'REJECTED' ? 'bg-red-100 text-red-800' : 
-                                         'bg-yellow-100 text-yellow-800'}>
-                            {doc.status}
-                          </Badge>
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleDownloadDocument(doc.id, doc.originalName)}
+                          >
                             <Download className="h-4 w-4" />
                           </Button>
                         </div>
@@ -766,7 +824,7 @@ export default function TenderManagement() {
                     {selectedTender.emdRecords.map((emd) => (
                       <div key={emd.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
                         <div className="flex items-center gap-3">
-                          <DollarSign className="h-5 w-5 text-gray-400" />
+                          <IndianRupee className="h-5 w-5 text-gray-400" />
                           <div>
                             <p className="font-medium">₹{emd.amount.toLocaleString()}</p>
                             <p className="text-sm text-gray-500">
@@ -782,7 +840,7 @@ export default function TenderManagement() {
                   </div>
                 ) : (
                   <div className="text-center py-12 text-gray-500">
-                    <DollarSign className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <IndianRupee className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                     <p>No EMD records yet</p>
                   </div>
                 )}

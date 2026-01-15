@@ -210,14 +210,12 @@ export class TenderService {
 
     const updateData: any = { status, updatedAt: new Date() };
     
-    if (status === TenderStatus.APPROVED) {
+    if (status === TenderStatus.ACCEPTED) {
       updateData.approvedBy = updatedBy;
       updateData.approvedAt = new Date();
     } else if (status === TenderStatus.REJECTED) {
       updateData.rejectedBy = updatedBy;
       updateData.rejectedAt = new Date();
-    } else if (status === TenderStatus.CLOSED) {
-      updateData.closedAt = new Date();
     }
 
     if (remarks) {
@@ -232,23 +230,11 @@ export class TenderService {
     // Create audit log
     let auditAction: TenderAuditAction;
     switch (status) {
-      case TenderStatus.SUBMITTED:
-        auditAction = TenderAuditAction.SUBMITTED;
-        break;
-      case TenderStatus.APPROVED:
+      case TenderStatus.ACCEPTED:
         auditAction = TenderAuditAction.APPROVED;
         break;
       case TenderStatus.REJECTED:
         auditAction = TenderAuditAction.REJECTED;
-        break;
-      case TenderStatus.AWARDED:
-        auditAction = TenderAuditAction.AWARDED;
-        break;
-      case TenderStatus.NOT_AWARDED:
-        auditAction = TenderAuditAction.NOT_AWARDED;
-        break;
-      case TenderStatus.CLOSED:
-        auditAction = TenderAuditAction.CLOSED;
         break;
       default:
         auditAction = TenderAuditAction.STATUS_CHANGED;
@@ -426,44 +412,51 @@ export class TenderService {
 
   // Get EMD summary
   async getEMDSummary() {
-    const summary = await prisma.tenderEMD.groupBy({
-      by: ['status'],
+    // Aggregate EMD totals from Tender model
+    const tenderSummary = await prisma.tender.aggregate({
       _sum: {
-        amount: true,
+        totalEMDInvested: true,
+        totalEMDRefunded: true,
+        totalEMDForfeited: true,
       },
       _count: {
         id: true,
       },
     });
 
-    const result = {
-      totalInvested: 0,
-      totalRefunded: 0,
-      totalForfeited: 0,
-      countInvested: 0,
-      countRefunded: 0,
-      countForfeited: 0,
-    };
-
-    summary.forEach((item) => {
-      const amount = parseFloat(item._sum.amount?.toString() || '0');
-      const count = item._count.id;
-
-      switch (item.status) {
-        case EMDStatus.INVESTED:
-          result.totalInvested = amount;
-          result.countInvested = count;
-          break;
-        case EMDStatus.REFUNDED:
-          result.totalRefunded = amount;
-          result.countRefunded = count;
-          break;
-        case EMDStatus.FORFEITED:
-          result.totalForfeited = amount;
-          result.countForfeited = count;
-          break;
+    // Count tenders with each EMD type
+    const investedCount = await prisma.tender.count({
+      where: {
+        totalEMDInvested: {
+          gt: 0
+        }
       }
     });
+
+    const refundedCount = await prisma.tender.count({
+      where: {
+        totalEMDRefunded: {
+          gt: 0
+        }
+      }
+    });
+
+    const forfeitedCount = await prisma.tender.count({
+      where: {
+        totalEMDForfeited: {
+          gt: 0
+        }
+      }
+    });
+
+    const result = {
+      totalInvested: parseFloat(tenderSummary._sum.totalEMDInvested?.toString() || '0'),
+      totalRefunded: parseFloat(tenderSummary._sum.totalEMDRefunded?.toString() || '0'),
+      totalForfeited: parseFloat(tenderSummary._sum.totalEMDForfeited?.toString() || '0'),
+      countInvested: investedCount,
+      countRefunded: refundedCount,
+      countForfeited: forfeitedCount,
+    };
 
     return result;
   }
@@ -498,18 +491,19 @@ export class TenderService {
     const tender = await prisma.tender.update({
       where: { id },
       data: {
-        status: TenderStatus.CLOSED,
-        closedAt: new Date(),
+        status: TenderStatus.REJECTED,
+        rejectedBy: deletedBy,
+        rejectedAt: new Date(),
       },
     });
 
     await this.createAuditLog(
       id,
-      TenderAuditAction.CLOSED,
+      TenderAuditAction.REJECTED,
       deletedBy,
       'status',
       undefined,
-      TenderStatus.CLOSED,
+      TenderStatus.REJECTED,
       'Tender deleted by admin'
     );
 
