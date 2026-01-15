@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "prisma generate && tsc && copyfiles -u 2 \"src/swagger/openapi.yaml\" dist/swagger",
+    "postbuild": "prisma migrate deploy",
     "start": "node -r ./module-alias-register.js dist/index.js",
     "lint": "eslint src/**/*.ts",
     "test": "jest",
