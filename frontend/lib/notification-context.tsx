@@ -3,6 +3,7 @@
 import * as React from "react"
 import { VehicleUnassignedPopup } from "@/components/VehicleUnassignedPopup"
 import { AttendanceApprovalPopup } from "@/components/AttendanceApprovalPopup"
+import { playAlertSound } from "@/lib/notification-sound"
 
 interface VehicleUnassignedData {
   vehicleId: string
@@ -41,11 +42,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const showVehicleUnassignedNotification = React.useCallback((data: VehicleUnassignedData) => {
     setVehicleUnassignedData(data)
     setShowVehiclePopup(true)
+    // Play notification sound
+    playAlertSound()
   }, [])
 
   const showAttendanceApprovalNotification = React.useCallback((data: AttendanceApprovalData) => {
     setAttendanceApprovalData(data)
     setShowAttendancePopup(true)
+    // Play notification sound
+    playAlertSound()
   }, [])
 
   const closeVehiclePopup = React.useCallback(() => {

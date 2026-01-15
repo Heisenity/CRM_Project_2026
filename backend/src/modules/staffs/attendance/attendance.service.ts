@@ -1,4 +1,4 @@
-import { prisma } from '../../../lib/prisma'
+import { prisma } from '../../../lib/prisma' 
 import {
   AttendanceRecord
 } from './attendance.types'
@@ -69,12 +69,27 @@ export async function createAttendanceRecord(data: {
   // Check if this is the first check-in of the day (requires approval)
   const isFirstCheckIn = !existing?.clockIn && (data.action === 'check-in' || (!data.action && (data.status === 'PRESENT' || data.status === 'LATE')))
 
-  // Handle check-in/check-out logic
+  // Handle check-in/check-out logic based on employee role
   if (data.action === 'check-in') {
-    if (!existing?.clockIn) {
-      updateData.clockIn = new Date()
-      // Set approval status to PENDING for first check-in
-      updateData.approvalStatus = 'PENDING'
+    // For FIELD_ENGINEER: Allow multiple check-ins (reset clockOut to allow new check-in)
+    // For IN_OFFICE: Only allow one check-in per day
+    if (employee.role === 'FIELD_ENGINEER') {
+      // Field engineers can check in multiple times (once per task)
+      if (!existing?.clockIn) {
+        // First check-in of the day
+        updateData.clockIn = new Date()
+        updateData.approvalStatus = 'PENDING'
+      } else if (existing?.clockOut) {
+        // Already checked out, allow new check-in for new task
+        updateData.clockIn = new Date()
+        updateData.clockOut = null // Reset checkout to allow new task cycle
+      }
+    } else {
+      // IN_OFFICE employees: single check-in per day
+      if (!existing?.clockIn) {
+        updateData.clockIn = new Date()
+        updateData.approvalStatus = 'PENDING'
+      }
     }
     
     const taskCheckinTime = new Date().toLocaleTimeString('en-US', {
@@ -95,8 +110,23 @@ export async function createAttendanceRecord(data: {
       minute: '2-digit'
     })
 
-    updateData.clockOut = new Date()
-    updateData.taskEndTime = checkoutTime
+    // For FIELD_ENGINEER: Allow multiple check-outs (per task completion)
+    // For IN_OFFICE: Only allow one check-out per day
+    if (employee.role === 'FIELD_ENGINEER') {
+      // Field engineers can check out multiple times
+      updateData.clockOut = new Date()
+      updateData.taskEndTime = checkoutTime
+      // Clear taskId when checking out (task is completed)
+      updateData.taskId = null // <-- fix: clear assigned task on check-out
+    } else {
+      // IN_OFFICE employees: single check-out per day
+      if (!existing?.clockOut) {
+        updateData.clockOut = new Date()
+        updateData.taskEndTime = checkoutTime
+      } else {
+        throw new Error('ALREADY_CHECKED_OUT')
+      }
+    }
 
     if (existing && existing.source === 'ADMIN' && !existing.clockIn) {
       throw new Error('CANNOT_CHECKOUT_WITHOUT_CHECKIN')
@@ -110,6 +140,8 @@ export async function createAttendanceRecord(data: {
     })
 
     updateData.taskEndTime = taskCheckoutTime
+    // If a field engineer finishes a task without a full check-out, also clear the task assignment.
+    updateData.taskId = null // <-- fix: clear assigned task on task-checkout
 
   } else {
     if (!existing?.clockIn && (data.status === 'PRESENT' || data.status === 'LATE')) {
@@ -126,7 +158,8 @@ export async function createAttendanceRecord(data: {
           ...updateData,
           clockIn: updateData.clockIn !== undefined ? updateData.clockIn : existing.clockIn,
           clockOut: updateData.clockOut !== undefined ? updateData.clockOut : existing.clockOut,
-          approvalStatus: updateData.approvalStatus !== undefined ? updateData.approvalStatus : existing.approvalStatus
+          approvalStatus: updateData.approvalStatus !== undefined ? updateData.approvalStatus : existing.approvalStatus,
+          taskId: updateData.taskId !== undefined ? updateData.taskId : existing.taskId
         }
       })
     : await prisma.attendance.create({
@@ -143,7 +176,8 @@ export async function createAttendanceRecord(data: {
           lockedReason: '',
           locked: false,
           attemptCount: 'ZERO',
-          approvalStatus: updateData.approvalStatus || 'PENDING'
+          approvalStatus: updateData.approvalStatus || 'PENDING',
+          taskId: updateData.taskId !== undefined ? updateData.taskId : null // <-- fix: persist taskId (or null) on create to be explicit
         }
       })
 
@@ -173,8 +207,25 @@ export async function createAttendanceRecord(data: {
     }
   }
 
-  // Auto-unassign vehicle on checkout
-  if (data.action === 'check-out') {
+  // Auto-unassign vehicle and clear task on checkout or task-checkout
+  if (data.action === 'check-out' || data.action === 'task-checkout') { // <-- fix: include task-checkout
+    // Mark current task as COMPLETED for field engineers
+    if (employee.role === 'FIELD_ENGINEER' && existing?.taskId) {
+      try {
+        await prisma.task.update({
+          where: { id: existing.taskId },
+          data: {
+            status: 'COMPLETED',
+            updatedAt: new Date()
+          }
+        })
+        console.log(`Task ${existing.taskId} marked as COMPLETED for field engineer ${data.employeeId}`)
+      } catch (error) {
+        console.error('Error marking task as completed:', error)
+      }
+    }
+    
+    // Auto-unassign vehicle
     try {
       const vehicleService = new VehicleService()
       const notificationService = new NotificationService()
@@ -204,7 +255,7 @@ export async function createAttendanceRecord(data: {
         }
       }
     } catch (error) {
-      console.error('Error auto-unassigning vehicle on checkout:', error)
+      console.error('Error in vehicle unassignment:', error)
     }
   }
 
@@ -473,4 +524,3 @@ export async function getPendingAttendanceApprovals(): Promise<{ success: boolea
     }
   }
 }
-

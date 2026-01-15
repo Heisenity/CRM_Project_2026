@@ -525,7 +525,7 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
                               ✓ Vehicle will be assigned to team leader: {selectedTeamData.teamLeader.name}
                             </p>
                             <p className="text-xs text-blue-600 mt-1">
-                              The vehicle status will be updated to &quot;ASSIGNED&quot; after task creation
+                              The vehicle status will be updated to "ASSIGNED" after task creation
                             </p>
                           </div>
                         )}
@@ -563,7 +563,7 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
                               ✓ Vehicle will be assigned to the selected employee
                             </p>
                             <p className="text-xs text-blue-600 mt-1">
-                              The vehicle status will be updated to &quot;ASSIGNED&quot; after task creation
+                              The vehicle status will be updated to "ASSIGNED" after task creation
                             </p>
                           </div>
                         )}

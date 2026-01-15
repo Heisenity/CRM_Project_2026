@@ -45,6 +45,7 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo }: Emplo
     clockIn?: string
     clockOut?: string
     hasAdminRecord?: boolean
+    hasTask?: boolean
   } | null>(null)
   const [employeeId, setEmployeeId] = useState("")
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -135,24 +136,29 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo }: Emplo
 
       if (response.success && response.data && response.data.records.length > 0) {
         const record = response.data.records[0]
-        setCurrentAttendanceStatus({
+        const status = {
           hasCheckedIn: !!record.clockIn,
           hasCheckedOut: !!record.clockOut,
           clockIn: record.clockIn,
           clockOut: record.clockOut,
-          hasAdminRecord: record.source === 'ADMIN'
-        })
+          hasAdminRecord: record.source === 'ADMIN',
+          hasTask: !!record.taskId // Track if there's a task assigned
+        }
+        console.log('Attendance Status:', status, 'TaskId:', record.taskId)
+        setCurrentAttendanceStatus(status)
       } else {
         setCurrentAttendanceStatus({
           hasCheckedIn: false,
-          hasCheckedOut: false
+          hasCheckedOut: false,
+          hasTask: false
         })
       }
     } catch (error) {
       console.error('Error checking attendance status:', error)
       setCurrentAttendanceStatus({
         hasCheckedIn: false,
-        hasCheckedOut: false
+        hasCheckedOut: false,
+        hasTask: false
       })
     }
   }, [])
@@ -178,6 +184,17 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo }: Emplo
       checkCurrentAttendanceStatus(employeeId.trim())
     }
   }, [currentTasks, employeeId, checkCurrentAttendanceStatus])
+  
+  // Poll attendance status every 3 seconds for field engineers to detect new task assignments
+  useEffect(() => {
+    if (employeeRole === 'FIELD_ENGINEER' && employeeId.trim()) {
+      const interval = setInterval(() => {
+        checkCurrentAttendanceStatus(employeeId.trim())
+      }, 3000) // Check every 3 seconds (reduced from 5)
+      
+      return () => clearInterval(interval)
+    }
+  }, [employeeRole, employeeId, checkCurrentAttendanceStatus])
 
   // Cleanup camera stream on unmount
   useEffect(() => {
@@ -268,13 +285,24 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo }: Emplo
     }
 
     if (type === 'check-out' && currentAttendanceStatus?.hasCheckedOut) {
-      showToast.warning('You have already checked out today.')
+      showToast.warning('You have already checked out.')
       return
     }
 
-    if (type === 'check-in' && currentAttendanceStatus?.hasCheckedIn) {
+    if (type === 'check-in' && employeeRole === 'IN_OFFICE' && currentAttendanceStatus?.hasCheckedIn) {
       showToast.warning('You have already checked in today.')
       return
+    }
+
+    if (type === 'check-in' && employeeRole === 'FIELD_ENGINEER') {
+      if (!currentAttendanceStatus?.hasTask) {
+        showToast.warning('You need to be assigned a task before you can check in.')
+        return
+      }
+      if (currentAttendanceStatus?.hasCheckedIn && !currentAttendanceStatus?.hasCheckedOut) {
+        showToast.warning('You have already checked in. Please check out first.')
+        return
+      }
     }
 
     setIsLoading(true)
@@ -320,15 +348,26 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo }: Emplo
             setCurrentAttendanceStatus({
               hasCheckedIn: true,
               hasCheckedOut: false,
-              clockIn: new Date().toISOString()
+              clockIn: new Date().toISOString(),
+              hasTask: true
+            })
+          } else if (employeeRole === 'FIELD_ENGINEER' && currentAttendanceStatus?.hasCheckedOut) {
+            // Field engineer checking in for new task after checkout
+            setCurrentAttendanceStatus({
+              hasCheckedIn: true,
+              hasCheckedOut: false,
+              clockIn: new Date().toISOString(),
+              hasTask: true
             })
           }
         } else if (type === 'check-out') {
           setCurrentAttendanceStatus(prev => ({
             ...prev!,
             hasCheckedOut: true,
-            clockOut: new Date().toISOString()
+            clockOut: new Date().toISOString(),
+            hasTask: false // Clear task after checkout
           }))
+          // Refresh tasks to check if there are new pending tasks
           if (employeeId.trim()) {
             setTimeout(() => {
               checkCurrentTasks(employeeId.trim())
@@ -516,7 +555,16 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo }: Emplo
             <div className="grid md:grid-cols-2 gap-4">
               <Button
                 onClick={() => markAttendance('check-in')}
-                disabled={!canMarkAttendance() || currentAttendanceStatus?.hasCheckedIn}
+                disabled={
+                  !canMarkAttendance() || 
+                  // IN_OFFICE: can only check in once per day
+                  (employeeRole === 'IN_OFFICE' && currentAttendanceStatus?.hasCheckedIn) ||
+                  // FIELD_ENGINEER: disabled if already checked in OR no task assigned
+                  (employeeRole === 'FIELD_ENGINEER' && (
+                    (currentAttendanceStatus?.hasCheckedIn && !currentAttendanceStatus?.hasCheckedOut) ||
+                    !currentAttendanceStatus?.hasTask
+                  ))
+                }
                 className="h-16 text-lg bg-green-600 hover:bg-green-700 text-white"
               >
                 <CheckCircle className="h-6 w-6 mr-2" />
@@ -524,7 +572,11 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo }: Emplo
               </Button>
               <Button
                 onClick={() => markAttendance('check-out')}
-                disabled={!canMarkAttendance() || !currentAttendanceStatus?.hasCheckedIn || currentAttendanceStatus?.hasCheckedOut}
+                disabled={
+                  !canMarkAttendance() || 
+                  !currentAttendanceStatus?.hasCheckedIn || 
+                  currentAttendanceStatus?.hasCheckedOut
+                }
                 className="h-16 text-lg bg-red-600 hover:bg-red-700 text-white"
               >
                 <XCircle className="h-6 w-6 mr-2" />

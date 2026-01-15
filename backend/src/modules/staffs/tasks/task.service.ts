@@ -111,10 +111,19 @@ export async function createTask(data: CreateTaskData): Promise<TaskRecord> {
 
     if (existingAttendance) {
       // Update existing attendance record with task assignment and timing
-      // DO NOT automatically set clockIn - employee must check in themselves
-      const updateData = {
+      // For FIELD_ENGINEER: Reset clockOut to allow new check-in for new task
+      const updateData: any = {
         ...attendanceData
       };
+      
+      // If employee is FIELD_ENGINEER and has checked out, reset clockOut to allow new check-in for new task
+      // Do NOT reset clockIn - let it stay from previous check-in until employee checks in again
+      if (employee.role === 'FIELD_ENGINEER' && existingAttendance.clockOut) {
+        updateData.clockOut = null;
+        // Also reset clockIn so employee must check in fresh for new task
+        updateData.clockIn = null;
+        console.log(`Resetting clockOut and clockIn for field engineer ${data.employeeId} to allow new task check-in`);
+      }
 
       console.log(`Updating attendance for employee ${data.employeeId} with status: ${attendanceStatus}`);
 

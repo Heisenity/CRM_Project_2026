@@ -133,6 +133,7 @@ export const getAttendanceRecords = async (req: Request, res: Response) => {
       locked: attendance.locked,
       lockedReason: attendance.lockedReason,
       attemptCount: attendance.attemptCount,
+      taskId: attendance.taskId, // Add taskId field
       taskStartTime: attendance.taskStartTime,
       taskEndTime: attendance.taskEndTime,
       taskLocation: attendance.taskLocation,
