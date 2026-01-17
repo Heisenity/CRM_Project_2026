@@ -103,7 +103,9 @@ const TENDER_TYPES = [
 ]
 
 const TENDER_STATUSES = [
-  { value: 'ACCEPTED', label: 'Accepted', color: 'bg-green-100 text-green-800' },
+  { value: 'DRAFT', label: 'Draft', color: 'bg-gray-100 text-gray-800' },
+  { value: 'SUBMITTED', label: 'Submitted', color: 'bg-blue-100 text-blue-800' },
+  { value: 'ACCEPTED', label: 'Approved', color: 'bg-green-100 text-green-800' },
   { value: 'REJECTED', label: 'Rejected', color: 'bg-red-100 text-red-800' }
 ]
 
@@ -140,7 +142,7 @@ export default function TenderManagement() {
   const [formData, setFormData] = useState({
     name: '',
     department: '',
-    status: 'ACCEPTED',
+    status: (session?.user as any)?.userType === 'ADMIN' ? 'ACCEPTED' : 'SUBMITTED',
     requiredDocuments: '',
     totalEMDInvested: '',
     totalEMDRefunded: '',
@@ -149,17 +151,6 @@ export default function TenderManagement() {
 
   useEffect(() => {
     if (session?.user) {
-      const userType = (session.user as any)?.userType
-      
-      if (userType !== 'ADMIN') {
-        toast({
-          title: "Access Denied",
-          description: "Only admin users can access tender management",
-          variant: "destructive"
-        })
-        return
-      }
-      
       fetchTenders()
       fetchEMDSummary()
     }
@@ -284,7 +275,7 @@ export default function TenderManagement() {
         setFormData({
           name: '',
           department: '',
-          status: 'ACCEPTED',
+          status: (session?.user as any)?.userType === 'ADMIN' ? 'ACCEPTED' : 'SUBMITTED',
           requiredDocuments: '',
           totalEMDInvested: '',
           totalEMDRefunded: '',
@@ -394,13 +385,14 @@ export default function TenderManagement() {
           </h1>
           <p className="text-gray-600 mt-2">Manage tenders, documents, and EMD tracking</p>
         </div>
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogTrigger asChild>
-            <Button className="bg-blue-600 hover:bg-blue-700 shadow-md">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Tender
-            </Button>
-          </DialogTrigger>
+        {(session?.user as any)?.userType !== 'ADMIN' && (
+          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+            <DialogTrigger asChild>
+              <Button className="bg-blue-600 hover:bg-blue-700 shadow-md">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Tender
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader className="pb-4">
               <DialogTitle className="text-xl">Create New Tender</DialogTitle>
@@ -427,24 +419,26 @@ export default function TenderManagement() {
                   placeholder="Enter department"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="status">Status *</Label>
-                <Select 
-                  value={formData.status} 
-                  onValueChange={(value) => setFormData({ ...formData, status: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TENDER_STATUSES.map(status => (
-                      <SelectItem key={status.value} value={status.value}>
-                        {status.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {(session?.user as any)?.userType === 'ADMIN' && (
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status *</Label>
+                  <Select 
+                    value={formData.status} 
+                    onValueChange={(value) => setFormData({ ...formData, status: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TENDER_STATUSES.map(status => (
+                        <SelectItem key={status.value} value={status.value}>
+                          {status.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="requiredDocuments">Required Documents</Label>
                 <Textarea
@@ -503,6 +497,7 @@ export default function TenderManagement() {
             </div>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       {/* EMD Summary Cards */}
@@ -657,12 +652,12 @@ export default function TenderManagement() {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          {tender.status === 'SUBMITTED' && (
+                          {tender.status === 'SUBMITTED' && (session?.user as any)?.userType === 'ADMIN' && (
                             <>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleUpdateStatus(tender.id, 'APPROVED')}
+                                onClick={() => handleUpdateStatus(tender.id, 'ACCEPTED')}
                                 className="text-green-600 hover:text-green-700"
                               >
                                 <CheckCircle className="h-4 w-4" />

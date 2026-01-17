@@ -558,7 +558,7 @@ export function StaffPortal() {
                   Teams
                 </button>
               )}
-              {hasFeatureAccess('TENDERS') && (
+              {employeeProfile?.role === 'IN_OFFICE' && (
                 <button
                   onClick={() => setActiveTab('tenders')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm ${
@@ -666,7 +666,7 @@ export function StaffPortal() {
           {employeeProfile.role === 'IN_OFFICE' && allowedFeatures.length === 0 && (
             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
-                ℹ️ Additional admin features can be enabled by your administrator. Attendance, Leave, Documents, and Tickets are always available.
+                ℹ️ Additional admin features can be enabled by your administrator. Attendance, Leave, Documents, Tickets, and Tender Management are always available.
               </p>
             </div>
           )}
@@ -1170,7 +1170,7 @@ export function StaffPortal() {
               </Card>
             )}
 
-            {activeTab === 'tenders' && (
+            {activeTab === 'tenders' && employeeProfile?.role === 'IN_OFFICE' && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">

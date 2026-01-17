@@ -30,7 +30,6 @@ import {
     Clock,
     FileText,
     FolderOpen,
-    Gavel,
     Bell
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -83,9 +82,9 @@ const navigationItems = [
     {
         title: "Tender Management",
         url: "/tenders",
-        icon: Gavel,
+        icon: FileText,
         badge: null,
-        description: "Manage tenders, EMD tracking, and documents"
+        description: "Manage tenders and EMD tracking"
     },
     {
         title: "Docs. and Leave Management",
@@ -129,15 +128,7 @@ const navigationItems = [
         icon: Users,
         badge: null,
         description: "Manage customer accounts"
-    },
-    {
-        title: "Customer Support",
-        url: "/customer-support-requests",
-        icon: Bell,
-        badge: null,
-        description: "Handle customer support requests",
-        dynamicBadge: true
-    },
+    }
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {

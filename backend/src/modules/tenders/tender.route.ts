@@ -1,15 +1,42 @@
 import { Router } from 'express';
 import { tenderController, upload } from './tender.controller';
 import { authenticateToken } from '../../middleware/auth.middleware';
-import { adminOnly } from '../../middleware/adminOnly.middleware';
+import { Request, Response, NextFunction } from 'express';
+
+// Middleware to allow both admins and IN_OFFICE employees
+const adminOrOfficeStaff = (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+
+    if (req.user.userType !== 'ADMIN' && req.user.role !== 'IN_OFFICE') {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin or office staff access required'
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Authorization error:', error);
+    return res.status(403).json({
+      success: false,
+      message: 'Authorization failed'
+    });
+  }
+};
 
 const router = Router();
 
 // Apply authentication middleware to all routes
 router.use(authenticateToken);
 
-// Apply admin-only middleware to all routes (since only admins manage tenders)
-router.use(adminOnly);
+// Apply admin or office staff middleware to all routes
+router.use(adminOrOfficeStaff);
 
 // Tender CRUD operations
 router.post('/', tenderController.createTender.bind(tenderController));

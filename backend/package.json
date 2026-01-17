@@ -43,6 +43,7 @@
     "helmet": "^8.1.0",
     "module-alias": "^2.2.3",
     "multer": "^2.0.2",
+    "node-fetch": "^3.3.2",
     "pg": "^8.12.0",
     "puppeteer": "^24.34.0",
     "swagger-jsdoc": "^6.2.8",

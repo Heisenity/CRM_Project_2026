@@ -8,6 +8,7 @@ declare global {
       user?: {
         id: string;
         userType: 'ADMIN' | 'EMPLOYEE';
+        role?: 'IN_OFFICE' | 'FIELD_ENGINEER';
         sessionToken: string;
       };
     }
@@ -40,6 +41,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     req.user = {
       id: session.adminId || session.employeeId || '',
       userType: session.userType,
+      role: session.employee?.role as 'IN_OFFICE' | 'FIELD_ENGINEER' | undefined,
       sessionToken: token
     };
 
