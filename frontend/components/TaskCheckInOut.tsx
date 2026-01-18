@@ -21,7 +21,7 @@ import { taskCheckIn, taskCheckOut, getTaskStatus, getEmployeeTasks, AssignedTas
  * =============================================================================
  */
 
-interface AssignedTask {
+interface LocalAssignedTask {
   id: string
   title: string
   description: string
@@ -29,6 +29,8 @@ interface AssignedTask {
   location?: string
   startTime?: string
   endTime?: string
+  checkIn?: string
+  checkOut?: string
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
   assignedAt: string
   assignedBy: string
@@ -42,7 +44,7 @@ interface TaskCheckInOutProps {
 
 interface TaskStatus {
   hasActiveTask: boolean
-  currentTask: AssignedTask | null
+  currentTask: LocalAssignedTask | null
   taskStartTime: string | null
   taskEndTime: string | null
 }
@@ -51,7 +53,7 @@ export function TaskCheckInOut({ employeeId, onTaskStatusChange, refreshTrigger 
   const [isLoading, setIsLoading] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [taskStatus, setTaskStatus] = useState<TaskStatus | null>(null)
-  const [availableTasks, setAvailableTasks] = useState<AssignedTask[]>([])
+  const [availableTasks, setAvailableTasks] = useState<LocalAssignedTask[]>([])
   const [refreshKey, setRefreshKey] = useState(0)
 
   // Fetch current task status
@@ -83,12 +85,12 @@ export function TaskCheckInOut({ employeeId, onTaskStatusChange, refreshTrigger 
       setIsRefreshing(true)
       const result = await getEmployeeTasks(employeeId)
 
-      if (result.success) {
+      if (result.success && result.data) {
         // Filter for pending tasks only
-        const pendingTasks = result.data.tasks.filter((task: AssignedTask) => task.status === 'PENDING')
+        const pendingTasks = result.data.tasks.filter((task: LocalAssignedTask) => task.status === 'PENDING')
         setAvailableTasks(pendingTasks)
       } else {
-        console.error('Failed to fetch tasks:', result.message)
+        console.error('Failed to fetch tasks:', result.error)
       }
     } catch (error) {
       console.error('Error fetching tasks:', error)

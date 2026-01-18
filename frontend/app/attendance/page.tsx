@@ -2,7 +2,7 @@
 
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { TaskPage } from "@/components/TaskPage"
 import { Loader2 } from "lucide-react"
 import { getMyFeatures } from "@/lib/server-api"
@@ -74,5 +74,9 @@ export default function Attendance() {
     )
   }
 
-  return <TaskPage />
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <TaskPage />
+    </Suspense>
+  )
 }

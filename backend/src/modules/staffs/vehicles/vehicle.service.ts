@@ -251,7 +251,7 @@ export class VehicleService {
       const vehicle = await prisma.vehicle.findUnique({
         where: { id: vehicleId },
         include: {
-          assignedEmployee: {
+          employee: {
             select: {
               id: true,
               name: true,
@@ -269,7 +269,7 @@ export class VehicleService {
       }
 
       // Store employee info before unassigning
-      const employeeInfo = vehicle.assignedEmployee
+      const employeeInfo = vehicle.employee
 
       const updatedVehicle = await prisma.vehicle.update({
         where: { id: vehicleId },

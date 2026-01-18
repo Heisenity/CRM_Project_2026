@@ -494,7 +494,7 @@ export function StaffPortal() {
                 <FileText className="h-4 w-4 inline mr-2" />
                 Documents
               </button>
-              {hasFeatureAccess('VEHICLE') && employeeProfile?.role === 'FIELD_ENGINEER' && (
+              {employeeProfile?.role === 'FIELD_ENGINEER' && (
                 <button
                   onClick={() => setActiveTab('vehicle')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm ${

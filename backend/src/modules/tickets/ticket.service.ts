@@ -146,14 +146,14 @@ export class TicketService {
       await notificationService.createAdminNotification({
         type: 'TASK_COMPLETED', // Using existing type, could add TICKET_CREATED if needed
         title: 'New Support Ticket Created',
-        message: `New ${data.priority.toLowerCase()} priority ticket "${data.title}" has been created by ${ticket.reporter.name}.`,
+        message: `New ${data.priority.toLowerCase()} priority ticket "${data.title}" has been created by ${ticket.reporter?.name || 'Unknown User'}.`,
         data: {
           ticketId: ticket.ticketId,
           title: data.title,
           priority: data.priority,
           category: data.category,
           reporterId: data.reporterId,
-          reporterName: ticket.reporter.name,
+          reporterName: ticket.reporter?.name || 'Unknown User',
           assigneeId: data.assigneeId,
           assigneeName: ticket.assignee?.name,
           createdAt: new Date().toISOString()
