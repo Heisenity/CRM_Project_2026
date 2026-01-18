@@ -154,7 +154,8 @@ export async function createTeamTask(
   location?: string,
   startTime?: string,
   endTime?: string,
-  assignedBy: string = 'admin'
+  assignedBy: string = 'admin',
+  relatedTicketId?: string
 ): Promise<{ tasks: TaskRecord[], teamName: string, memberCount: number }> {
   try {
     // Get team with members
@@ -186,7 +187,8 @@ export async function createTeamTask(
         description,
         category,
         location,
-        assignedBy
+        assignedBy,
+        relatedTicketId
       };
 
       const task = await createTask(taskData);

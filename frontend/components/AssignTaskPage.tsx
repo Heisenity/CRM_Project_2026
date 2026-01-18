@@ -1,4 +1,5 @@
 import * as React from "react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,16 +11,16 @@ import { Separator } from "@/components/ui/separator"
 import { 
   ArrowLeft,
   UserPlus,
-  Clock,
   AlertCircle,
   CheckCircle,
   Users,
   Search,
   MapPin,
   Shield,
-  Car
+  Car,
+  Ticket as TicketIcon
 } from "lucide-react"
-import { getAllEmployees, Employee, assignTask, CreateTaskRequest, getAllTeams, Team, getAllVehicles, Vehicle, assignVehicle } from "@/lib/server-api"
+import { getAllEmployees, Employee, assignTask, CreateTaskRequest, getAllTeams, Team, getAllVehicles, Vehicle, assignVehicle, getAllTickets, Ticket } from "@/lib/server-api"
 import { showToast } from "@/lib/toast-utils"
 
 interface AssignTaskPageProps {
@@ -29,22 +30,23 @@ interface AssignTaskPageProps {
 }
 
 export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }: AssignTaskPageProps) {
+  const searchParams = useSearchParams()
   const [employees, setEmployees] = React.useState<Employee[]>([])
   const [teams, setTeams] = React.useState<Team[]>([])
   const [vehicles, setVehicles] = React.useState<Vehicle[]>([])
+  const [tickets, setTickets] = React.useState<Ticket[]>([])
   const [loading, setLoading] = React.useState(true)
   const [searchTerm, setSearchTerm] = React.useState("")
   const [assignmentType, setAssignmentType] = React.useState<'individual' | 'team'>('team')
   const [selectedTeam, setSelectedTeam] = React.useState<string>("")
   const [selectedEmployee, setSelectedEmployee] = React.useState<string>(preSelectedEmployeeId || "")
   const [selectedVehicle, setSelectedVehicle] = React.useState<string>("none")
+  const [selectedTicket, setSelectedTicket] = React.useState<string>("none")
   const [taskData, setTaskData] = React.useState({
     title: "",
     description: "",
     category: "",
     location: "",
-    startTime: "",
-    endTime: ""
   })
   const [submitting, setSubmitting] = React.useState(false)
 
@@ -53,10 +55,11 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
     const fetchData = async () => {
       try {
         setLoading(true)
-        const [employeesResponse, teamsResponse, vehiclesResponse] = await Promise.all([
+        const [employeesResponse, teamsResponse, vehiclesResponse, ticketsResponse] = await Promise.all([
           getAllEmployees({ limit: 1000, role: 'FIELD_ENGINEER' }),
           getAllTeams(),
-          getAllVehicles({ status: 'AVAILABLE' })
+          getAllVehicles({ status: 'AVAILABLE' }),
+          getAllTickets({ status: 'OPEN', limit: 100 })
         ])
         
         if (employeesResponse.success && employeesResponse.data) {
@@ -70,6 +73,10 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
         if (vehiclesResponse.success && vehiclesResponse.data) {
           setVehicles(vehiclesResponse.data)
         }
+
+        if (ticketsResponse.success && ticketsResponse.data) {
+          setTickets(ticketsResponse.data)
+        }
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally {
@@ -79,6 +86,31 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
 
     fetchData()
   }, [])
+
+  // Handle URL parameters for pre-selecting ticket
+  React.useEffect(() => {
+    const ticketId = searchParams.get('ticketId')
+    const ticketTitle = searchParams.get('ticketTitle')
+    
+    if (ticketId) {
+      // Pre-select the ticket when it's available in the tickets list
+      if (tickets.length > 0) {
+        const ticketExists = tickets.find(t => t.id === ticketId)
+        if (ticketExists) {
+          setSelectedTicket(ticketId)
+          
+          // Pre-populate task title with ticket title if provided
+          if (ticketTitle && !taskData.title) {
+            setTaskData(prev => ({
+              ...prev,
+              title: `Task for: ${decodeURIComponent(ticketTitle)}`,
+              description: `Task created to handle ticket: ${ticketExists.ticketId} - ${ticketExists.title}`
+            }))
+          }
+        }
+      }
+    }
+  }, [searchParams, tickets, taskData.title])
 
   // Filter employees based on search term and selected team (only for individual assignment)
   const filteredEmployees = React.useMemo(() => {
@@ -128,8 +160,7 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
         description: taskData.description,
         category: taskData.category || undefined,
         location: taskData.location || undefined,
-        startTime: taskData.startTime || undefined,
-        endTime: taskData.endTime || undefined
+        ticketId: selectedTicket && selectedTicket !== "none" ? selectedTicket : undefined,
       }
 
       const response = await assignTask(taskRequest)
@@ -426,8 +457,96 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Related Ticket */}
+                  <div className="space-y-2 mb-2">
+                    <Label htmlFor="related-ticket" className="flex items-center gap-2">
+                      <TicketIcon className="h-4 w-4 text-gray-500" />
+                      Related Ticket (Optional)
+                      {searchParams.get('ticketId') && (
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                          Pre-selected from ticket
+                        </span>
+                      )}
+                    </Label>
+                    <Select value={selectedTicket} onValueChange={setSelectedTicket}>
+                      <SelectTrigger className="border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                        <SelectValue placeholder="Select a related ticket..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No related ticket</SelectItem>
+                        {loading ? (
+                          <SelectItem value="loading" disabled>
+                            Loading tickets...
+                          </SelectItem>
+                        ) : tickets.length === 0 ? (
+                          <SelectItem value="no-tickets" disabled>
+                            No open tickets found
+                          </SelectItem>
+                        ) : (
+                          tickets.map((ticket) => (
+                            <SelectItem key={ticket.id} value={ticket.id}>
+                              <div className="flex items-center justify-between w-full">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-gray-900">{ticket.ticketId}</span>
+                                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                      ticket.priority === 'HIGH' || ticket.priority === 'CRITICAL' ? 'bg-red-100 text-red-700' :
+                                      ticket.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
+                                      'bg-green-100 text-green-700'
+                                    }`}>
+                                      {ticket.priority}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-gray-600 truncate mt-0.5">{ticket.title}</p>
+                                </div>
+                              </div>
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {selectedTicket && selectedTicket !== "none" && tickets.find(t => t.id === selectedTicket) && (
+                      <div className="mt-3 mb-2 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        {(() => {
+                          const ticket = tickets.find(t => t.id === selectedTicket)!
+                          return (
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <TicketIcon className="h-4 w-4 text-blue-600" />
+                                  <span className="font-semibold text-blue-900">{ticket.ticketId}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-xs px-2 py-1 rounded font-medium ${
+                                    ticket.priority === 'HIGH' || ticket.priority === 'CRITICAL' ? 'bg-red-100 text-red-700' :
+                                    ticket.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
+                                    'bg-green-100 text-green-700'
+                                  }`}>
+                                    {ticket.priority}
+                                  </span>
+                                  <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded">
+                                    {ticket.category}
+                                  </span>
+                                </div>
+                              </div>
+                              <div>
+                                <p className="font-medium text-gray-900 mb-1">{ticket.title}</p>
+                                <p className="text-sm text-gray-600 line-clamp-2">{ticket.description}</p>
+                              </div>
+                              {ticket.reporter && (
+                                <div className="text-xs text-gray-500">
+                                  Created by: {ticket.reporter.name}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })()}
+                      </div>
+                    )}
+                  </div>
+
                   {/* Task Title */}
-                  <div className="space-y-2">
+                  <div className="space-y-2 pt-2">
                     <Label htmlFor="task-title">Task Title *</Label>
                     <Input
                       id="task-title"
@@ -463,21 +582,6 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
                       placeholder="Enter task location (e.g., Office, Remote, Conference Room A)..."
                       value={taskData.location}
                       onChange={(e) => handleInputChange('location', e.target.value)}
-                      className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  {/* Start Time */}
-                  <div className="space-y-2">
-                    <Label htmlFor="start-time" className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-gray-500" />
-                      Start Time *
-                    </Label>
-                    <Input
-                      id="start-time"
-                      type="time"
-                      value={taskData.startTime}
-                      onChange={(e) => handleInputChange('startTime', e.target.value)}
                       className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                     />
                   </div>
@@ -525,7 +629,7 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
                               ✓ Vehicle will be assigned to team leader: {selectedTeamData.teamLeader.name}
                             </p>
                             <p className="text-xs text-blue-600 mt-1">
-                              The vehicle status will be updated to "ASSIGNED" after task creation
+                              The vehicle status will be updated to &quot;ASSIGNED&quot; after task creation
                             </p>
                           </div>
                         )}
@@ -563,7 +667,7 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
                               ✓ Vehicle will be assigned to the selected employee
                             </p>
                             <p className="text-xs text-blue-600 mt-1">
-                              The vehicle status will be updated to "ASSIGNED" after task creation
+                              The vehicle status will be updated to &quot;ASSIGNED&quot; after task creation
                             </p>
                           </div>
                         )}
@@ -599,7 +703,7 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
                         disabled={
                           submitting || 
                           !taskData.title || 
-                          !taskData.startTime ||
+                          !taskData.location ||
                           (assignmentType === 'team' && !selectedTeam) ||
                           (assignmentType === 'individual' && !selectedEmployee)
                         }

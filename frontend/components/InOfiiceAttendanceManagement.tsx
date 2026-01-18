@@ -799,6 +799,7 @@ export function AttendanceManagementPage() {
                   <TableRow className="bg-gray-50/80 border-b border-gray-200">
                     <TableHead className="w-[280px] py-4 px-6 font-semibold text-gray-700">Employee</TableHead>
                     <TableHead className="w-[100px] py-4 px-6 font-semibold text-gray-700">Date</TableHead>
+                    <TableHead className="w-[100px] py-4 px-6 font-semibold text-gray-700">Status</TableHead>
                     <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Clock In</TableHead>
                     <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Clock Out</TableHead>
                     <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Overtime</TableHead>
@@ -815,15 +816,18 @@ export function AttendanceManagementPage() {
                       <TableCell className="py-4 px-6">
                         <div className="flex items-center gap-4">
                           <div className="relative">
-                            <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-sm bg-gradient-to-br from-blue-500 to-blue-600">
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-sm ${
+                              record.hasAttendance 
+                                ? 'bg-gradient-to-br from-blue-500 to-blue-600' 
+                                : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                            }`}>
                               {record.employeeName.split(' ').map(n => n[0]).join('').toUpperCase()}
                             </div>
-                            {record.hasAttendance && getStatusIcon(record.status) && (
+                            {record.hasAttendance ? (
                               <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5">
                                 {getStatusIcon(record.status)}
                               </div>
-                            )}
-                            {!record.hasAttendance && (
+                            ) : (
                               <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5">
                                 <XCircle className="h-4 w-4 text-gray-400" />
                               </div>
@@ -842,6 +846,12 @@ export function AttendanceManagementPage() {
                           <span className="text-sm text-gray-900">
                             {formatDate(record.date)}
                           </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-4 px-6">
+                        <div className="flex items-center gap-2">
+                          {getStatusIcon(record.status)}
+                          {getStatusBadge(record.status)}
                         </div>
                       </TableCell>
                       <TableCell className="py-4 px-6">

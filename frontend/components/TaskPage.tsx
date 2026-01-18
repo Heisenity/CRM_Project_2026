@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,7 +11,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AssignTaskPage } from "@/components/AssignTaskPage"
-import { DateRangePicker } from "@/components/DateRangePicker"
 import { VehiclesPage } from "@/components/VehiclesPage"
 import { showToast } from "@/lib/toast-utils"
 import {
@@ -32,12 +32,7 @@ import {
   UserPlus,
   Car
 } from "lucide-react"
-import { getAttendanceRecords, getAllEmployees, getAllTeams, getAllVehicles, getAllTasks, AttendanceRecord, Employee, Team, Vehicle, exportAttendanceToExcel, ExportParams } from "@/lib/server-api"
-
-interface DateRange {
-  from: Date | null
-  to: Date | null
-}
+import { getAttendanceRecords, getAllEmployees, getAllTeams, getAllVehicles, getAllTasks, AttendanceRecord, Employee, Team, Vehicle, exportAttendanceToExcel, ExportParams, getAllTickets, Ticket } from "@/lib/server-api"
 
 interface ExtendedAttendanceRecord extends AttendanceRecord {
   hasAttendance: boolean
@@ -55,22 +50,23 @@ interface ExtendedAttendanceRecord extends AttendanceRecord {
     endTime?: string
     assignedBy: string
     assignedAt: string
+    relatedTicketId?: string
   }
 }
 
 const getAssignedVehicle = (employeeId: string, employeeName: string, vehicles: Vehicle[]) => {
   // Find vehicle assigned to this employee by matching the employee display ID
-  const assignedVehicle = vehicles.find(vehicle => 
+  const assignedVehicle = vehicles.find(vehicle =>
     vehicle.status === 'ASSIGNED' && vehicle.employeeId === employeeId
   )
-  
+
   if (assignedVehicle) {
     return {
       id: assignedVehicle.vehicleNumber,
       model: `${assignedVehicle.make} ${assignedVehicle.model}${assignedVehicle.year ? ` (${assignedVehicle.year})` : ''}`
     }
   }
-  
+
   return null
 }
 
@@ -85,21 +81,6 @@ const getStatusIcon = (status: string) => {
     default:
       return <Clock className="h-4 w-4 text-gray-400" />
   }
-}
-
-const getStatusBadge = (status: string) => {
-  const variants = {
-    PRESENT: "bg-green-50 text-green-700 border-green-200",
-    LATE: "bg-amber-50 text-amber-700 border-amber-200",
-    ABSENT: "bg-red-50 text-red-700 border-red-200",
-    MARKDOWN: "bg-blue-50 text-blue-700 border-blue-200"
-  }
-
-  return (
-    <Badge className={`${variants[status as keyof typeof variants]} capitalize font-medium`}>
-      {status.toLowerCase()}
-    </Badge>
-  )
 }
 
 const getTaskStatusBadge = (status: string) => {
@@ -126,12 +107,10 @@ const formatTime = (dateString?: string) => {
   })
 }
 
-const STANDARD_WORK_HOURS = 8
-
 // Team color mapping for visual distinction
 const TEAM_COLORS = [
   'bg-blue-100 text-blue-700 border-blue-200',
-  'bg-green-100 text-green-700 border-green-200', 
+  'bg-green-100 text-green-700 border-green-200',
   'bg-purple-100 text-purple-700 border-purple-200',
   'bg-orange-100 text-orange-700 border-orange-200',
   'bg-pink-100 text-pink-700 border-pink-200',
@@ -144,68 +123,36 @@ const getTeamInfo = (teamId: string | undefined, teams: Team[]) => {
   if (!teamId) {
     return { name: 'No Team', color: 'bg-gray-100 text-gray-600 border-gray-200' }
   }
-  
+
   const team = teams.find(t => t.id === teamId)
   if (!team) {
     return { name: 'Unknown Team', color: 'bg-gray-100 text-gray-600 border-gray-200' }
   }
-  
+
   // Use team index to get consistent color
   const teamIndex = teams.findIndex(t => t.id === teamId)
   const colorIndex = teamIndex % TEAM_COLORS.length
-  
+
   return {
     name: team.name,
     color: TEAM_COLORS[colorIndex]
   }
 }
 
-const calculateWorkHours = (clockIn?: string, clockOut?: string) => {
-  if (!clockIn) {
-    return { worked: '-', overtime: '-' }
-  }
 
-  const start = new Date(clockIn)
-  
-  // If no clockOut, calculate hours worked so far (for ongoing work)
-  const end = clockOut ? new Date(clockOut) : new Date()
-
-  const diffMs = end.getTime() - start.getTime()
-  if (diffMs <= 0) {
-    return { worked: '-', overtime: '-' }
-  }
-
-  const totalMinutes = Math.floor(diffMs / (1000 * 60))
-  const standardMinutes = STANDARD_WORK_HOURS * 60
-
-  const workedMinutes = Math.min(totalMinutes, standardMinutes)
-  const overtimeMinutes = Math.max(totalMinutes - standardMinutes, 0)
-
-  const format = (minutes: number) => {
-    const h = Math.floor(minutes / 60)
-    const m = minutes % 60
-    return `${h}h ${m}m`
-  }
-
-  return {
-    worked: format(workedMinutes),
-    overtime: overtimeMinutes > 0 ? format(overtimeMinutes) : '0h 0m'
-  }
+const getTicketInfo = (ticketId: string | undefined, tickets: Ticket[]) => {
+  if (!ticketId) return null
+  return tickets.find(ticket => ticket.id === ticketId)
 }
 
-
 export function AttendanceManagementPage() {
+  const searchParams = useSearchParams()
   const [showAssignPage, setShowAssignPage] = React.useState(false)
   const [showVehiclePage, setShowVehiclePage] = React.useState(false)
-  const [currentDate, setCurrentDate] = React.useState(new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  }))
   const [combinedData, setCombinedData] = React.useState<ExtendedAttendanceRecord[]>([])
   const [teams, setTeams] = React.useState<Team[]>([])
   const [vehicles, setVehicles] = React.useState<Vehicle[]>([])
+  const [tickets, setTickets] = React.useState<Ticket[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [pagination, setPagination] = React.useState({
@@ -217,26 +164,27 @@ export function AttendanceManagementPage() {
   const [filters, setFilters] = React.useState({
     search: '',
     status: '',
-    teamId: '',
-    dateRange: { from: new Date(), to: null } as DateRange
+    teamId: ''
   })
   const [selectedEmployee, setSelectedEmployee] = React.useState<string | null>(null)
   const [selectedRecord, setSelectedRecord] = React.useState<ExtendedAttendanceRecord | null>(null)
   const [showViewDetails, setShowViewDetails] = React.useState(false)
   const [exportLoading, setExportLoading] = React.useState<'excel' | 'pdf' | null>(null)
+  const [lastUpdated, setLastUpdated] = React.useState<Date>(new Date())
 
   const fetchAttendanceData = React.useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
 
-      // Fetch all employees, teams, and vehicles first
-      const [employeesResponse, teamsResponse, vehiclesResponse] = await Promise.all([
+      // Fetch all employees, teams, vehicles, and tickets first
+      const [employeesResponse, teamsResponse, vehiclesResponse, ticketsResponse] = await Promise.all([
         getAllEmployees({ limit: 1000, role: 'FIELD_ENGINEER' }), // Get only field engineers
         getAllTeams(), // Get all teams
-        getAllVehicles() // Get all vehicles
+        getAllVehicles(), // Get all vehicles
+        getAllTickets({ limit: 1000 }) // Get all tickets
       ])
-      
+
       let employees: Employee[] = []
       if (employeesResponse.success && employeesResponse.data) {
         employees = employeesResponse.data.employees
@@ -254,35 +202,21 @@ export function AttendanceManagementPage() {
         setVehicles(vehiclesData)
       }
 
+      let ticketsData: Ticket[] = []
+      if (ticketsResponse.success && ticketsResponse.data) {
+        ticketsData = ticketsResponse.data
+        setTickets(ticketsData)
+      }
+
       const params: Record<string, string | number> = {
         page: pagination.page,
         limit: pagination.limit
       }
 
-      // Handle date range filtering
-      if (filters.dateRange.from) {
-        params.dateFrom = filters.dateRange.from.toISOString().split('T')[0]
-      }
+      // If no date is specified, default to today
+      params.date = new Date().toISOString().split('T')[0]
 
-      if (filters.dateRange.to) {
-        params.dateTo = filters.dateRange.to.toISOString().split('T')[0]
-      }
-
-      // If we have a single date (from but no to), use it as both from and to
-      if (filters.dateRange.from && !filters.dateRange.to) {
-        const singleDate = filters.dateRange.from.toISOString().split('T')[0]
-        params.dateFrom = singleDate
-        params.dateTo = singleDate
-      }
-
-      // If no date range is selected at all, default to today
-      if (!filters.dateRange.from && !filters.dateRange.to) {
-        params.date = new Date().toISOString().split('T')[0]
-      }
-
-      if (filters.status) {
-        params.status = filters.status
-      }
+      // Note: Task status filtering is done client-side after fetching all data
 
       const response = await getAttendanceRecords(params)
 
@@ -296,9 +230,12 @@ export function AttendanceManagementPage() {
         // Create combined data: all employees with their attendance status and task assignments
         const combined = employees.map(employee => {
           const attendanceRecord = records.find(record => record.employeeId === employee.employeeId)
-          
-          // Find assigned task for this employee
-          const assignedTask = allTasks.find((task: { employeeId: string; location?: string }) => task.employeeId === employee.employeeId)
+
+          // Get the currently IN_PROGRESS task, or the most recent one
+          const employeeTasks = allTasks.filter((task: { employeeId: string; status: string }) => task.employeeId === employee.employeeId)
+          const assignedTask = employeeTasks.find((task: { status: string }) => task.status === 'IN_PROGRESS') ||
+            employeeTasks.sort((a: { assignedAt: string }, b: { assignedAt: string }) => new Date(b.assignedAt).getTime() - new Date(a.assignedAt).getTime())[0]
+
 
           if (attendanceRecord) {
             return {
@@ -349,9 +286,11 @@ export function AttendanceManagementPage() {
           )
         }
 
-        // Apply status filter
+        // Apply status filter (filter by task status)
         if (filters.status) {
-          filteredCombined = filteredCombined.filter(record => record.status === filters.status)
+          filteredCombined = filteredCombined.filter(record => 
+            record.assignedTask?.status === filters.status
+          )
         }
 
         // Apply team filter
@@ -373,6 +312,7 @@ export function AttendanceManagementPage() {
       setError(error instanceof Error ? error.message : 'Failed to load attendance data')
     } finally {
       setLoading(false)
+      setLastUpdated(new Date())
     }
   }, [pagination.page, pagination.limit, filters])
 
@@ -383,7 +323,22 @@ export function AttendanceManagementPage() {
   // Reset pagination when filters change (except page)
   React.useEffect(() => {
     setPagination(prev => ({ ...prev, page: 1 }))
-  }, [filters.search, filters.status, filters.teamId, filters.dateRange.from, filters.dateRange.to])
+  }, [filters.search, filters.status, filters.teamId])
+
+  // Handle URL parameters for direct navigation to assign task
+  React.useEffect(() => {
+    const action = searchParams.get('action')
+    const ticketId = searchParams.get('ticketId')
+    
+    if (action === 'assign') {
+      setShowAssignPage(true)
+      
+      // If there's a ticket ID, we could potentially pre-select it in the assign page
+      if (ticketId) {
+        console.log('Assigning task for ticket:', ticketId)
+      }
+    }
+  }, [searchParams])
 
   const handleRefresh = () => {
     fetchAttendanceData()
@@ -402,30 +357,13 @@ export function AttendanceManagementPage() {
   const handleExport = async (format: 'excel' | 'pdf') => {
     try {
       setExportLoading(format)
-      
+
       // Prepare export parameters based on current filters
       const exportParams: ExportParams = {}
-      
-      if (filters.dateRange.from) {
-        exportParams.dateFrom = filters.dateRange.from.toISOString().split('T')[0]
-      }
-      
-      if (filters.dateRange.to) {
-        exportParams.dateTo = filters.dateRange.to.toISOString().split('T')[0]
-      }
-      
-      // If we have a single date (from but no to), use it as both from and to
-      if (filters.dateRange.from && !filters.dateRange.to) {
-        const singleDate = filters.dateRange.from.toISOString().split('T')[0]
-        exportParams.dateFrom = singleDate
-        exportParams.dateTo = singleDate
-      }
-      
-      // If no date range is selected at all, default to today
-      if (!filters.dateRange.from && !filters.dateRange.to) {
-        exportParams.date = new Date().toISOString().split('T')[0]
-      }
-      
+
+      // Default to today if no date is specified
+      exportParams.date = new Date().toISOString().split('T')[0]
+
       if (filters.status) {
         exportParams.status = filters.status
       }
@@ -444,74 +382,13 @@ export function AttendanceManagementPage() {
     }
   }
 
-  const handleDateChange = (direction: 'prev' | 'next') => {
-    let targetDate: Date
-
-    if (filters.dateRange.from && !filters.dateRange.to) {
-      // Single date selected
-      targetDate = new Date(filters.dateRange.from)
-    } else {
-      // No date or range selected, use today
-      targetDate = new Date()
-    }
-
-    if (direction === 'prev') {
-      targetDate.setDate(targetDate.getDate() - 1)
-    } else {
-      targetDate.setDate(targetDate.getDate() + 1)
-    }
-
-    // Update both the display and the filter
-    setFilters(prev => ({
-      ...prev,
-      dateRange: { from: targetDate, to: null }
-    }))
-
-    setCurrentDate(targetDate.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }))
-
-    // Reset pagination to first page when date changes
-    setPagination(prev => ({ ...prev, page: 1 }))
-  }
-
-  const handleDateRangeChange = (range: DateRange) => {
-    setFilters(prev => ({ ...prev, dateRange: range }))
-
-    // Update current date display
-    if (range.from) {
-      if (range.to && range.from.toDateString() !== range.to.toDateString()) {
-        setCurrentDate(`${range.from.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${range.to.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`)
-      } else {
-        setCurrentDate(range.from.toLocaleDateString('en-US', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        }))
-      }
-    } else {
-      setCurrentDate(new Date().toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      }))
-    }
-
-    // Reset pagination to first page when date changes
-    setPagination(prev => ({ ...prev, page: 1 }))
-  }
-
   // Calculate statistics
   const stats = React.useMemo(() => {
     const total = combinedData.length
-    const present = combinedData.filter(r => r.status === 'PRESENT').length
-    const late = combinedData.filter(r => r.status === 'LATE').length
-    const absent = combinedData.filter(r => r.status === 'ABSENT').length
+    const pending = combinedData.filter(r => r.assignedTask?.status === 'PENDING').length
+    const inProgress = combinedData.filter(r => r.assignedTask?.status === 'IN_PROGRESS').length
+    const completed = combinedData.filter(r => r.assignedTask?.status === 'COMPLETED').length
+    const noTask = combinedData.filter(r => !r.assignedTask).length
 
     const avgHours = combinedData
       .filter(r => r.clockIn && r.hasAttendance)
@@ -522,7 +399,7 @@ export function AttendanceManagementPage() {
         return acc + Math.max(0, diffHours) // Ensure non-negative hours
       }, 0) / Math.max(1, combinedData.filter(r => r.clockIn && r.hasAttendance).length)
 
-    return { total, present, late, absent, avgHours }
+    return { total, pending, inProgress, completed, noTask, avgHours }
   }, [combinedData])
 
   return (
@@ -537,8 +414,8 @@ export function AttendanceManagementPage() {
         <div>
           {/* Back button for Vehicle Page */}
           <div className="p-6 pb-0">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => setShowVehiclePage(false)}
               className="border-gray-300 hover:bg-gray-50 mb-4"
@@ -586,8 +463,8 @@ export function AttendanceManagementPage() {
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="border-gray-300 hover:bg-gray-50"
                       disabled={exportLoading !== null}
                     >
@@ -600,14 +477,14 @@ export function AttendanceManagementPage() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       onClick={() => handleExport('excel')}
                       disabled={exportLoading !== null}
                     >
                       <Download className="h-4 w-4 mr-2" />
                       Export to Excel
                     </DropdownMenuItem>
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       onClick={() => handleExport('pdf')}
                       disabled={true}
                     >
@@ -621,33 +498,9 @@ export function AttendanceManagementPage() {
 
             <Separator className="my-4" />
 
-            {/* Date Navigation */}
+            {/* Live Status */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1 bg-gray-50 rounded-lg p-1 border border-gray-200">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0 hover:bg-white"
-                    onClick={() => handleDateChange('prev')}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <div className="px-3 py-1">
-                    <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
-                      {currentDate}
-                    </span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0 hover:bg-white"
-                    onClick={() => handleDateChange('next')}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-
                 <Badge variant="outline" className="text-gray-500 font-normal">
                   <Clock className="h-3 w-3 mr-1" />
                   Live
@@ -656,7 +509,7 @@ export function AttendanceManagementPage() {
 
               <div className="text-sm text-gray-500 flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                Updated: {new Date().toLocaleTimeString()}
+                Updated: {lastUpdated.toLocaleTimeString()}
               </div>
             </div>
           </div>
@@ -666,75 +519,75 @@ export function AttendanceManagementPage() {
             <Card className="bg-white shadow-sm border-gray-200 hover:shadow-md transition-shadow">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-xs font-medium text-gray-600 uppercase tracking-wide">Total Present</CardTitle>
-                  <div className="p-2 bg-green-50 rounded-lg">
-                    <Users className="h-4 w-4 text-green-600" />
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-1">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-gray-900">{stats.present}</span>
-                  </div>
-                  <p className="text-xs text-gray-500">employees present</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white shadow-sm border-gray-200 hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-xs font-medium text-gray-600 uppercase tracking-wide">Late Arrivals</CardTitle>
-                  <div className="p-2 bg-amber-50 rounded-lg">
-                    <AlertCircle className="h-4 w-4 text-amber-600" />
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-1">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-gray-900">{stats.late}</span>
-                  </div>
-                  <p className="text-xs text-gray-500">late arrivals</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white shadow-sm border-gray-200 hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-xs font-medium text-gray-600 uppercase tracking-wide">Absent</CardTitle>
-                  <div className="p-2 bg-red-50 rounded-lg">
-                    <XCircle className="h-4 w-4 text-red-600" />
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-1">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-gray-900">{stats.absent}</span>
-                  </div>
-                  <p className="text-xs text-gray-500">employees absent</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white shadow-sm border-gray-200 hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-xs font-medium text-gray-600 uppercase tracking-wide">Avg. Hours</CardTitle>
+                  <CardTitle className="text-xs font-medium text-gray-600 uppercase tracking-wide">In Progress</CardTitle>
                   <div className="p-2 bg-blue-50 rounded-lg">
-                    <Clock className="h-4 w-4 text-blue-600" />
+                    <CheckCircle className="h-4 w-4 text-blue-600" />
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="pt-0">
                 <div className="space-y-1">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-gray-900">{stats.avgHours.toFixed(1)}</span>
+                    <span className="text-2xl font-bold text-gray-900">{stats.inProgress}</span>
                   </div>
-                  <p className="text-xs text-gray-500">hours per day</p>
+                  <p className="text-xs text-gray-500">tasks in progress</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white shadow-sm border-gray-200 hover:shadow-md transition-shadow">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xs font-medium text-gray-600 uppercase tracking-wide">Completed</CardTitle>
+                  <div className="p-2 bg-green-50 rounded-lg">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold text-gray-900">{stats.completed}</span>
+                  </div>
+                  <p className="text-xs text-gray-500">tasks completed</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white shadow-sm border-gray-200 hover:shadow-md transition-shadow">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xs font-medium text-gray-600 uppercase tracking-wide">Pending</CardTitle>
+                  <div className="p-2 bg-yellow-50 rounded-lg">
+                    <Clock className="h-4 w-4 text-yellow-600" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold text-gray-900">{stats.pending}</span>
+                  </div>
+                  <p className="text-xs text-gray-500">tasks pending</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white shadow-sm border-gray-200 hover:shadow-md transition-shadow">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xs font-medium text-gray-600 uppercase tracking-wide">No Task</CardTitle>
+                  <div className="p-2 bg-gray-50 rounded-lg">
+                    <Users className="h-4 w-4 text-gray-600" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold text-gray-900">{stats.noTask}</span>
+                  </div>
+                  <p className="text-xs text-gray-500">employees without tasks</p>
                 </div>
               </CardContent>
             </Card>
@@ -757,16 +610,6 @@ export function AttendanceManagementPage() {
                     />
                   </div>
 
-                  {/* Date Range Picker */}
-                  <div className="shrink-0">
-                    <DateRangePicker
-                      value={filters.dateRange}
-                      onChange={handleDateRangeChange}
-                      placeholder="Select date range"
-                      className="w-[240px]"
-                    />
-                  </div>
-
                   {/* Status Filter */}
                   <div className="shrink-0">
                     <DropdownMenu>
@@ -782,14 +625,17 @@ export function AttendanceManagementPage() {
                         <DropdownMenuItem onClick={() => setFilters(prev => ({ ...prev, status: '' }))}>
                           All Status
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setFilters(prev => ({ ...prev, status: 'PRESENT' }))}>
-                          Present
+                        <DropdownMenuItem onClick={() => setFilters(prev => ({ ...prev, status: 'PENDING' }))}>
+                          Pending
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setFilters(prev => ({ ...prev, status: 'LATE' }))}>
-                          Late
+                        <DropdownMenuItem onClick={() => setFilters(prev => ({ ...prev, status: 'IN_PROGRESS' }))}>
+                          In Progress
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setFilters(prev => ({ ...prev, status: 'ABSENT' }))}>
-                          Absent
+                        <DropdownMenuItem onClick={() => setFilters(prev => ({ ...prev, status: 'COMPLETED' }))}>
+                          Completed
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setFilters(prev => ({ ...prev, status: 'CANCELLED' }))}>
+                          Cancelled
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -811,7 +657,7 @@ export function AttendanceManagementPage() {
                           All Teams
                         </DropdownMenuItem>
                         {teams.map((team) => (
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             key={team.id}
                             onClick={() => setFilters(prev => ({ ...prev, teamId: team.id }))}
                           >
@@ -824,7 +670,7 @@ export function AttendanceManagementPage() {
                 </div>
 
                 {/* Filter Summary Row */}
-                {(filters.search || filters.status || filters.teamId || filters.dateRange.from) && (
+                {(filters.search || filters.status || filters.teamId) && (
                   <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                     <div className="flex items-center gap-2">
                       {filters.search && (
@@ -856,38 +702,17 @@ export function AttendanceManagementPage() {
                           />
                         </Badge>
                       )}
-
-                      {filters.dateRange.from && (
-                        <Badge variant="secondary" className="bg-purple-50 text-purple-700 border-purple-200">
-                          {filters.dateRange.from.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                          {filters.dateRange.to && filters.dateRange.from.toDateString() !== filters.dateRange.to.toDateString() &&
-                            ` - ${filters.dateRange.to.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
-                          }
-                          <X
-                            className="ml-1 h-3 w-3 cursor-pointer hover:text-purple-900"
-                            onClick={() => setFilters(prev => ({ ...prev, dateRange: { from: null, to: null } }))}
-                          />
-                        </Badge>
-                      )}
                     </div>
 
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        const today = new Date()
                         setFilters({
                           search: '',
                           status: '',
-                          teamId: '',
-                          dateRange: { from: today, to: null }
+                          teamId: ''
                         })
-                        setCurrentDate(today.toLocaleDateString('en-US', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        }))
                         setPagination(prev => ({ ...prev, page: 1 }))
                       }}
                       className="text-gray-500 hover:text-gray-700 h-7"
@@ -956,10 +781,9 @@ export function AttendanceManagementPage() {
                         </div>
                       </TableHead>
                       <TableHead className="w-[180px] py-4 px-6 font-semibold text-gray-700">Assigned Vehicle</TableHead>
-                      <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Overtime</TableHead>
                       <TableHead className="w-[200px] py-4 px-6 font-semibold text-gray-700">Assigned Task</TableHead>
                       <TableHead className="w-[180px] py-4 px-6 font-semibold text-gray-700">Location</TableHead>
-                      <TableHead className="w-[200px] py-4 px-6 font-semibold text-gray-700">Device Info</TableHead>
+                      <TableHead className="w-[200px] py-4 px-6 font-semibold text-gray-700">Related Ticket</TableHead>
                       <TableHead className="w-[60px] py-4 px-6"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -967,8 +791,7 @@ export function AttendanceManagementPage() {
                     {combinedData.map((record, index) => (
                       <TableRow
                         key={record.id}
-                        className={`hover:bg-gray-50/50 border-b border-gray-100 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
-                          } ${!record.hasAttendance ? 'opacity-60' : ''}`}
+                        className={`hover:bg-gray-50/50 border-b border-gray-100 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
                       >
                         <TableCell className="py-4 px-6">
                           <div className="flex items-center gap-4">
@@ -976,18 +799,40 @@ export function AttendanceManagementPage() {
                               {(() => {
                                 return (
                                   <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-sm ${
-                                    record.teamId ? 'bg-linear-to-br from-blue-500 to-blue-600' : 'bg-linear-to-br from-gray-400 to-gray-500'
+                                    record.assignedTask 
+                                      ? record.assignedTask.status === 'COMPLETED'
+                                        ? 'bg-gradient-to-br from-green-500 to-green-600'
+                                        : record.assignedTask.status === 'IN_PROGRESS'
+                                        ? 'bg-gradient-to-br from-blue-500 to-blue-600'
+                                        : record.assignedTask.status === 'PENDING'
+                                        ? 'bg-gradient-to-br from-yellow-500 to-yellow-600'
+                                        : record.assignedTask.status === 'CANCELLED'
+                                        ? 'bg-gradient-to-br from-red-500 to-red-600'
+                                        : 'bg-gradient-to-br from-blue-500 to-blue-600' // default blue for unknown status
+                                      : 'bg-gradient-to-br from-blue-500 to-blue-600' // default blue when no task
                                   }`}>
                                     {record.employeeName.split(' ').map(n => n[0]).join('').toUpperCase()}
                                   </div>
                                 )
                               })()}
-                              {record.hasAttendance && getStatusIcon(record.status) && (
+                              {record.assignedTask ? (
                                 <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5">
-                                  {getStatusIcon(record.status)}
+                                  {(() => {
+                                    switch (record.assignedTask.status) {
+                                      case "PENDING":
+                                        return <Clock className="h-4 w-4 text-yellow-600" />
+                                      case "IN_PROGRESS":
+                                        return <CheckCircle className="h-4 w-4 text-blue-600" />
+                                      case "COMPLETED":
+                                        return <CheckCircle className="h-4 w-4 text-green-600" />
+                                      case "CANCELLED":
+                                        return <XCircle className="h-4 w-4 text-red-600" />
+                                      default:
+                                        return <Clock className="h-4 w-4 text-gray-400" />
+                                    }
+                                  })()}
                                 </div>
-                              )}
-                              {!record.hasAttendance && (
+                              ) : (
                                 <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5">
                                   <XCircle className="h-4 w-4 text-gray-400" />
                                 </div>
@@ -1021,59 +866,62 @@ export function AttendanceManagementPage() {
                         </TableCell>
                         <TableCell className="py-4 px-6">
                           <div className="space-y-1">
-                            {record.hasAttendance ? (
-                              getStatusBadge(record.status)
-                            ) : (
-                              <Badge className="bg-gray-50 text-gray-500 border-gray-200">
-                                No Record
-                              </Badge>
-                            )}
-                            {record.assignedTask && (
+                            {record.assignedTask ? (
                               <div>
                                 {getTaskStatusBadge(record.assignedTask.status)}
                               </div>
+                            ) : (
+                              <Badge className="bg-gray-50 text-gray-500 border-gray-200">
+                                No task assigned
+                              </Badge>
                             )}
                           </div>
                         </TableCell>
                         <TableCell className="py-4 px-6">
                           <div className="space-y-1">
-                            {/* Show task timing if available, otherwise show clock in/out times */}
-                            {record.assignedTask && (record.assignedTask.startTime || record.assignedTask.endTime) ? (
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-semibold text-green-600">
-                                  {record.assignedTask.startTime ? formatTime(record.assignedTask.startTime) : '-'}
-                                </span>
-                                <span className="text-gray-400">→</span>
-                                <span className="text-sm font-semibold text-orange-600">
-                                  {record.assignedTask.endTime ? formatTime(record.assignedTask.endTime) : 
-                                   (record.assignedTask.startTime ? 'Working...' : '-')}
-                                </span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-semibold text-green-600">
-                                  {record.hasAttendance && record.clockIn ? formatTime(record.clockIn) : '-'}
-                                </span>
-                                <span className="text-gray-400">→</span>
-                                <span className="text-sm font-semibold text-orange-600">
-                                  {record.hasAttendance && record.clockOut ? formatTime(record.clockOut) : 
-                                   (record.hasAttendance && record.clockIn ? 'Working...' : '-')}
-                                </span>
-                              </div>
-                            )}
-                            <div className="text-xs text-gray-500">
-                              {record.assignedTask && record.assignedTask.startTime ? 
-                                new Date(record.assignedTask.startTime).toLocaleDateString() :
-                                (record.hasAttendance && record.clockIn ? new Date(record.clockIn).toLocaleDateString() : '-')
-                              }
-                            </div>
+                            {(() => {
+                              const attendanceStart = record.clockIn
+                              const attendanceEnd = record.clockOut
+
+                              const task = record.assignedTask
+                              const taskStart = task?.startTime
+                              const taskEnd = task?.endTime
+
+                              // Show task times if available, otherwise show attendance times
+                              const displayStart = taskStart || attendanceStart
+                              const displayEnd = taskEnd || attendanceEnd
+
+                              return (
+                                <>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-semibold text-green-600">
+                                      {displayStart ? formatTime(displayStart) : '-'}
+                                    </span>
+                                    <span className="text-gray-400">→</span>
+                                    <span className="text-sm font-semibold text-orange-600">
+                                      {displayEnd
+                                        ? formatTime(displayEnd)
+                                        : displayStart
+                                          ? 'Working...'
+                                          : '-'}
+                                    </span>
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {displayStart
+                                      ? new Date(displayStart).toLocaleDateString()
+                                      : '-'}
+                                  </div>
+                                  {taskStart && attendanceStart && taskStart !== attendanceStart && (
+                                    <div className="text-xs text-blue-600">
+                                      Task: {formatTime(taskStart)}
+                                    </div>
+                                  )}
+                                </>
+                              )
+                            })()}
                           </div>
                         </TableCell>
                         {(() => {
-                          const time = record.hasAttendance
-                            ? calculateWorkHours(record.clockIn, record.clockOut)
-                            : { worked: '-', overtime: '-' }
-
                           return (
                             <>
                               {/* Assigned Vehicle */}
@@ -1082,7 +930,7 @@ export function AttendanceManagementPage() {
                                   {/* Show actual vehicle assigned by admin */}
                                   {(() => {
                                     const assignedVehicle = getAssignedVehicle(record.employeeId, record.employeeName, vehicles)
-                                    
+
                                     if (assignedVehicle) {
                                       return (
                                         <div className="space-y-1">
@@ -1109,16 +957,6 @@ export function AttendanceManagementPage() {
                                     }
                                   })()}
                                 </div>
-                              </TableCell>
-
-                              {/* Overtime */}
-                              <TableCell className="py-4 px-6">
-                                <span
-                                  className={`font-semibold ${time.overtime !== '0h 0m' && time.overtime !== '-' ? 'text-red-600' : 'text-gray-500'
-                                    }`}
-                                >
-                                  {time.overtime}
-                                </span>
                               </TableCell>
 
                             </>
@@ -1157,12 +995,29 @@ export function AttendanceManagementPage() {
                         </TableCell>
                         <TableCell className="py-4 px-6 max-w-[200px]">
                           <div className="min-w-0">
-                            <span
-                              className="text-sm text-gray-600 block truncate"
-                              title={record.hasAttendance ? (record.deviceInfo || 'Not provided') : '-'}
-                            >
-                              {record.hasAttendance ? (record.deviceInfo || 'Not provided') : '-'}
-                            </span>
+                            {record.assignedTask?.relatedTicketId ? (
+                              (() => {
+                                const ticket = getTicketInfo(record.assignedTask.relatedTicketId, tickets)
+                                return ticket ? (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium text-blue-600">
+                                      {ticket.ticketId}
+                                    </span>
+                                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                      ticket.priority === 'HIGH' || ticket.priority === 'CRITICAL' ? 'bg-red-100 text-red-700' :
+                                      ticket.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
+                                      'bg-green-100 text-green-700'
+                                    }`}>
+                                      {ticket.priority}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-gray-500">Ticket not found</span>
+                                )
+                              })()
+                            ) : (
+                              <span className="text-sm text-gray-500">No related ticket</span>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="py-4 px-6">
@@ -1192,64 +1047,67 @@ export function AttendanceManagementPage() {
           </Card>
 
           {/* Footer */}
-          {!loading && !error && combinedData.length > 0 && (
-            <div className="flex items-center justify-between text-sm text-gray-500 bg-white rounded-lg p-4 border border-gray-200">
-              <div>
-                Showing {combinedData.length} of {pagination.total} employees
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={pagination.page <= 1}
-                  onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
-                >
-                  Previous
-                </Button>
-                <div className="flex items-center gap-1">
+          {
+            !loading && !error && combinedData.length > 0 && (
+              <div className="flex items-center justify-between text-sm text-gray-500 bg-white rounded-lg p-4 border border-gray-200">
+                <div>
+                  Showing {combinedData.length} of {pagination.total} employees
+                </div>
+                <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="bg-blue-50 text-blue-600 border-blue-200"
+                    disabled={pagination.page <= 1}
+                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
                   >
-                    {pagination.page}
+                    Previous
                   </Button>
-                  {pagination.totalPages > 1 && (
-                    <>
-                      {pagination.page < pagination.totalPages && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
-                        >
-                          {pagination.page + 1}
-                        </Button>
-                      )}
-                      {pagination.page < pagination.totalPages - 1 && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 2 }))}
-                        >
-                          {pagination.page + 2}
-                        </Button>
-                      )}
-                    </>
-                  )}
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="bg-blue-50 text-blue-600 border-blue-200"
+                    >
+                      {pagination.page}
+                    </Button>
+                    {pagination.totalPages > 1 && (
+                      <>
+                        {pagination.page < pagination.totalPages && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                          >
+                            {pagination.page + 1}
+                          </Button>
+                        )}
+                        {pagination.page < pagination.totalPages - 1 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 2 }))}
+                          >
+                            {pagination.page + 2}
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={pagination.page >= pagination.totalPages}
+                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                  >
+                    Next
+                  </Button>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={pagination.page >= pagination.totalPages}
-                  onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
-                >
-                  Next
-                </Button>
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            )
+          }
+        </div >
+      )
+      }
 
       {/* View Details Modal */}
       <Dialog open={showViewDetails} onOpenChange={setShowViewDetails}>
@@ -1293,10 +1151,12 @@ export function AttendanceManagementPage() {
                     <p className="text-sm text-gray-900">{new Date(selectedRecord.date).toLocaleDateString()}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Status</label>
+                    <label className="text-sm font-medium text-gray-500">Task Status</label>
                     <div className="mt-1">
-                      {selectedRecord.hasAttendance ? getStatusBadge(selectedRecord.status) : (
-                        <Badge className="bg-gray-50 text-gray-500 border-gray-200">No Record</Badge>
+                      {selectedRecord.assignedTask ? (
+                        getTaskStatusBadge(selectedRecord.assignedTask.status)
+                      ) : (
+                        <Badge className="bg-gray-50 text-gray-500 border-gray-200">No task assigned</Badge>
                       )}
                     </div>
                   </div>
@@ -1315,7 +1175,7 @@ export function AttendanceManagementPage() {
                         <p className="text-sm text-gray-900">
                           {(() => {
                             const assignedVehicle = getAssignedVehicle(selectedRecord.employeeId, selectedRecord.employeeName, vehicles)
-                            
+
                             if (assignedVehicle) {
                               return `${assignedVehicle.id} - ${assignedVehicle.model}`
                             } else {
@@ -1363,8 +1223,27 @@ export function AttendanceManagementPage() {
                     <h3 className="text-lg font-semibold text-gray-900">Technical Information</h3>
                     <div className="grid grid-cols-1 gap-4">
                       <div>
-                        <label className="text-sm font-medium text-gray-500">Device Info</label>
-                        <p className="text-sm text-gray-900">{selectedRecord.deviceInfo || 'Not provided'}</p>
+                        <label className="text-sm font-medium text-gray-500">Related Ticket</label>
+                        <p className="text-sm text-gray-900">
+                          {selectedRecord.assignedTask?.relatedTicketId ? (
+                            (() => {
+                              const ticket = getTicketInfo(selectedRecord.assignedTask.relatedTicketId, tickets)
+                              return ticket ? (
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-blue-600">{ticket.ticketId}</span>
+                                  <span className={`text-xs px-2 py-1 rounded ${
+                                    ticket.priority === 'HIGH' || ticket.priority === 'CRITICAL' ? 'bg-red-100 text-red-700' :
+                                    ticket.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
+                                    'bg-green-100 text-green-700'
+                                  }`}>
+                                    {ticket.priority}
+                                  </span>
+                                  <span className="text-xs text-gray-500">- {ticket.title}</span>
+                                </div>
+                              ) : 'Ticket not found'
+                            })()
+                          ) : 'No related ticket'}
+                        </p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-500">IP Address</label>
@@ -1470,6 +1349,6 @@ export function AttendanceManagementPage() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </div >
   )
 }

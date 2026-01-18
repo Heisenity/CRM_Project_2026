@@ -5,7 +5,7 @@ import { createTeamTask } from '../teams/team.service';
 // Assign a new task to an employee or team
 export const assignTask = async (req: Request, res: Response) => {
   try {
-    const { employeeId, teamId, title, description, category, location } = req.body;
+    const { employeeId, teamId, title, description, category, location, ticketId } = req.body;
 
     // Validate required fields
     if (!title || !description) {
@@ -40,7 +40,10 @@ export const assignTask = async (req: Request, res: Response) => {
         description,
         category,
         location,
-        assignedBy
+        undefined, // startTime
+        undefined, // endTime
+        assignedBy,
+        ticketId
       );
 
       return res.status(201).json({
@@ -63,6 +66,7 @@ export const assignTask = async (req: Request, res: Response) => {
       category,
       location,
       assignedBy,
+      relatedTicketId: ticketId,
     };
 
     const task = await createTask(taskData);

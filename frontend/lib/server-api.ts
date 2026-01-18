@@ -195,6 +195,7 @@ export type AssignedTask = {
     assignedBy: string
     assignedAt: string
     status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
+    relatedTicketId?: string
 }
 
 export type CreateTaskRequest = {
@@ -204,6 +205,7 @@ export type CreateTaskRequest = {
     description: string
     category?: string
     location?: string
+    ticketId?: string
 }
 
 export type CreateTaskResponse = {
@@ -1983,5 +1985,143 @@ export async function getDailyAttendanceStatus(employeeId: string): Promise<Dail
   } catch (error) {
     console.error('getDailyAttendanceStatus error:', error)
     throw error
+  }
+}
+
+// =============================================================================
+// TICKET MANAGEMENT API FUNCTIONS
+// =============================================================================
+
+export type TicketCategory = 'AUTHENTICATION' | 'HARDWARE' | 'SOFTWARE' | 'NETWORK' | 'SECURITY' | 'DATABASE' | 'MAINTENANCE' | 'SETUP' | 'OTHER'
+export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'PENDING' | 'SCHEDULED' | 'RESOLVED' | 'CLOSED' | 'CANCELLED'
+
+export type Ticket = {
+  id: string
+  ticketId: string
+  title: string
+  description: string
+  category: TicketCategory
+  priority: TicketPriority
+  status: TicketStatus
+  department?: string
+  assigneeId?: string
+  reporterId: string
+  dueDate?: string
+  estimatedHours?: number
+  tags?: string[]
+  customerName?: string
+  customerId?: string
+  customerPhone?: string
+  createdAt: string
+  updatedAt: string
+  resolvedAt?: string
+  closedAt?: string
+  assignee?: {
+    id: string
+    name: string
+    employeeId: string
+    email: string
+  }
+  reporter?: {
+    id: string
+    name: string
+    employeeId: string
+    email: string
+  }
+}
+
+export type GetTicketsResponse = {
+  success: boolean
+  data?: Ticket[]
+  error?: string
+}
+
+export type GetTicketResponse = {
+  success: boolean
+  data?: Ticket
+  error?: string
+}
+
+export async function getAllTickets(params?: {
+  status?: TicketStatus
+  priority?: TicketPriority
+  category?: TicketCategory
+  search?: string
+  limit?: number
+}): Promise<GetTicketsResponse> {
+  try {
+    const token = await getSessionToken()
+    if (!token) {
+      return {
+        success: false,
+        error: 'Not authenticated'
+      }
+    }
+
+    const searchParams = new URLSearchParams()
+    if (params?.status) searchParams.append('status', params.status)
+    if (params?.priority) searchParams.append('priority', params.priority)
+    if (params?.category) searchParams.append('category', params.category)
+    if (params?.search) searchParams.append('search', params.search)
+    if (params?.limit) searchParams.append('limit', params.limit.toString())
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/tickets?${searchParams}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+
+    if (!res.ok) {
+      throw new Error(response.error || `Failed to fetch tickets: ${res.status}`)
+    }
+
+    return response
+  } catch (error) {
+    console.error('getAllTickets error:', error)
+    return {
+      success: false,
+      error: 'Failed to fetch tickets'
+    }
+  }
+}
+
+export async function getTicketById(ticketId: string): Promise<GetTicketResponse> {
+  try {
+    const token = await getSessionToken()
+    if (!token) {
+      return {
+        success: false,
+        error: 'Not authenticated'
+      }
+    }
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/tickets/${ticketId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+
+    if (!res.ok) {
+      throw new Error(response.error || `Failed to fetch ticket: ${res.status}`)
+    }
+
+    return response
+  } catch (error) {
+    console.error('getTicketById error:', error)
+    return {
+      success: false,
+      error: 'Failed to fetch ticket'
+    }
   }
 }

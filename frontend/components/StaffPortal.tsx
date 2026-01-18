@@ -15,7 +15,6 @@ import {
   AlertCircle,
   LogOut,
   FileText,
-  DollarSign,
   Car,
   Upload
 } from "lucide-react"
@@ -58,7 +57,7 @@ export function StaffPortal() {
   const [employeeProfile, setEmployeeProfile] = useState<EmployeeProfile | null>(null)
   const [assignedVehicle, setAssignedVehicle] = useState<AssignedVehicle | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'attendance' | 'leave' | 'documents' | 'payroll' | 'vehicle' | 'tasks' | 'dashboard' | 'project' | 'tickets' | 'customers' | 'employees' | 'teams' | 'tenders' | 'stock' | 'leave_management' | 'field_engineer_attendance' | 'inoffice_attendance' | 'customer_support_requests' | 'staff_feature_access'>('attendance')
+  const [activeTab, setActiveTab] = useState<'attendance' | 'leave' | 'documents' | 'vehicle' | 'tasks' | 'dashboard' | 'project' | 'tickets' | 'customers' | 'employees' | 'teams' | 'tenders' | 'stock' | 'leave_management' | 'field_engineer_attendance' | 'inoffice_attendance' | 'customer_support_requests' | 'staff_feature_access'>('attendance')
   const [leaveRefreshTrigger, setLeaveRefreshTrigger] = useState(0)
   const [ticketRefreshTrigger, setTicketRefreshTrigger] = useState(0)
   const [dayClockOutLoading, setDayClockOutLoading] = useState(false)
@@ -134,7 +133,7 @@ export function StaffPortal() {
   const hasFeatureAccess = (feature: StaffPortalFeature): boolean => {
     // Field engineers have no access to staff features by default
     if (employeeProfile?.role === 'FIELD_ENGINEER') {
-      const fieldEngineerBuiltInFeatures = ['VEHICLE', 'PAYROLL']
+      const fieldEngineerBuiltInFeatures = ['VEHICLE']
       return fieldEngineerBuiltInFeatures.includes(feature)
     }
     // IN_OFFICE employees need explicit feature access
@@ -492,19 +491,6 @@ export function StaffPortal() {
                 <FileText className="h-4 w-4 inline mr-2" />
                 Documents
               </button>
-              {hasFeatureAccess('PAYROLL') && (
-                <button
-                  onClick={() => setActiveTab('payroll')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'payroll'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <DollarSign className="h-4 w-4 inline mr-2" />
-                  Payroll
-                </button>
-              )}
               {hasFeatureAccess('VEHICLE') && employeeProfile?.role === 'FIELD_ENGINEER' && (
                 <button
                   onClick={() => setActiveTab('vehicle')}
@@ -774,75 +760,6 @@ export function StaffPortal() {
           <div className="lg:col-span-2">
             {activeTab === 'attendance' && (
               <>
-                {/* Day Clock-Out Button for Field Engineers */}
-                {employeeProfile?.role === 'FIELD_ENGINEER' && todayAttendance && (
-                  <Card className="mb-6 bg-linear-to-r from-orange-50 to-red-50 border-orange-200">
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-2">
-                          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                            <Clock className="h-5 w-5 text-orange-600" />
-                            Day Clock-Out
-                          </h3>
-                          <p className="text-sm text-gray-600">
-                            End your work day and clock out. This is separate from task check-in/check-out.
-                          </p>
-                          <div className="flex items-center gap-4 text-sm">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-gray-700">Check-in:</span>
-                              <Badge variant={todayAttendance.hasCheckedIn ? "default" : "secondary"}>
-                                {todayAttendance.hasCheckedIn 
-                                  ? new Date(todayAttendance.clockIn!).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-                                  : 'Not checked in'}
-                              </Badge>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-gray-700">Clock-out:</span>
-                              <Badge variant={todayAttendance.hasClockedOut ? "default" : "secondary"}>
-                                {todayAttendance.hasClockedOut 
-                                  ? new Date(todayAttendance.clockOut!).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-                                  : 'Not clocked out'}
-                              </Badge>
-                            </div>
-                          </div>
-                        </div>
-                        <Button
-                          onClick={handleDayClockOut}
-                          disabled={!todayAttendance.hasCheckedIn || todayAttendance.hasClockedOut || dayClockOutLoading}
-                          className="bg-red-600 hover:bg-red-700 text-white px-6 py-6 text-lg"
-                          size="lg"
-                        >
-                          {dayClockOutLoading ? (
-                            <>
-                              <Clock className="h-5 w-5 mr-2 animate-spin" />
-                              Clocking Out...
-                            </>
-                          ) : (
-                            <>
-                              <Clock className="h-5 w-5 mr-2" />
-                              Clock Out for Day
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                      {!todayAttendance.hasCheckedIn && (
-                        <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                          <p className="text-sm text-yellow-800">
-                            ⚠️ You need to check in first before you can clock out for the day.
-                          </p>
-                        </div>
-                      )}
-                      {todayAttendance.hasClockedOut && (
-                        <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                          <p className="text-sm text-green-800">
-                            ✓ You have already clocked out for the day.
-                          </p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
-
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
@@ -902,42 +819,6 @@ export function StaffPortal() {
 
             {activeTab === 'documents' && (
               <EmployeeDocuments employeeId={employeeProfile.employeeId} />
-            )}
-
-            {activeTab === 'payroll' && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <DollarSign className="h-5 w-5 text-green-500" />
-                    <span>Payroll Information</span>
-                  </CardTitle>
-                  <p className="text-gray-600">
-                    View your salary details and payment history
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-12">
-                    <DollarSign className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Payroll Information</h3>
-                    <p className="text-gray-600 mb-4">
-                      Your payroll details will be available here once processed by admin.
-                    </p>
-                    <div className="bg-gray-50 rounded-lg p-4 text-left">
-                      <h4 className="font-medium text-gray-900 mb-2">Current Month Status</h4>
-                      <div className="space-y-2 text-sm text-gray-600">
-                        <div className="flex justify-between">
-                          <span>Status:</span>
-                          <Badge variant="outline">Pending</Badge>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Month:</span>
-                          <span>{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
             )}
 
             {activeTab === 'dashboard' && (

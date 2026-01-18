@@ -25,7 +25,6 @@ import {
     Package,
     ChevronRight,
     LogOut,
-    DollarSign,
     UsersRound,
     Clock,
     FileText,
@@ -100,13 +99,6 @@ const navigationItems = [
         icon: UsersRound,
         badge: null,
         description: "Control staff portal features"
-    },
-    {
-        title: "Payroll",
-        url: "/payroll",
-        icon: DollarSign,
-        badge: "2",
-        description: "Salary and compensation"
     },
     {
         title: "Stock Management",

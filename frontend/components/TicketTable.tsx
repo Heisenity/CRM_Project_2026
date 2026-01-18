@@ -9,21 +9,23 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { 
   Search, 
   Filter, 
   Download, 
   Plus, 
   Ticket, 
-  TrendingUp,
-  TrendingDown,
   AlertTriangle,
   CheckCircle,
   XCircle,
   MoreVertical,
   Clock,
-  User,
   MessageSquare,
   Calendar,
   Eye,
@@ -34,149 +36,56 @@ import {
   Phone,
   Paperclip,
   FileText,
-  Image
+  Image,
+  Save,
+  X
 } from "lucide-react"
 import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch"
+import { showToast } from "@/lib/toast-utils"
 
-// Mock data for tickets with comprehensive information
-const ticketData = [
-  {
-    id: "TKT-001",
-    title: "Login Authentication Issues",
-    description: "Users unable to login with correct credentials",
-    category: "Authentication",
-    priority: "high",
-    status: "open",
-    assignee: "Sarah Johnson",
-    reporter: "Michael Chen",
-    createdDate: "2024-12-28",
-    updatedDate: "2024-12-28",
-    dueDate: "2024-12-30",
-    tags: ["urgent", "security"],
-    comments: 5,
-    estimatedHours: 8,
-    department: "IT Support"
-  },
-  {
-    id: "TKT-002",
-    title: "Printer Not Working in Office 3A",
-    description: "HP LaserJet printer showing offline status",
-    category: "Hardware",
-    priority: "medium",
-    status: "in_progress",
-    assignee: "David Wilson",
-    reporter: "Emily Rodriguez",
-    createdDate: "2024-12-27",
-    updatedDate: "2024-12-28",
-    dueDate: "2024-12-29",
-    tags: ["hardware", "office"],
-    comments: 3,
-    estimatedHours: 4,
-    department: "Facilities"
-  },
-  {
-    id: "TKT-003",
-    title: "Software License Renewal Request",
-    description: "Adobe Creative Suite licenses expiring next month",
-    category: "Software",
-    priority: "low",
-    status: "pending",
-    assignee: "Lisa Wang",
-    reporter: "James Thompson",
-    createdDate: "2024-12-26",
-    updatedDate: "2024-12-27",
-    dueDate: "2025-01-15",
-    tags: ["license", "software"],
-    comments: 2,
-    estimatedHours: 2,
-    department: "Procurement"
-  },
-  {
-    id: "TKT-004",
-    title: "Network Connectivity Issues",
-    description: "Intermittent internet connection in Building B",
-    category: "Network",
-    priority: "high",
-    status: "open",
-    assignee: "Robert Martinez",
-    reporter: "Anna Kowalski",
-    createdDate: "2024-12-28",
-    updatedDate: "2024-12-28",
-    dueDate: "2024-12-29",
-    tags: ["network", "urgent"],
-    comments: 7,
-    estimatedHours: 12,
-    department: "IT Infrastructure"
-  },
-  {
-    id: "TKT-005",
-    title: "Email Server Maintenance",
-    description: "Scheduled maintenance for email server upgrade",
-    category: "Maintenance",
-    priority: "medium",
-    status: "scheduled",
-    assignee: "Sarah Johnson",
-    reporter: "System Admin",
-    createdDate: "2024-12-25",
-    updatedDate: "2024-12-27",
-    dueDate: "2024-12-31",
-    tags: ["maintenance", "email"],
-    comments: 1,
-    estimatedHours: 6,
-    department: "IT Support"
-  },
-  {
-    id: "TKT-006",
-    title: "New Employee Laptop Setup",
-    description: "Configure laptop and software for new hire",
-    category: "Setup",
-    priority: "medium",
-    status: "in_progress",
-    assignee: "David Wilson",
-    reporter: "HR Department",
-    createdDate: "2024-12-27",
-    updatedDate: "2024-12-28",
-    dueDate: "2024-12-30",
-    tags: ["setup", "onboarding"],
-    comments: 4,
-    estimatedHours: 3,
-    department: "IT Support"
-  },
-  {
-    id: "TKT-007",
-    title: "Database Performance Optimization",
-    description: "Slow query performance affecting application",
-    category: "Database",
-    priority: "high",
-    status: "resolved",
-    assignee: "Robert Martinez",
-    reporter: "Development Team",
-    createdDate: "2024-12-20",
-    updatedDate: "2024-12-26",
-    dueDate: "2024-12-25",
-    tags: ["database", "performance"],
-    comments: 12,
-    estimatedHours: 16,
-    department: "IT Infrastructure"
-  },
-  {
-    id: "TKT-008",
-    title: "Security Camera Malfunction",
-    description: "Camera 15 in parking lot not recording",
-    category: "Security",
-    priority: "medium",
-    status: "closed",
-    assignee: "Lisa Wang",
-    reporter: "Security Team",
-    createdDate: "2024-12-22",
-    updatedDate: "2024-12-24",
-    dueDate: "2024-12-26",
-    tags: ["security", "hardware"],
-    comments: 6,
-    estimatedHours: 5,
-    department: "Security"
+interface Ticket {
+  id: string
+  ticketId: string
+  title: string
+  description: string
+  category: string
+  priority: string
+  status: string
+  department?: string
+  assigneeId?: string
+  reporterId?: string
+  dueDate?: string
+  estimatedHours?: number
+  createdAt: string
+  updatedAt: string
+  customerName?: string
+  customerId?: string
+  customerPhone?: string
+  assignee?: {
+    id: string
+    name: string
+    employeeId: string
+    email: string
   }
-]
+  reporter?: {
+    id: string
+    name: string
+    employeeId: string
+    email: string
+  }
+  attachments?: Array<{
+    id: string
+    fileName: string
+    filePath: string
+    fileSize: number
+    mimeType: string
+    uploadedAt: string
+  }>
+  _count?: {
+    comments: number
+    attachments: number
+  }
+}
 
 const getStatusIcon = (status: string) => {
   switch (status) {
@@ -248,6 +157,330 @@ const getPriorityBadge = (priority: string) => {
   )
 }
 
+// Ticket Details Modal Component
+interface TicketDetailsModalProps {
+  ticket: Ticket | null
+  isOpen: boolean
+  onClose: () => void
+}
+
+function TicketDetailsModal({ ticket, isOpen, onClose }: TicketDetailsModalProps) {
+  if (!ticket) return null
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Ticket className="h-5 w-5 text-blue-600" />
+            {ticket.title}
+          </DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-6">
+          {/* Basic Info */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="text-sm font-medium text-muted-foreground">Ticket ID</Label>
+              <p className="font-mono text-sm">{ticket.ticketId}</p>
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-muted-foreground">Status</Label>
+              <div className="mt-1">{getStatusBadge(ticket.status)}</div>
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-muted-foreground">Priority</Label>
+              <div className="mt-1">{getPriorityBadge(ticket.priority)}</div>
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-muted-foreground">Category</Label>
+              <p className="text-sm">{ticket.category}</p>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div>
+            <Label className="text-sm font-medium text-muted-foreground">Description</Label>
+            <p className="text-sm mt-1 p-3 bg-muted rounded-md">{ticket.description}</p>
+          </div>
+
+          {/* Customer Info */}
+          {ticket.customerName && (
+            <div>
+              <Label className="text-sm font-medium text-muted-foreground">Customer Information</Label>
+              <div className="mt-1 p-3 bg-muted rounded-md">
+                <p className="font-medium">{ticket.customerName}</p>
+                <p className="text-sm text-muted-foreground">{ticket.customerId}</p>
+                <p className="text-sm text-muted-foreground">{ticket.customerPhone}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Assignment Info */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="text-sm font-medium text-muted-foreground">Reporter</Label>
+              <p className="text-sm">{ticket.reporter?.name || 'Unknown'}</p>
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-muted-foreground">Assignee</Label>
+              <p className="text-sm">{ticket.assignee?.name || 'Unassigned'}</p>
+            </div>
+          </div>
+
+          {/* Dates */}
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <Label className="text-sm font-medium text-muted-foreground">Created</Label>
+              <p className="text-sm">{new Date(ticket.createdAt).toLocaleDateString()}</p>
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-muted-foreground">Due Date</Label>
+              <p className="text-sm">{ticket.dueDate ? new Date(ticket.dueDate).toLocaleDateString() : 'No due date'}</p>
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-muted-foreground">Estimated Hours</Label>
+              <p className="text-sm">{ticket.estimatedHours || 'Not specified'}</p>
+            </div>
+          </div>
+
+          {/* Attachments */}
+          {ticket.attachments && ticket.attachments.length > 0 && (
+            <div>
+              <Label className="text-sm font-medium text-muted-foreground">Attachments ({ticket.attachments.length})</Label>
+              <div className="mt-2 space-y-2">
+                {ticket.attachments.map((attachment, index) => (
+                  <div key={index} className="flex items-center gap-3 p-2 bg-muted rounded-md">
+                    <FileText className="h-4 w-4 text-blue-600" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{attachment.fileName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {attachment.fileSize ? `${(attachment.fileSize / 1024).toFixed(1)} KB` : 'Unknown size'}
+                      </p>
+                    </div>
+                    <Button variant="ghost" size="sm">
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// Edit Ticket Modal Component
+interface EditTicketModalProps {
+  ticket: Ticket | null
+  isOpen: boolean
+  onClose: () => void
+  onSave: (ticketId: string, updates: Partial<Ticket>) => Promise<void>
+}
+
+function EditTicketModal({ ticket, isOpen, onClose, onSave }: EditTicketModalProps) {
+  const [formData, setFormData] = React.useState({
+    title: '',
+    description: '',
+    category: '',
+    priority: '',
+    status: '',
+    department: '',
+    dueDate: '',
+    estimatedHours: ''
+  })
+  const [saving, setSaving] = React.useState(false)
+
+  React.useEffect(() => {
+    if (ticket) {
+      setFormData({
+        title: ticket.title || '',
+        description: ticket.description || '',
+        category: ticket.category || '',
+        priority: ticket.priority || '',
+        status: ticket.status || '',
+        department: ticket.department || '',
+        dueDate: ticket.dueDate ? new Date(ticket.dueDate).toISOString().split('T')[0] : '',
+        estimatedHours: ticket.estimatedHours?.toString() || ''
+      })
+    }
+  }, [ticket])
+
+  const handleSave = async () => {
+    if (!ticket) return
+    
+    setSaving(true)
+    try {
+      await onSave(ticket.id, {
+        ...formData,
+        estimatedHours: formData.estimatedHours ? parseFloat(formData.estimatedHours) : undefined
+      })
+      onClose()
+      showToast.success('Ticket updated successfully')
+    } catch (error) {
+      showToast.error('Failed to update ticket')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!ticket) return null
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Edit className="h-5 w-5 text-blue-600" />
+            Edit Ticket - {ticket.ticketId}
+          </DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="title">Title</Label>
+            <Input
+              id="title"
+              value={formData.title}
+              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              rows={3}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="category">Category</Label>
+              <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="AUTHENTICATION">Authentication</SelectItem>
+                  <SelectItem value="HARDWARE">Hardware</SelectItem>
+                  <SelectItem value="SOFTWARE">Software</SelectItem>
+                  <SelectItem value="NETWORK">Network</SelectItem>
+                  <SelectItem value="SECURITY">Security</SelectItem>
+                  <SelectItem value="DATABASE">Database</SelectItem>
+                  <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                  <SelectItem value="SETUP">Setup</SelectItem>
+                  <SelectItem value="OTHER">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="priority">Priority</Label>
+              <Select value={formData.priority} onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CRITICAL">Critical</SelectItem>
+                  <SelectItem value="HIGH">High</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="LOW">Low</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="status">Status</Label>
+              <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="OPEN">Open</SelectItem>
+                  <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+                  <SelectItem value="RESOLVED">Resolved</SelectItem>
+                  <SelectItem value="CLOSED">Closed</SelectItem>
+                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="department">Department</Label>
+              <Select value={formData.department} onValueChange={(value) => setFormData(prev => ({ ...prev, department: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="IT Support">IT Support</SelectItem>
+                  <SelectItem value="IT Infrastructure">IT Infrastructure</SelectItem>
+                  <SelectItem value="Security">Security</SelectItem>
+                  <SelectItem value="Facilities">Facilities</SelectItem>
+                  <SelectItem value="Procurement">Procurement</SelectItem>
+                  <SelectItem value="HR Department">HR Department</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="dueDate">Due Date</Label>
+              <Input
+                id="dueDate"
+                type="date"
+                value={formData.dueDate}
+                onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="estimatedHours">Estimated Hours</Label>
+              <Input
+                id="estimatedHours"
+                type="number"
+                value={formData.estimatedHours}
+                onChange={(e) => setFormData(prev => ({ ...prev, estimatedHours: e.target.value }))}
+                min="0"
+                step="0.5"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 mt-6">
+          <Button variant="outline" onClick={onClose}>
+            <X className="h-4 w-4 mr-2" />
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? (
+              <>
+                <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin mr-2" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Save Changes
+              </>
+            )}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function TicketTable() {
   const router = useRouter()
   const { authenticatedFetch, isAuthenticated } = useAuthenticatedFetch()
@@ -256,8 +489,15 @@ export function TicketTable() {
   const [selectedStatus, setSelectedStatus] = React.useState("all")
   const [selectedPriority, setSelectedPriority] = React.useState("all")
   const [activeTab, setActiveTab] = React.useState("all")
-  const [tickets, setTickets] = React.useState<any[]>([])
+  const [tickets, setTickets] = React.useState<Ticket[]>([])
   const [loading, setLoading] = React.useState(true)
+  
+  // Modal states
+  const [selectedTicket, setSelectedTicket] = React.useState<Ticket | null>(null)
+  const [showDetailsModal, setShowDetailsModal] = React.useState(false)
+  const [showEditModal, setShowEditModal] = React.useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
+  const [deletingTicket, setDeletingTicket] = React.useState(false)
 
   const downloadFile = async (filePath: string, fileName: string) => {
     try {
@@ -308,6 +548,79 @@ export function TicketTable() {
       setLoading(false)
     }
   }, [authenticatedFetch])
+
+  // Handler functions for ticket actions
+  const handleViewDetails = (ticket: Ticket) => {
+    setSelectedTicket(ticket)
+    setShowDetailsModal(true)
+  }
+
+  const handleEditTicket = (ticket: Ticket) => {
+    setSelectedTicket(ticket)
+    setShowEditModal(true)
+  }
+
+  const handleAssignAgent = (ticket: Ticket) => {
+    // Navigate to task management page which includes assign task functionality
+    router.push(`/task-management?ticketId=${ticket.id}&ticketTitle=${encodeURIComponent(ticket.title)}&action=assign`)
+  }
+
+  const handleDeleteTicket = (ticket: Ticket) => {
+    setSelectedTicket(ticket)
+    setShowDeleteDialog(true)
+  }
+
+  const handleUpdateTicket = async (ticketId: string, updates: Partial<Ticket>) => {
+    try {
+      const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/tickets/${ticketId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          ...updates,
+          changedBy: 'current-user' // This should be the current user's employee ID
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        // Refresh tickets list
+        await fetchTickets()
+        return result.data
+      } else {
+        throw new Error(result.message || 'Failed to update ticket')
+      }
+    } catch (error) {
+      console.error('Error updating ticket:', error)
+      throw error
+    }
+  }
+
+  const confirmDeleteTicket = async () => {
+    if (!selectedTicket) return
+
+    setDeletingTicket(true)
+    try {
+      const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/tickets/${selectedTicket.id}`, {
+        method: 'DELETE'
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        showToast.success('Ticket deleted successfully')
+        await fetchTickets()
+        setShowDeleteDialog(false)
+        setSelectedTicket(null)
+      } else {
+        throw new Error(result.message || 'Failed to delete ticket')
+      }
+    } catch (error) {
+      console.error('Error deleting ticket:', error)
+      showToast.error('Failed to delete ticket')
+    } finally {
+      setDeletingTicket(false)
+    }
+  }
 
   React.useEffect(() => {
     if (isAuthenticated) {
@@ -677,7 +990,7 @@ export function TicketTable() {
                                 <Paperclip className="h-4 w-4 text-blue-600" />
                                 <span className="text-sm font-medium text-blue-600">{ticket.attachments.length}</span>
                                 <div className="flex items-center gap-1">
-                                  {ticket.attachments.slice(0, 2).map((attachment: any, index: number) => {
+                                  {ticket.attachments.slice(0, 2).map((attachment, index) => {
                                     const isImage = attachment.mimeType?.startsWith('image/') || 
                                                   attachment.fileName?.match(/\.(jpg|jpeg|png|gif|webp)$/i)
                                     return (
@@ -704,7 +1017,7 @@ export function TicketTable() {
                             <div className="px-2 py-1.5 text-sm font-semibold text-foreground border-b">
                               Attachments ({ticket.attachments.length})
                             </div>
-                            {ticket.attachments.map((attachment: any, index: number) => {
+                            {ticket.attachments.map((attachment, index) => {
                               const isImage = attachment.mimeType?.startsWith('image/') || 
                                             attachment.fileName?.match(/\.(jpg|jpeg|png|gif|webp)$/i)
                               const fileSize = attachment.fileSize ? `${(attachment.fileSize / 1024).toFixed(1)} KB` : 'Unknown size'
@@ -767,19 +1080,22 @@ export function TicketTable() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleViewDetails(ticket)}>
                             <Eye className="h-4 w-4 mr-2" />
                             View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditTicket(ticket)}>
                             <Edit className="h-4 w-4 mr-2" />
                             Edit Ticket
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleAssignAgent(ticket)}>
                             <UserCheck className="h-4 w-4 mr-2" />
                             Assign Agent
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600">
+                          <DropdownMenuItem 
+                            className="text-red-600 focus:text-red-600"
+                            onClick={() => handleDeleteTicket(ticket)}
+                          >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete
                           </DropdownMenuItem>
@@ -819,6 +1135,59 @@ export function TicketTable() {
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <TicketDetailsModal 
+        ticket={selectedTicket}
+        isOpen={showDetailsModal}
+        onClose={() => {
+          setShowDetailsModal(false)
+          setSelectedTicket(null)
+        }}
+      />
+
+      <EditTicketModal 
+        ticket={selectedTicket}
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false)
+          setSelectedTicket(null)
+        }}
+        onSave={handleUpdateTicket}
+      />
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Ticket</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete ticket &ldquo;{selectedTicket?.ticketId}&rdquo;? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowDeleteDialog(false)
+              setSelectedTicket(null)
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteTicket}
+              disabled={deletingTicket}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deletingTicket ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin mr-2" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Ticket'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
