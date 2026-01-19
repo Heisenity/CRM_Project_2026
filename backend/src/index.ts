@@ -19,6 +19,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3002',
   'https://heisenity-mediainfotech-crm-web-portal-zr9h.onrender.com',
+  'https://heisenity-mediainfotech-crm-web-portal-azxu.onrender.com',
   process.env.FRONTEND_URL
 ].filter(Boolean) // Remove undefined values
 
@@ -27,13 +28,22 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true)
     
+    // Check if origin is in allowed list
     if (allowedOrigins.includes(origin)) {
       callback(null, true)
-    } else {
+    } 
+    // Allow any subdomain of the main domain for production
+    else if (origin.includes('heisenity-mediainfotech-crm-web-portal') && origin.includes('onrender.com')) {
+      callback(null, true)
+    } 
+    else {
+      console.log('CORS blocked origin:', origin)
       callback(new Error('Not allowed by CORS'))
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
