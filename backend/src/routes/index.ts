@@ -55,7 +55,7 @@ router.use('/feature-access', featureAccessRoutes);
 router.use('/', notificationRoutes);
 
 // Mount database management routes (development only)
-router.use('/api', databaseRoutes);
+router.use('/', databaseRoutes);
 
 // Mount employee ID generator routes
 router.use('/employee-id', employeeIdRoutes);

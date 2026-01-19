@@ -2158,3 +2158,50 @@ export async function getTicketById(ticketId: string): Promise<GetTicketResponse
     }
   }
 }
+
+// =============================================================================
+// DATABASE STATS API FUNCTIONS
+// =============================================================================
+
+export type DatabaseStats = {
+  admins: number
+  employees: number
+  teams: number
+  attendance: number
+  tasks: number
+  vehicles: number
+  petrolBills: number
+  payrollRecords: number
+  notifications: number
+  userSessions: number
+  pendingCustomerSupport: number
+  totalCustomers: number
+}
+
+export type GetDatabaseStatsResponse = {
+  success: boolean
+  data?: DatabaseStats
+  error?: string
+}
+
+export async function getDatabaseStats(): Promise<GetDatabaseStatsResponse> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/database/stats`, {
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+
+    if (!res.ok) {
+      throw new Error(response.error || `Failed to get database stats: ${res.status}`)
+    }
+
+    return response
+  } catch (error) {
+    console.error('getDatabaseStats error:', error)
+    return {
+      success: false,
+      error: 'Failed to fetch database statistics'
+    }
+  }
+}

@@ -10,26 +10,75 @@ import {
   Users, 
   Ticket, 
   Package,
-  TrendingUp,
-  TrendingDown,
   Clock,
   CheckCircle,
   AlertTriangle,
-  XCircle,
-  BarChart3,
   Truck,
-  ShoppingCart,
   FileText,
   Calendar,
   Eye
 } from "lucide-react"
 import Link from "next/link"
+import { getAllTickets, getAttendanceRecords, getDatabaseStats } from "@/lib/server-api"
+
+type DatabaseStats = {
+  admins: number
+  employees: number
+  teams: number
+  attendance: number
+  tasks: number
+  vehicles: number
+  petrolBills: number
+  payrollRecords: number
+  notifications: number
+  userSessions: number
+  pendingCustomerSupport: number
+  totalCustomers: number
+}
+
+type LeaveApplication = {
+  id: string
+  employeeName: string
+  employeeId: string
+  leaveType: string
+  startDate: string
+  endDate: string
+  status: string
+  appliedAt: string
+}
+
+type TicketData = {
+  id: string
+  ticketId: string
+  title: string
+  priority: string
+  status: string
+  reporter?: {
+    name: string
+  }
+}
 
 export function Dashboard() {
   const [lastScannedProduct, setLastScannedProduct] = React.useState<string | null>(null)
-  const [leaveApplications, setLeaveApplications] = React.useState<any[]>([])
+  const [leaveApplications, setLeaveApplications] = React.useState<LeaveApplication[]>([])
   const [loadingLeaves, setLoadingLeaves] = React.useState(true)
-  const [pendingSupportRequests, setPendingSupportRequests] = React.useState(0)
+  const [dbStats, setDbStats] = React.useState<DatabaseStats>({
+    admins: 0,
+    employees: 0,
+    teams: 0,
+    attendance: 0,
+    tasks: 0,
+    vehicles: 0,
+    petrolBills: 0,
+    payrollRecords: 0,
+    notifications: 0,
+    userSessions: 0,
+    pendingCustomerSupport: 0,
+    totalCustomers: 0
+  })
+  const [todayAttendance, setTodayAttendance] = React.useState({ present: 0, total: 0 })
+  const [recentTickets, setRecentTickets] = React.useState<TicketData[]>([])
+  const [loadingStats, setLoadingStats] = React.useState(true)
 
   const handleProductScan = (productId: string) => {
     setLastScannedProduct(productId)
@@ -37,27 +86,92 @@ export function Dashboard() {
     setTimeout(() => setLastScannedProduct(null), 5000)
   }
 
-  // Fetch pending customer support requests
+  // Fetch database statistics
   React.useEffect(() => {
-    const fetchPendingSupportRequests = async () => {
+    const fetchDatabaseStats = async () => {
       try {
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/customer-support/pending`
-        )
+        const response = await getDatabaseStats()
         
-        if (response.ok) {
-          const data = await response.json()
-          setPendingSupportRequests(data.data?.length || 0)
+        if (response.success && response.data) {
+          setDbStats(response.data)
+        } else {
+          // Fallback: try to get employee count without role filtering
+          try {
+            const employeeResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees?limit=1000`, {
+              cache: 'no-store'
+            })
+            const employeeData = await employeeResponse.json()
+            
+            if (employeeData.success && employeeData.data) {
+              setDbStats(prev => ({
+                ...prev,
+                employees: employeeData.data.pagination?.total || employeeData.data.employees?.length || 0
+              }))
+            }
+          } catch (fallbackError) {
+            console.error('Fallback employee count failed:', fallbackError)
+          }
         }
       } catch (error) {
-        console.error('Error fetching support requests:', error)
+        console.error('Error fetching database stats:', error)
+      } finally {
+        setLoadingStats(false)
       }
     }
 
-    fetchPendingSupportRequests()
-    // Poll every 30 seconds for new requests
-    const interval = setInterval(fetchPendingSupportRequests, 30000)
-    return () => clearInterval(interval)
+    fetchDatabaseStats()
+  }, [])
+
+  // Fetch today's attendance data
+  React.useEffect(() => {
+    const fetchTodayAttendance = async () => {
+      try {
+        const today = new Date().toISOString().split('T')[0]
+        const response = await getAttendanceRecords({ date: today, limit: 1000 })
+        
+        if (response.success && response.data) {
+          const records = response.data.records
+          const presentCount = records.filter(record => 
+            record.status === 'PRESENT' || record.status === 'LATE'
+          ).length
+          
+          setTodayAttendance({
+            present: presentCount,
+            total: dbStats.employees || records.length
+          })
+        }
+      } catch (error) {
+        console.error('Error fetching today attendance:', error)
+        // Set fallback data on error
+        setTodayAttendance({
+          present: 0,
+          total: dbStats.employees || 0
+        })
+      }
+    }
+
+    if (dbStats.employees > 0) {
+      fetchTodayAttendance()
+    }
+  }, [dbStats.employees])
+
+  // Fetch recent tickets
+  React.useEffect(() => {
+    const fetchRecentTickets = async () => {
+      try {
+        const response = await getAllTickets({ limit: 3 })
+        
+        if (response.success && response.data) {
+          setRecentTickets(response.data)
+        }
+      } catch (error) {
+        console.error('Error fetching recent tickets:', error)
+        // Set empty array on error to show "No recent tickets" message
+        setRecentTickets([])
+      }
+    }
+
+    fetchRecentTickets()
   }, [])
 
   // Fetch recent leave applications
@@ -70,8 +184,8 @@ export function Dashboard() {
         if (result.success) {
           // Get only pending applications, sorted by most recent
           const pendingApplications = (result.data || [])
-            .filter((app: any) => app.status === 'PENDING')
-            .sort((a: any, b: any) => new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime())
+            .filter((app: LeaveApplication) => app.status === 'PENDING')
+            .sort((a: LeaveApplication, b: LeaveApplication) => new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime())
             .slice(0, 3) // Show only 3 most recent
           
           setLeaveApplications(pendingApplications)
@@ -102,7 +216,7 @@ export function Dashboard() {
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-              <p className="text-gray-600">Welcome back! Here's what's happening in your organization.</p>
+              <p className="text-gray-600">Welcome back! Here&apos;s what&apos;s happening in your organization.</p>
             </div>
             <div className="flex items-center gap-3">
               <NotificationBell />
@@ -112,16 +226,16 @@ export function Dashboard() {
         </div>
 
         {/* Customer Support Notification Banner */}
-        {pendingSupportRequests > 0 && (
+        {dbStats.pendingCustomerSupport > 0 && (
           <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="flex-shrink-0">
+                <div className="shrink-0">
                   <AlertTriangle className="h-6 w-6 text-orange-600" />
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-orange-900">
-                    {pendingSupportRequests} New Customer Support {pendingSupportRequests === 1 ? 'Request' : 'Requests'}
+                    {dbStats.pendingCustomerSupport} New Customer Support {dbStats.pendingCustomerSupport === 1 ? 'Request' : 'Requests'}
                   </p>
                   <p className="text-xs text-orange-700 mt-0.5">
                     Customer support requests are waiting for staff attention
@@ -133,7 +247,7 @@ export function Dashboard() {
                   size="sm"
                   className="bg-orange-600 hover:bg-orange-700 text-white"
                 >
-                  View Requests ({pendingSupportRequests})
+                  View Requests ({dbStats.pendingCustomerSupport})
                 </Button>
               </Link>
             </div>
@@ -154,13 +268,11 @@ export function Dashboard() {
             <CardContent>
               <div className="space-y-2">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-gray-900">247</span>
-                  <div className="flex items-center gap-1 text-green-600">
-                    <TrendingUp className="h-3 w-3" />
-                    <span className="text-sm font-medium">+2.5%</span>
-                  </div>
+                  <span className="text-3xl font-bold text-gray-900">
+                    {loadingStats ? '...' : dbStats.employees}
+                  </span>
                 </div>
-                <p className="text-sm text-gray-500">vs last month</p>
+                <p className="text-sm text-gray-500">registered employees</p>
               </div>
             </CardContent>
           </Card>
@@ -178,10 +290,6 @@ export function Dashboard() {
               <div className="space-y-2">
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-bold text-gray-900">1,247</span>
-                  <div className="flex items-center gap-1 text-green-600">
-                    <TrendingUp className="h-3 w-3" />
-                    <span className="text-sm font-medium">+8.2%</span>
-                  </div>
                 </div>
                 <p className="text-sm text-gray-500">items in inventory</p>
               </div>
@@ -191,7 +299,7 @@ export function Dashboard() {
           <Card className="bg-white shadow-sm border-gray-200">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Active Tickets</CardTitle>
+                <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Active Tasks</CardTitle>
                 <div className="p-2 bg-amber-50 rounded-lg">
                   <Ticket className="h-4 w-4 text-amber-600" />
                 </div>
@@ -200,13 +308,11 @@ export function Dashboard() {
             <CardContent>
               <div className="space-y-2">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-gray-900">23</span>
-                  <div className="flex items-center gap-1 text-red-600">
-                    <TrendingUp className="h-3 w-3" />
-                    <span className="text-sm font-medium">+15.2%</span>
-                  </div>
+                  <span className="text-3xl font-bold text-gray-900">
+                    {loadingStats ? '...' : dbStats.tasks}
+                  </span>
                 </div>
-                <p className="text-sm text-gray-500">vs yesterday</p>
+                <p className="text-sm text-gray-500">total tasks</p>
               </div>
             </CardContent>
           </Card>
@@ -223,20 +329,23 @@ export function Dashboard() {
             <CardContent>
               <div className="space-y-2">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-gray-900">234</span>
-                  <div className="flex items-center gap-1 text-green-600">
-                    <TrendingUp className="h-3 w-3" />
-                    <span className="text-sm font-medium">+5.2%</span>
-                  </div>
+                  <span className="text-3xl font-bold text-gray-900">
+                    {loadingStats ? '...' : todayAttendance.present}
+                  </span>
                 </div>
-                <p className="text-sm text-gray-500">94.7% attendance</p>
+                <p className="text-sm text-gray-500">
+                  {todayAttendance.total > 0 
+                    ? `${((todayAttendance.present / todayAttendance.total) * 100).toFixed(1)}% attendance`
+                    : 'attendance today'
+                  }
+                </p>
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Recent Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Recent Leave Applications */}
           <Card className="bg-white shadow-sm border-gray-200">
             <CardHeader>
@@ -291,67 +400,109 @@ export function Dashboard() {
           {/* Recent Tickets */}
           <Card className="bg-white shadow-sm border-gray-200">
             <CardHeader>
-              <CardTitle className="text-lg font-semibold text-gray-900">Recent Tickets</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Ticket className="h-5 w-5 text-amber-500" />
+                  Recent Tickets
+                </CardTitle>
+                <Link href="/tickets">
+                  <Button variant="outline" size="sm">
+                    <Eye className="h-4 w-4 mr-2" />
+                    View All
+                  </Button>
+                </Link>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-red-50 rounded-lg">
-                    <AlertTriangle className="h-4 w-4 text-red-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">System Login Issues</p>
-                    <p className="text-sm text-gray-500">Reported by Sarah Johnson</p>
-                  </div>
+              {recentTickets.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Ticket className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                  <p>No recent tickets</p>
                 </div>
-                <Badge className="bg-red-50 text-red-700 border-red-200">High</Badge>
-              </div>
-              
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-amber-50 rounded-lg">
-                    <Clock className="h-4 w-4 text-amber-600" />
+              ) : (
+                recentTickets.map((ticket) => (
+                  <div key={ticket.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${
+                        ticket.priority === 'HIGH' || ticket.priority === 'CRITICAL' 
+                          ? 'bg-red-50' 
+                          : ticket.priority === 'MEDIUM' 
+                          ? 'bg-amber-50' 
+                          : 'bg-blue-50'
+                      }`}>
+                        {ticket.priority === 'HIGH' || ticket.priority === 'CRITICAL' ? (
+                          <AlertTriangle className="h-4 w-4 text-red-600" />
+                        ) : ticket.priority === 'MEDIUM' ? (
+                          <Clock className="h-4 w-4 text-amber-600" />
+                        ) : (
+                          <CheckCircle className="h-4 w-4 text-blue-600" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{ticket.title}</p>
+                        <p className="text-sm text-gray-500">
+                          {ticket.ticketId} • {ticket.reporter?.name || 'Unknown'}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge className={
+                      ticket.priority === 'HIGH' || ticket.priority === 'CRITICAL'
+                        ? "bg-red-50 text-red-700 border-red-200"
+                        : ticket.priority === 'MEDIUM'
+                        ? "bg-amber-50 text-amber-700 border-amber-200"
+                        : "bg-blue-50 text-blue-700 border-blue-200"
+                    }>
+                      {ticket.priority}
+                    </Badge>
                   </div>
-                  <div>
-                    <p className="font-medium text-gray-900">CCTV Not Working</p>
-                    <p className="text-sm text-gray-500">Reported by Michael Chen</p>
-                  </div>
-                </div>
-                <Badge className="bg-amber-50 text-amber-700 border-amber-200">Medium</Badge>
-              </div>
-              
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-50 rounded-lg">
-                    <CheckCircle className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Software Update Request</p>
-                    <p className="text-sm text-gray-500">Reported by Emily Rodriguez</p>
-                  </div>
-                </div>
-                <Badge className="bg-blue-50 text-blue-700 border-blue-200">Low</Badge>
-              </div>
+                ))
+              )}
             </CardContent>
           </Card>
 
-          {/* Stock Overview */}
+          {/* Vehicle Overview */}
           <Card className="bg-white shadow-sm border-gray-200">
             <CardHeader>
-              <CardTitle className="text-lg font-semibold text-gray-900">Stock Overview</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Truck className="h-5 w-5 text-blue-500" />
+                  Vehicle Overview
+                </CardTitle>
+                <Link href="/vehicles">
+                  <Button variant="outline" size="sm">
+                    <Eye className="h-4 w-4 mr-2" />
+                    View All
+                  </Button>
+                </Link>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Truck className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Total Vehicles</p>
+                    <p className="text-sm text-gray-500">Fleet inventory</p>
+                  </div>
+                </div>
+                <span className="text-2xl font-bold text-blue-700">
+                  {loadingStats ? '...' : dbStats.vehicles}
+                </span>
+              </div>
+              
               <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-green-100 rounded-lg">
-                    <Package className="h-4 w-4 text-green-600" />
+                    <CheckCircle className="h-4 w-4 text-green-600" />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">Items In Stock</p>
-                    <p className="text-sm text-gray-500">Available inventory</p>
+                    <p className="font-medium text-gray-900">Available</p>
+                    <p className="text-sm text-gray-500">Ready for assignment</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold text-green-700">1,189</span>
+                <span className="text-2xl font-bold text-green-700">-</span>
               </div>
               
               <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
@@ -360,96 +511,65 @@ export function Dashboard() {
                     <AlertTriangle className="h-4 w-4 text-amber-600" />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">Low Stock Items</p>
-                    <p className="text-sm text-gray-500">Need restocking</p>
+                    <p className="font-medium text-gray-900">Assigned</p>
+                    <p className="text-sm text-gray-500">Currently in use</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold text-amber-700">23</span>
-              </div>
-              
-              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Truck className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Pending Orders</p>
-                    <p className="text-sm text-gray-500">Orders in transit</p>
-                  </div>
-                </div>
-                <span className="text-2xl font-bold text-blue-700">7</span>
+                <span className="text-2xl font-bold text-amber-700">-</span>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Additional Metrics Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Stock Overview - Keep as Mock Data */}
+        <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
           <Card className="bg-white shadow-sm border-gray-200">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Stock Value</CardTitle>
-                <div className="p-2 bg-purple-50 rounded-lg">
-                  <BarChart3 className="h-4 w-4 text-purple-600" />
-                </div>
-              </div>
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Package className="h-5 w-5 text-green-500" />
+                Stock Overview
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-gray-900">₹84.2L</span>
-                  <div className="flex items-center gap-1 text-green-600">
-                    <TrendingUp className="h-3 w-3" />
-                    <span className="text-sm font-medium">+12.5%</span>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <Package className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Items In Stock</p>
+                      <p className="text-sm text-gray-500">Available inventory</p>
+                    </div>
                   </div>
+                  <span className="text-2xl font-bold text-green-700">1,189</span>
                 </div>
-                <p className="text-sm text-gray-500">total inventory value</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white shadow-sm border-gray-200">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Monthly Orders</CardTitle>
-                <div className="p-2 bg-green-50 rounded-lg">
-                  <ShoppingCart className="h-4 w-4 text-green-600" />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-gray-900">156</span>
-                  <div className="flex items-center gap-1 text-green-600">
-                    <TrendingUp className="h-3 w-3" />
-                    <span className="text-sm font-medium">+18.3%</span>
+                
+                <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-amber-100 rounded-lg">
+                      <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Low Stock Items</p>
+                      <p className="text-sm text-gray-500">Need restocking</p>
+                    </div>
                   </div>
+                  <span className="text-2xl font-bold text-amber-700">23</span>
                 </div>
-                <p className="text-sm text-gray-500">orders this month</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white shadow-sm border-gray-200">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Avg Response Time</CardTitle>
-                <div className="p-2 bg-blue-50 rounded-lg">
-                  <Clock className="h-4 w-4 text-blue-600" />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-gray-900">2.4h</span>
-                  <div className="flex items-center gap-1 text-green-600">
-                    <TrendingDown className="h-3 w-3" />
-                    <span className="text-sm font-medium">-12%</span>
+                
+                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Truck className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Pending Orders</p>
+                      <p className="text-sm text-gray-500">Orders in transit</p>
+                    </div>
                   </div>
+                  <span className="text-2xl font-bold text-blue-700">7</span>
                 </div>
-                <p className="text-sm text-gray-500">faster than last week</p>
               </div>
             </CardContent>
           </Card>

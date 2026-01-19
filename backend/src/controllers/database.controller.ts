@@ -126,7 +126,12 @@ export class DatabaseController {
         petrolBills: await prisma.petrolBill.count(),
         payrollRecords: await prisma.payrollRecord.count(),
         notifications: await prisma.adminNotification.count(),
-        userSessions: await prisma.userSession.count()
+        userSessions: await prisma.userSession.count(),
+        // Add customer support stats
+        pendingCustomerSupport: await prisma.customerSupportRequest.count({
+          where: { status: 'PENDING' }
+        }),
+        totalCustomers: await prisma.customer.count()
       }
       
       res.json({
