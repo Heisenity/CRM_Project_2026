@@ -179,4 +179,32 @@ export class LeaveController {
       })
     }
   }
+
+  // Get employee leave balance
+  getEmployeeLeaveBalance = async (req: Request, res: Response) => {
+    try {
+      const { employeeId } = req.params
+
+      if (!employeeId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Employee ID is required'
+        })
+      }
+
+      const result = await this.leaveService.getEmployeeLeaveBalance(employeeId)
+
+      if (result.success) {
+        return res.status(200).json(result)
+      } else {
+        return res.status(400).json(result)
+      }
+    } catch (error) {
+      console.error('Error in getEmployeeLeaveBalance:', error)
+      return res.status(500).json({
+        success: false,
+        error: 'Internal server error'
+      })
+    }
+  }
 }

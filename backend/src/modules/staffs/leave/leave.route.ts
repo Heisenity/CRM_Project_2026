@@ -7,6 +7,7 @@ const leaveController = new LeaveController()
 // Employee routes
 router.post('/applications', leaveController.createLeaveApplication)
 router.get('/applications/employee/:employeeId', leaveController.getEmployeeLeaveApplications)
+router.get('/balance/:employeeId', leaveController.getEmployeeLeaveBalance)
 router.put('/applications/:applicationId/cancel', leaveController.cancelLeaveApplication)
 
 // Admin routes

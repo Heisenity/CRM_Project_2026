@@ -28,6 +28,8 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
     email: '',
     password: '',
     phone: '',
+    sickLeaveBalance: 12,
+    casualLeaveBalance: 12,
     photo: null as File | null
   })
 
@@ -70,7 +72,9 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
         password: formData.password.trim(),
         phone: formData.phone.trim() || undefined,
         isTeamLeader: false, // Always false during employee creation
-        role: role // Use the role prop
+        role: role, // Use the role prop
+        sickLeaveBalance: formData.sickLeaveBalance,
+        casualLeaveBalance: formData.casualLeaveBalance
       }
 
       const employeeResponse = await createEmployee(employeeData)
@@ -92,6 +96,8 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
           email: '',
           password: '',
           phone: '',
+          sickLeaveBalance: 12,
+          casualLeaveBalance: 12,
           photo: null
         })
         setShowSuccess(false)
@@ -319,6 +325,64 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
                           </span>
                         </div>
                       </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-green-800">
+                          Sick Leave Balance (Days)
+                        </Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="365"
+                          value={formData.sickLeaveBalance.toString()}
+                          onChange={(e) => {
+                            const value = e.target.value
+                            // Only update if it's a valid number or empty
+                            if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
+                              setFormData(prev => ({ 
+                                ...prev, 
+                                sickLeaveBalance: value === '' ? 0 : parseInt(value) || 0 
+                              }))
+                            }
+                          }}
+                          onBlur={(e) => {
+                            // Remove leading zeros on blur
+                            const value = parseInt(e.target.value) || 0
+                            setFormData(prev => ({ ...prev, sickLeaveBalance: value }))
+                          }}
+                          placeholder="12"
+                          className="border-green-300 focus:border-green-500 focus:ring-green-500"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-green-800">
+                          Casual Leave Balance (Days)
+                        </Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="365"
+                          value={formData.casualLeaveBalance.toString()}
+                          onChange={(e) => {
+                            const value = e.target.value
+                            // Only update if it's a valid number or empty
+                            if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
+                              setFormData(prev => ({ 
+                                ...prev, 
+                                casualLeaveBalance: value === '' ? 0 : parseInt(value) || 0 
+                              }))
+                            }
+                          }}
+                          onBlur={(e) => {
+                            // Remove leading zeros on blur
+                            const value = parseInt(e.target.value) || 0
+                            setFormData(prev => ({ ...prev, casualLeaveBalance: value }))
+                          }}
+                          placeholder="12"
+                          className="border-green-300 focus:border-green-500 focus:ring-green-500"
+                        />
+                      </div>
                     </div>
                     
                   </CardContent>
@@ -396,6 +460,18 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
                         <Badge className="bg-purple-100 text-purple-800">
                           {role === 'FIELD_ENGINEER' ? 'Field Engineer' : 'Office Employee'}
                         </Badge>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Sick Leave:</span>
+                        <span className="font-medium text-gray-900">
+                          {formData.sickLeaveBalance} days
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Casual Leave:</span>
+                        <span className="font-medium text-gray-900">
+                          {formData.casualLeaveBalance} days
+                        </span>
                       </div>
                     </div>
                   </CardContent>

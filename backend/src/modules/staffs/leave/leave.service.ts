@@ -40,6 +40,25 @@ export class LeaveService {
         return { success: false, error: 'End date cannot be before start date' }
       }
 
+      // Calculate leave days
+      const leaveDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+
+      // Check leave balance for SL and CL
+      if (data.leaveType === LeaveType.SICK_LEAVE) {
+        if (employee.sickLeaveBalance < leaveDays) {
+          return { success: false, error: `Insufficient sick leave balance. Available: ${employee.sickLeaveBalance} days, Required: ${leaveDays} days` }
+        }
+      } else if (data.leaveType === LeaveType.CASUAL_LEAVE) {
+        if (employee.casualLeaveBalance < leaveDays) {
+          return { success: false, error: `Insufficient casual leave balance. Available: ${employee.casualLeaveBalance} days, Required: ${leaveDays} days` }
+        }
+      }
+
+      // If both SL and CL are 0, don't allow any leave application
+      if (employee.sickLeaveBalance === 0 && employee.casualLeaveBalance === 0) {
+        return { success: false, error: 'No leave balance available. Cannot apply for any leave.' }
+      }
+
       // Check for overlapping leave applications
       const overlappingLeave = await prisma.leaveApplication.findFirst({
         where: {
@@ -200,7 +219,9 @@ export class LeaveService {
           employee: {
             select: {
               name: true,
-              employeeId: true
+              employeeId: true,
+              sickLeaveBalance: true,
+              casualLeaveBalance: true
             }
           }
         }
@@ -214,42 +235,114 @@ export class LeaveService {
         return { success: false, error: 'Leave application has already been reviewed' }
       }
 
-      const updatedApplication = await prisma.leaveApplication.update({
-        where: { id: data.applicationId },
-        data: {
+      // If approving, deduct leave balance
+      if (data.status === LeaveStatus.APPROVED) {
+        const startDate = new Date(leaveApplication.startDate)
+        const endDate = new Date(leaveApplication.endDate)
+        const leaveDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+
+        let updateData: any = {
           status: data.status,
           reviewedBy: data.reviewedBy,
           reviewedAt: new Date(),
           reviewNote: data.reviewNote
-        },
-        include: {
-          employee: {
-            select: {
-              name: true,
-              employeeId: true
+        }
+
+        // Deduct balance based on leave type
+        if (leaveApplication.leaveType === LeaveType.SICK_LEAVE) {
+          if (leaveApplication.employee.sickLeaveBalance < leaveDays) {
+            return { success: false, error: `Insufficient sick leave balance. Available: ${leaveApplication.employee.sickLeaveBalance} days, Required: ${leaveDays} days` }
+          }
+          
+          await prisma.employee.update({
+            where: { id: leaveApplication.employeeId },
+            data: {
+              sickLeaveBalance: leaveApplication.employee.sickLeaveBalance - leaveDays
+            }
+          })
+        } else if (leaveApplication.leaveType === LeaveType.CASUAL_LEAVE) {
+          if (leaveApplication.employee.casualLeaveBalance < leaveDays) {
+            return { success: false, error: `Insufficient casual leave balance. Available: ${leaveApplication.employee.casualLeaveBalance} days, Required: ${leaveDays} days` }
+          }
+          
+          await prisma.employee.update({
+            where: { id: leaveApplication.employeeId },
+            data: {
+              casualLeaveBalance: leaveApplication.employee.casualLeaveBalance - leaveDays
+            }
+          })
+        }
+
+        const updatedApplication = await prisma.leaveApplication.update({
+          where: { id: data.applicationId },
+          data: updateData,
+          include: {
+            employee: {
+              select: {
+                name: true,
+                employeeId: true
+              }
             }
           }
+        })
+
+        const response: LeaveApplication = {
+          id: updatedApplication.id,
+          employeeId: updatedApplication.employee.employeeId,
+          employeeName: updatedApplication.employee.name,
+          leaveType: updatedApplication.leaveType as LeaveType,
+          startDate: updatedApplication.startDate.toISOString().split('T')[0],
+          endDate: updatedApplication.endDate.toISOString().split('T')[0],
+          reason: updatedApplication.reason,
+          status: updatedApplication.status as LeaveStatus,
+          appliedAt: updatedApplication.appliedAt.toISOString(),
+          reviewedBy: updatedApplication.reviewedBy || undefined,
+          reviewedAt: updatedApplication.reviewedAt?.toISOString(),
+          reviewNote: updatedApplication.reviewNote || undefined,
+          createdAt: updatedApplication.createdAt.toISOString(),
+          updatedAt: updatedApplication.updatedAt.toISOString()
         }
-      })
 
-      const response: LeaveApplication = {
-        id: updatedApplication.id,
-        employeeId: updatedApplication.employee.employeeId,
-        employeeName: updatedApplication.employee.name,
-        leaveType: updatedApplication.leaveType as LeaveType,
-        startDate: updatedApplication.startDate.toISOString().split('T')[0],
-        endDate: updatedApplication.endDate.toISOString().split('T')[0],
-        reason: updatedApplication.reason,
-        status: updatedApplication.status as LeaveStatus,
-        appliedAt: updatedApplication.appliedAt.toISOString(),
-        reviewedBy: updatedApplication.reviewedBy || undefined,
-        reviewedAt: updatedApplication.reviewedAt?.toISOString(),
-        reviewNote: updatedApplication.reviewNote || undefined,
-        createdAt: updatedApplication.createdAt.toISOString(),
-        updatedAt: updatedApplication.updatedAt.toISOString()
+        return { success: true, data: response }
+      } else {
+        // If rejecting, just update status without deducting balance
+        const updatedApplication = await prisma.leaveApplication.update({
+          where: { id: data.applicationId },
+          data: {
+            status: data.status,
+            reviewedBy: data.reviewedBy,
+            reviewedAt: new Date(),
+            reviewNote: data.reviewNote
+          },
+          include: {
+            employee: {
+              select: {
+                name: true,
+                employeeId: true
+              }
+            }
+          }
+        })
+
+        const response: LeaveApplication = {
+          id: updatedApplication.id,
+          employeeId: updatedApplication.employee.employeeId,
+          employeeName: updatedApplication.employee.name,
+          leaveType: updatedApplication.leaveType as LeaveType,
+          startDate: updatedApplication.startDate.toISOString().split('T')[0],
+          endDate: updatedApplication.endDate.toISOString().split('T')[0],
+          reason: updatedApplication.reason,
+          status: updatedApplication.status as LeaveStatus,
+          appliedAt: updatedApplication.appliedAt.toISOString(),
+          reviewedBy: updatedApplication.reviewedBy || undefined,
+          reviewedAt: updatedApplication.reviewedAt?.toISOString(),
+          reviewNote: updatedApplication.reviewNote || undefined,
+          createdAt: updatedApplication.createdAt.toISOString(),
+          updatedAt: updatedApplication.updatedAt.toISOString()
+        }
+
+        return { success: true, data: response }
       }
-
-      return { success: true, data: response }
     } catch (error) {
       console.error('Error reviewing leave application:', error)
       return { success: false, error: 'Failed to review leave application' }
@@ -326,6 +419,38 @@ export class LeaveService {
     } catch (error) {
       console.error('Error cancelling leave application:', error)
       return { success: false, error: 'Failed to cancel leave application' }
+    }
+  }
+
+  // Get employee leave balance
+  async getEmployeeLeaveBalance(employeeId: string): Promise<{ success: boolean; data?: { sickLeaveBalance: number; casualLeaveBalance: number; employeeId: string; employeeName: string }; error?: string }> {
+    try {
+      const employee = await prisma.employee.findUnique({
+        where: { employeeId },
+        select: {
+          name: true,
+          employeeId: true,
+          sickLeaveBalance: true,
+          casualLeaveBalance: true
+        }
+      })
+
+      if (!employee) {
+        return { success: false, error: 'Employee not found' }
+      }
+
+      return {
+        success: true,
+        data: {
+          employeeId: employee.employeeId,
+          employeeName: employee.name,
+          sickLeaveBalance: employee.sickLeaveBalance,
+          casualLeaveBalance: employee.casualLeaveBalance
+        }
+      }
+    } catch (error) {
+      console.error('Error getting employee leave balance:', error)
+      return { success: false, error: 'Failed to get employee leave balance' }
     }
   }
 }

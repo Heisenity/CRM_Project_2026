@@ -80,6 +80,8 @@ export const getAllEmployees = async (req: Request, res: Response) => {
         isTeamLeader: true,
         role: true,
         status: true,
+        sickLeaveBalance: true,
+        casualLeaveBalance: true,
         createdAt: true,
         updatedAt: true,
         assignedBy: true
@@ -115,7 +117,7 @@ export const getAllEmployees = async (req: Request, res: Response) => {
 // Create new employee
 export const createEmployee = async (req: Request, res: Response) => {
   try {
-    const { name, email, phone, teamId, isTeamLeader = false, assignedBy, password, role = 'IN_OFFICE' } = req.body
+    const { name, email, phone, teamId, isTeamLeader = false, assignedBy, password, role = 'IN_OFFICE', sickLeaveBalance = 12, casualLeaveBalance = 12 } = req.body
 
     // Validate required fields
     if (!name || !email || !password) {
@@ -163,7 +165,9 @@ export const createEmployee = async (req: Request, res: Response) => {
         isTeamLeader: Boolean(isTeamLeader),
         assignedBy: assignedBy || null,
         role: role,
-        status: 'ACTIVE'
+        status: 'ACTIVE',
+        sickLeaveBalance: parseInt(sickLeaveBalance) || 12,
+        casualLeaveBalance: parseInt(casualLeaveBalance) || 12
       },
       select: {
         id: true,
@@ -175,6 +179,8 @@ export const createEmployee = async (req: Request, res: Response) => {
         isTeamLeader: true,
         role: true,
         status: true,
+        sickLeaveBalance: true,
+        casualLeaveBalance: true,
         createdAt: true,
         updatedAt: true
       }
@@ -198,7 +204,7 @@ export const createEmployee = async (req: Request, res: Response) => {
 export const updateEmployee = async (req: Request, res: Response) => {
   try {
     const { id } = req.params
-    const { name, email, phone, teamId, isTeamLeader, status, password } = req.body
+    const { name, email, phone, teamId, isTeamLeader, status, password, sickLeaveBalance, casualLeaveBalance } = req.body
 
     if (!id) {
       return res.status(400).json({
@@ -241,6 +247,8 @@ export const updateEmployee = async (req: Request, res: Response) => {
     if (teamId !== undefined) updateData.teamId = teamId
     if (isTeamLeader !== undefined) updateData.isTeamLeader = Boolean(isTeamLeader)
     if (status) updateData.status = status
+    if (sickLeaveBalance !== undefined) updateData.sickLeaveBalance = parseInt(sickLeaveBalance)
+    if (casualLeaveBalance !== undefined) updateData.casualLeaveBalance = parseInt(casualLeaveBalance)
     if (password) {
       updateData.password = await bcrypt.hash(password, 12)
     }
@@ -265,6 +273,8 @@ export const updateEmployee = async (req: Request, res: Response) => {
         isTeamLeader: true,
         role: true,
         status: true,
+        sickLeaveBalance: true,
+        casualLeaveBalance: true,
         createdAt: true,
         updatedAt: true
       }
@@ -356,6 +366,8 @@ export const getEmployeeById = async (req: Request, res: Response) => {
         isTeamLeader: true,
         role: true,
         status: true,
+        sickLeaveBalance: true,
+        casualLeaveBalance: true,
         createdAt: true,
         updatedAt: true,
         assignedBy: true
@@ -434,6 +446,8 @@ export const getEmployeeByEmployeeId = async (req: Request, res: Response) => {
         status: true,
         teamId: true,
         isTeamLeader: true,
+        sickLeaveBalance: true,
+        casualLeaveBalance: true,
         createdAt: true,
         updatedAt: true,
         team: {
