@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -99,6 +100,7 @@ function SuccessPopup({ isOpen, onClose, onCreateAnother, ticketId }: SuccessPop
 
 export function CreateTicketForm() {
   const router = useRouter()
+  const { data: session } = useSession()
   const { authenticatedFetch, isAuthenticated } = useAuthenticatedFetch()
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [showSuccessPopup, setShowSuccessPopup] = React.useState(false)
@@ -333,7 +335,13 @@ export function CreateTicketForm() {
 
   const handleSuccessClose = () => {
     setShowSuccessPopup(false)
-    router.push('/tickets')
+    // Redirect based on user type
+    const userType = (session?.user as any)?.userType
+    if (userType === 'ADMIN') {
+      router.push('/tickets') // Admin ticket table
+    } else {
+      router.push('/staff-portal') // Staff portal for employees
+    }
   }
 
   const handleCreateAnother = () => {

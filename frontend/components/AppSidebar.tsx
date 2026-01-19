@@ -161,6 +161,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         
         if (userType === 'EMPLOYEE') {
             // Employees can see Attendance and Attendance Management
+            // But NOT the admin Tickets page - they should use Staff Portal for tickets
             return navigationItems.filter(item => 
                 item.url === '/attendance' || item.url === '/attendance-management'
             )

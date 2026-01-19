@@ -279,9 +279,9 @@ export function LeaveApplicationForm({ employeeId, employeeName, onSuccess }: Le
               </SelectTrigger>
               <SelectContent>
                 {Object.entries(leaveTypeLabels).map(([value, label]) => {
-                  const isDisabled = leaveBalance && 
+                  const isDisabled = leaveBalance ? 
                     ((value === LeaveType.SICK_LEAVE && leaveBalance.sickLeaveBalance === 0) ||
-                     (value === LeaveType.CASUAL_LEAVE && leaveBalance.casualLeaveBalance === 0))
+                     (value === LeaveType.CASUAL_LEAVE && leaveBalance.casualLeaveBalance === 0)) : false
                   
                   return (
                     <SelectItem key={value} value={value} disabled={isDisabled}>
