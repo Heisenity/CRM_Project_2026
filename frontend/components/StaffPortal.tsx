@@ -58,7 +58,7 @@ export function StaffPortal() {
   const [employeeProfile, setEmployeeProfile] = useState<EmployeeProfile | null>(null)
   const [assignedVehicle, setAssignedVehicle] = useState<AssignedVehicle | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'attendance' | 'leave' | 'documents' | 'vehicle' | 'tasks' | 'dashboard' | 'project' | 'tickets' | 'customers' | 'employees' | 'teams' | 'tenders' | 'stock' | 'leave_management' | 'field_engineer_attendance' | 'inoffice_attendance' | 'customer_support_requests' | 'staff_feature_access'>('attendance')
+  const [activeTab, setActiveTab] = useState<'attendance' | 'leave' | 'documents' | 'vehicle' | 'tasks' | 'dashboard' | 'project' | 'task_management' | 'tickets' | 'customers' | 'employees' | 'teams' | 'tenders' | 'stock' | 'leave_management' | 'field_engineer_attendance' | 'inoffice_attendance' | 'customer_support_requests' | 'staff_feature_access'>('attendance')
   const [leaveRefreshTrigger, setLeaveRefreshTrigger] = useState(0)
   const [ticketRefreshTrigger, setTicketRefreshTrigger] = useState(0)
   const [dayClockOutLoading, setDayClockOutLoading] = useState(false)
@@ -446,6 +446,19 @@ export function StaffPortal() {
                   Project
                 </button>
               )}
+              {hasFeatureAccess('TASK_MANAGEMENT') && (
+                <button
+                  onClick={() => setActiveTab('task_management')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'task_management'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <FileText className="h-4 w-4 inline mr-2" />
+                  Task Management
+                </button>
+              )}
               {employeeProfile?.role === 'FIELD_ENGINEER' && (
                 <button
                   onClick={() => setActiveTab('tasks')}
@@ -520,19 +533,6 @@ export function StaffPortal() {
                 >
                   <User className="h-4 w-4 inline mr-2" />
                   Customers
-                </button>
-              )}
-              {hasFeatureAccess('EMPLOYEES') && (
-                <button
-                  onClick={() => setActiveTab('employees')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'employees'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <User className="h-4 w-4 inline mr-2" />
-                  Employees
                 </button>
               )}
               {hasFeatureAccess('TEAMS') && (
@@ -878,6 +878,36 @@ export function StaffPortal() {
                     >
                       <FileText className="h-4 w-4 mr-2" />
                       Open Project Management
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === 'task_management' && hasFeatureAccess('TASK_MANAGEMENT') && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <FileText className="h-5 w-5 text-blue-500" />
+                    <span>Task Management</span>
+                  </CardTitle>
+                  <p className="text-gray-600">
+                    Manage and assign tasks to field engineers
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-12">
+                    <FileText className="h-12 w-12 text-blue-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Administrative Task Management</h3>
+                    <p className="text-gray-600 mb-6">
+                      Access the full task management system to assign and monitor field engineer tasks
+                    </p>
+                    <Button
+                      onClick={() => router.push('/task-management')}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Open Task Management
                     </Button>
                   </div>
                 </CardContent>

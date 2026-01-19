@@ -858,7 +858,6 @@ enum StaffPortalFeature {
   PAYROLL
   VEHICLE
   CUSTOMERS
-  EMPLOYEES
   TEAMS
   TENDERS
   STOCK
