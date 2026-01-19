@@ -5,7 +5,6 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Clock, Loader2, CheckCircle, AlertCircle, User, Info, ArrowLeft, Save, Plus, Upload, Camera } from "lucide-react"
@@ -22,20 +21,19 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
   const [loading, setLoading] = React.useState(false)
   const [showSuccess, setShowSuccess] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
-  
+
   const [formData, setFormData] = React.useState({
     employeeId: '',
     employeeName: '',
     email: '',
     password: '',
     phone: '',
-    isTeamLeader: false,
     photo: null as File | null
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!formData.employeeId.trim()) {
       setError('Employee ID is required')
       return
@@ -71,12 +69,12 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
         email: formData.email.trim(),
         password: formData.password.trim(),
         phone: formData.phone.trim() || undefined,
-        isTeamLeader: formData.isTeamLeader,
+        isTeamLeader: false, // Always false during employee creation
         role: role // Use the role prop
       }
 
       const employeeResponse = await createEmployee(employeeData)
-      
+
       if (!employeeResponse.success) {
         setError(employeeResponse.error || 'Failed to create employee')
         return
@@ -85,7 +83,7 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
       // Success - employee created (no attendance record)
       onRecordAdded?.() // Notify parent component
       setShowSuccess(true)
-      
+
       // Reset form after success
       setTimeout(() => {
         setFormData({
@@ -94,7 +92,6 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
           email: '',
           password: '',
           phone: '',
-          isTeamLeader: false,
           photo: null
         })
         setShowSuccess(false)
@@ -115,13 +112,13 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
         setError('Please select an image file')
         return
       }
-      
+
       // Validate file size (5MB max)
       if (file.size > 5 * 1024 * 1024) {
         setError('File size must be less than 5MB')
         return
       }
-      
+
       setError(null) // Clear any previous errors
       setFormData(prev => ({ ...prev, photo: file }))
     }
@@ -201,9 +198,9 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
                         {formData.photo ? (
                           <div className="space-y-3">
                             <div className="w-20 h-20 mx-auto rounded-full overflow-hidden bg-gray-100 relative">
-                              <Image 
-                                src={URL.createObjectURL(formData.photo)} 
-                                alt="Employee preview" 
+                              <Image
+                                src={URL.createObjectURL(formData.photo)}
+                                alt="Employee preview"
                                 fill
                                 className="object-cover"
                               />
@@ -315,23 +312,15 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium text-green-800">
-                          Role
-                        </Label>
-                        <Select 
-                          value={formData.isTeamLeader ? 'leader' : 'engineer'} 
-                          onValueChange={(value) => setFormData(prev => ({ ...prev, isTeamLeader: value === 'leader' }))}
-                        >
-                          <SelectTrigger className="border-green-300 focus:border-green-500 focus:ring-green-500">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="engineer">{role === 'FIELD_ENGINEER' ? 'Field Engineer' : 'Office Employee'}</SelectItem>
-                            <SelectItem value="leader">Team Leader</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Label className="text-sm font-medium text-green-800">Role</Label>
+                        <div className="p-3 bg-green-50 border border-green-300 rounded-md">
+                          <span className="text-sm font-medium text-green-900">
+                            {role === 'FIELD_ENGINEER' ? 'Field Engineer' : 'Office Employee'}
+                          </span>
+                        </div>
                       </div>
                     </div>
+                    
                   </CardContent>
                 </Card>
 
@@ -376,94 +365,94 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
                   <CardHeader className="pb-4">
                     <CardTitle className="text-lg">Employee Preview</CardTitle>
                   </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Employee ID:</span>
-                      <span className="font-medium text-gray-900">
-                        {formData.employeeId || 'Not specified'}
-                      </span>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Employee ID:</span>
+                        <span className="font-medium text-gray-900">
+                          {formData.employeeId || 'Not specified'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Employee Name:</span>
+                        <span className="font-medium text-gray-900">
+                          {formData.employeeName || 'Not specified'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Email:</span>
+                        <span className="font-medium text-gray-900 text-xs">
+                          {formData.email || 'Not specified'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Phone:</span>
+                        <span className="font-medium text-gray-900">
+                          {formData.phone || 'Not specified'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Role:</span>
+                        <Badge className="bg-purple-100 text-purple-800">
+                          {role === 'FIELD_ENGINEER' ? 'Field Engineer' : 'Office Employee'}
+                        </Badge>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Employee Name:</span>
-                      <span className="font-medium text-gray-900">
-                        {formData.employeeName || 'Not specified'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Email:</span>
-                      <span className="font-medium text-gray-900 text-xs">
-                        {formData.email || 'Not specified'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Phone:</span>
-                      <span className="font-medium text-gray-900">
-                        {formData.phone || 'Not specified'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Role:</span>
-                      <Badge className="bg-purple-100 text-purple-800">
-                        {formData.isTeamLeader ? 'Team Leader' : (role === 'FIELD_ENGINEER' ? 'Field Engineer' : 'Office Employee')}
-                      </Badge>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
 
-              {/* Help Card */}
-              <Card className="border-blue-200 bg-linear-to-br from-blue-50 to-blue-100/50 shadow-sm">
-                <CardHeader className="pb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-blue-100 rounded-lg">
-                      <Info className="h-4 w-4 text-blue-600" />
+                {/* Help Card */}
+                <Card className="border-blue-200 bg-linear-to-br from-blue-50 to-blue-100/50 shadow-sm">
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-blue-100 rounded-lg">
+                        <Info className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <CardTitle className="text-lg text-blue-900 font-semibold">Quick Tips</CardTitle>
                     </div>
-                    <CardTitle className="text-lg text-blue-900 font-semibold">Quick Tips</CardTitle>
-                  </div>
-                  <p className="text-sm text-blue-700 mt-2">Guidelines to help you fill out the form correctly</p>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3 p-3 bg-white/60 rounded-lg border border-blue-200/50">
-                      <div className="p-1 bg-blue-100 rounded-md shrink-0 mt-0.5">
-                        <User className="h-3 w-3 text-blue-600" />
+                    <p className="text-sm text-blue-700 mt-2">Guidelines to help you fill out the form correctly</p>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3 p-3 bg-white/60 rounded-lg border border-blue-200/50">
+                        <div className="p-1 bg-blue-100 rounded-md shrink-0 mt-0.5">
+                          <User className="h-3 w-3 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-blue-900">New {role === 'FIELD_ENGINEER' ? 'Field Engineer' : 'Office Employee'}</p>
+                          <p className="text-xs text-blue-700 mt-1">Creates employee account only - no attendance</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-blue-900">New {role === 'FIELD_ENGINEER' ? 'Field Engineer' : 'Office Employee'}</p>
-                        <p className="text-xs text-blue-700 mt-1">Creates employee account only - no attendance</p>
+
+                      <div className="flex items-start gap-3 p-3 bg-white/60 rounded-lg border border-blue-200/50">
+                        <div className="p-1 bg-green-100 rounded-md shrink-0 mt-0.5">
+                          <Clock className="h-3 w-3 text-green-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-blue-900">Self Attendance</p>
+                          <p className="text-xs text-blue-700 mt-1">Employees must mark their own attendance</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3 p-3 bg-white/60 rounded-lg border border-blue-200/50">
+                        <div className="p-1 bg-purple-100 rounded-md shrink-0 mt-0.5">
+                          <User className="h-3 w-3 text-purple-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-blue-900">Login Credentials</p>
+                          <p className="text-xs text-blue-700 mt-1">Employee can login with email and password</p>
+                        </div>
                       </div>
                     </div>
-                    
-                    <div className="flex items-start gap-3 p-3 bg-white/60 rounded-lg border border-blue-200/50">
-                      <div className="p-1 bg-green-100 rounded-md shrink-0 mt-0.5">
-                        <Clock className="h-3 w-3 text-green-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-blue-900">Self Attendance</p>
-                        <p className="text-xs text-blue-700 mt-1">Employees must mark their own attendance</p>
+
+                    <div className="mt-4 pt-4 border-t border-blue-200/50">
+                      <div className="flex items-center gap-2 text-xs text-blue-600">
+                        <CheckCircle className="h-3 w-3" />
+                        <span className="font-medium">All required fields must be completed</span>
                       </div>
                     </div>
-                    
-                    <div className="flex items-start gap-3 p-3 bg-white/60 rounded-lg border border-blue-200/50">
-                      <div className="p-1 bg-purple-100 rounded-md shrink-0 mt-0.5">
-                        <User className="h-3 w-3 text-purple-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-blue-900">Login Credentials</p>
-                        <p className="text-xs text-blue-700 mt-1">Employee can login with email and password</p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-4 pt-4 border-t border-blue-200/50">
-                    <div className="flex items-center gap-2 text-xs text-blue-600">
-                      <CheckCircle className="h-3 w-3" />
-                      <span className="font-medium">All required fields must be completed</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
               </div>
             </div>
           </div>

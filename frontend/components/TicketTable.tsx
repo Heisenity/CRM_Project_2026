@@ -38,10 +38,12 @@ import {
   FileText,
   Image,
   Save,
-  X
+  X,
+  ChevronDown
 } from "lucide-react"
 import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch"
 import { showToast } from "@/lib/toast-utils"
+import { exportTicketsToExcel, getFilterLabel, type ExportFilters } from "@/lib/export-utils"
 
 interface Ticket {
   id: string
@@ -498,6 +500,7 @@ export function TicketTable() {
   const [showEditModal, setShowEditModal] = React.useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
   const [deletingTicket, setDeletingTicket] = React.useState(false)
+  const [exporting, setExporting] = React.useState(false)
 
   const downloadFile = async (filePath: string, fileName: string) => {
     try {
@@ -622,6 +625,38 @@ export function TicketTable() {
     }
   }
 
+  const handleExportToExcel = async (quickRange?: 'yesterday' | '15days' | '30days') => {
+    setExporting(true)
+    try {
+      const filters: ExportFilters = {
+        status: selectedStatus !== 'all' ? selectedStatus : undefined,
+        priority: selectedPriority !== 'all' ? selectedPriority : undefined,
+        category: selectedCategory !== 'all' ? selectedCategory : undefined,
+        quickRange
+      }
+
+      // Apply current tab filter
+      if (activeTab !== 'all') {
+        if (activeTab === 'open') {
+          // Don't set status filter for open tab as it includes multiple statuses
+        } else if (activeTab === 'resolved') {
+          filters.status = 'RESOLVED'
+        } else if (activeTab === 'closed') {
+          filters.status = 'CLOSED'
+        }
+      }
+
+      const result = await exportTicketsToExcel(authenticatedFetch, filters)
+      const filterLabel = getFilterLabel(filters)
+      showToast.success(`Excel export completed: ${result.filename}`)
+    } catch (error) {
+      console.error('Export failed:', error)
+      showToast.error('Failed to export tickets to Excel')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   React.useEffect(() => {
     if (isAuthenticated) {
       fetchTickets()
@@ -696,10 +731,46 @@ export function TicketTable() {
                   </>
                 )}
               </Button>
-              <Button variant="outline" className="border-border hover:bg-accent">
-                <Download className="h-4 w-4 mr-2" />
-                Export Report
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="border-border hover:bg-accent"
+                    disabled={exporting}
+                  >
+                    {exporting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin mr-2" />
+                        Exporting...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="h-4 w-4 mr-2" />
+                        Export to Excel
+                        <ChevronDown className="h-4 w-4 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => handleExportToExcel()}>
+                    <Filter className="h-4 w-4 mr-2" />
+                    Current Filter
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExportToExcel('yesterday')}>
+                    <Clock className="h-4 w-4 mr-2" />
+                    Yesterday
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExportToExcel('15days')}>
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Last 15 Days
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExportToExcel('30days')}>
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Last 30 Days
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button 
                 onClick={() => router.push('/tickets/new')}
                 className="bg-blue-600 hover:bg-blue-700 text-white"

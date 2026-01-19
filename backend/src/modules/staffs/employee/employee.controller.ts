@@ -71,6 +71,12 @@ export const getAllEmployees = async (req: Request, res: Response) => {
         email: true,
         phone: true,
         teamId: true,
+        team: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
         isTeamLeader: true,
         role: true,
         status: true,
@@ -250,6 +256,12 @@ export const updateEmployee = async (req: Request, res: Response) => {
         email: true,
         phone: true,
         teamId: true,
+        team: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
         isTeamLeader: true,
         role: true,
         status: true,
@@ -335,6 +347,12 @@ export const getEmployeeById = async (req: Request, res: Response) => {
         email: true,
         phone: true,
         teamId: true,
+        team: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
         isTeamLeader: true,
         role: true,
         status: true,

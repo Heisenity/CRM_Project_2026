@@ -761,7 +761,7 @@ export function TaskPage() {
               <div className="flex items-center justify-center py-12">
                 <div className="text-center">
                   <Users className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-600 font-medium">No employees found</p>
+                  <p className="text-gray-600 font-medium">No tasks found</p>
                   <p className="text-gray-500 text-sm">Try adjusting your filters</p>
                 </div>
               </div>

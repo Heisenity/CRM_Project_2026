@@ -38,6 +38,10 @@ interface EmployeeProfile {
   email: string
   phone?: string
   teamId?: string
+  team?: {
+    id: string
+    name: string
+  }
   isTeamLeader: boolean
   status: string
   role?: string
@@ -167,6 +171,7 @@ export function StaffPortal() {
             email: result.data.email,
             phone: result.data.phone,
             teamId: result.data.teamId,
+            team: result.data.team, // Include team object with name
             isTeamLeader: result.data.isTeamLeader,
             status: result.data.status,
             role: result.data.role // Include role information
@@ -722,9 +727,9 @@ export function StaffPortal() {
                     <span className="text-sm text-gray-600">{employeeProfile.phone}</span>
                   </div>
                 )}
-                {employeeProfile.teamId && (
+                {employeeProfile.team && (
                   <div className="flex items-center space-x-3">
-                    <span className="text-sm text-gray-600">Team: {employeeProfile.teamId}</span>
+                    <span className="text-sm text-gray-600">Team: {employeeProfile.team.name}</span>
                   </div>
                 )}
                 {employeeProfile.isTeamLeader && (

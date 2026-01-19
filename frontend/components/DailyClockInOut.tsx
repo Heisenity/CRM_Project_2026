@@ -43,6 +43,8 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
   const [isLoading, setIsLoading] = useState(false)
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraLoading, setCameraLoading] = useState(false)
+  const [cameraError, setCameraError] = useState<string | null>(null)
+  const [videoReady, setVideoReady] = useState(false)
   const [attendanceStatus, setAttendanceStatus] = useState<DailyAttendanceStatus | null>(null)
   const [currentTime, setCurrentTime] = useState(new Date())
   
@@ -107,30 +109,92 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
     }
   }, [])
 
+  // Force video refresh when camera becomes active
+  useEffect(() => {
+    if (cameraActive && videoRef.current && streamRef.current) {
+      const video = videoRef.current;
+      console.log('Forcing video refresh...');
+      
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        if (video.srcObject !== streamRef.current) {
+          video.srcObject = streamRef.current;
+          video.load();
+          video.play().catch(console.error);
+        }
+      }, 100);
+    }
+  }, [cameraActive])
+
   const startCamera = async () => {
     try {
       setCameraLoading(true)
       setCameraActive(false)
+      setCameraError(null)
 
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Camera access is not supported in this browser')
       }
 
+      console.log('Requesting camera access...')
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
       })
 
+      console.log('Camera stream obtained:', stream)
       streamRef.current = stream
+      
       if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await new Promise((resolve) => {
+        const video = videoRef.current;
+        video.srcObject = stream;
+        
+        // Force video to load
+        video.load();
+        
+        console.log('Video element setup:', {
+          srcObject: !!video.srcObject,
+          readyState: video.readyState,
+          videoWidth: video.videoWidth,
+          videoHeight: video.videoHeight
+        });
+        
+        // Wait for video to be ready
+        await new Promise((resolve, reject) => {
           if (videoRef.current) {
-            videoRef.current.onloadedmetadata = () => resolve(true)
+            const video = videoRef.current;
+            
+            video.onloadedmetadata = () => {
+              console.log('Video metadata loaded, dimensions:', video.videoWidth, 'x', video.videoHeight);
+              
+              video.play().then(() => {
+                console.log('Video playing successfully');
+                resolve(true);
+              }).catch((playError) => {
+                console.error('Video play failed:', playError);
+                reject(playError);
+              });
+            };
+            
+            video.onerror = (error) => {
+              console.error('Video error:', error);
+              reject(error);
+            };
+            
+            // Fallback timeout
+            setTimeout(() => {
+              if (video.readyState >= 2) { // HAVE_CURRENT_DATA
+                console.log('Video ready via timeout fallback');
+                resolve(true);
+              } else {
+                reject(new Error('Video failed to load within timeout'));
+              }
+            }, 5000);
           }
         })
       }
 
       setCameraActive(true)
+      console.log('Camera activated successfully')
     } catch (error) {
       console.error('Error accessing camera:', error)
       setCameraActive(false)
@@ -148,6 +212,7 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
         }
       }
 
+      setCameraError(errorMessage)
       showToast.error(errorMessage)
     } finally {
       setCameraLoading(false)
@@ -163,6 +228,8 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
       videoRef.current.srcObject = null
     }
     setCameraActive(false)
+    setVideoReady(false)
+    setCameraError(null)
   }
 
   const capturePhoto = (): string | null => {
@@ -385,15 +452,59 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
                   </Button>
                 </div>
 
+                {cameraError && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>{cameraError}</AlertDescription>
+                  </Alert>
+                )}
+
                 {cameraActive && (
                   <div className="relative">
                     <video
+                      key={cameraActive ? 'active' : 'inactive'}
                       ref={videoRef}
                       autoPlay
                       playsInline
                       muted
-                      className="w-full max-w-md mx-auto rounded-lg border"
+                      className="w-full max-w-md mx-auto rounded-lg border bg-gray-100"
+                      style={{ minHeight: '240px' }}
+                      onLoadedMetadata={(e) => {
+                        const video = e.target as HTMLVideoElement;
+                        console.log('Video element loaded metadata:', {
+                          videoWidth: video.videoWidth,
+                          videoHeight: video.videoHeight,
+                          readyState: video.readyState
+                        });
+                        setVideoReady(true);
+                      }}
+                      onPlay={() => console.log('Video element started playing')}
+                      onPlaying={() => console.log('Video element is playing')}
+                      onCanPlay={() => console.log('Video element can play')}
+                      onLoadStart={() => console.log('Video element load started')}
+                      onLoadedData={() => console.log('Video element loaded data')}
+                      onError={(e) => {
+                        const video = e.target as HTMLVideoElement;
+                        console.error('Video element error:', {
+                          error: video.error,
+                          networkState: video.networkState,
+                          readyState: video.readyState
+                        });
+                      }}
                     />
+                    {/* Debug info */}
+                    <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                      Camera Active {videoReady ? '✓' : '⏳'}
+                    </div>
+                    <div className="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                      Stream: {streamRef.current?.active ? 'Active' : 'Inactive'}
+                    </div>
+                    <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                      Tracks: {streamRef.current?.getTracks().length || 0}
+                    </div>
+                    <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                      Video: {videoRef.current?.readyState || 0}
+                    </div>
                   </div>
                 )}
               </div>
@@ -407,10 +518,16 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
                 {isLoading ? 'Clocking In...' : 'Clock In for Day'}
               </Button>
 
-              {!cameraActive && (
-                <p className="text-sm text-muted-foreground text-center">
-                  Please start the camera before clocking in
-                </p>
+              {!cameraActive && !cameraError && (
+                <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                  <Camera className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <p className="text-sm text-muted-foreground text-center">
+                    Please start the camera before clocking in
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Make sure to allow camera permissions when prompted
+                  </p>
+                </div>
               )}
             </div>
           )}

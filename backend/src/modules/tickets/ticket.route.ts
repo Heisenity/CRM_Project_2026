@@ -1,11 +1,15 @@
 import { Router } from 'express';
 import { ticketController } from './ticket.controller';
 import { authenticateToken } from '../../middleware/auth.middleware';
+import { exportTicketsToExcel } from './ticket.export';
 
 const router = Router();
 
 // Apply authentication middleware to all routes
 router.use(authenticateToken);
+
+// Export tickets to Excel
+router.get('/export/excel', exportTicketsToExcel);
 
 // Create a new ticket
 router.post('/', ticketController.createTicket.bind(ticketController));
