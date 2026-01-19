@@ -94,15 +94,6 @@ const getStatusIcon = (status: string) => {
     case "OPEN":
     case "open":
       return <AlertTriangle className="h-4 w-4 text-red-600" />
-    case "IN_PROGRESS":
-    case "in_progress":
-      return <Clock className="h-4 w-4 text-blue-600" />
-    case "PENDING":
-    case "pending":
-      return <Clock className="h-4 w-4 text-amber-600" />
-    case "SCHEDULED":
-    case "scheduled":
-      return <Calendar className="h-4 w-4 text-purple-600" />
     case "RESOLVED":
     case "resolved":
       return <CheckCircle className="h-4 w-4 text-green-600" />
@@ -118,22 +109,14 @@ const getStatusBadge = (status: string) => {
   const statusUpper = status.toUpperCase()
   const variants: Record<string, string> = {
     OPEN: "bg-red-50 text-red-700 border-red-200",
-    IN_PROGRESS: "bg-blue-50 text-blue-700 border-blue-200",
-    PENDING: "bg-amber-50 text-amber-700 border-amber-200",
-    SCHEDULED: "bg-purple-50 text-purple-700 border-purple-200",
     RESOLVED: "bg-green-50 text-green-700 border-green-200",
-    CLOSED: "bg-muted text-muted-foreground border-border",
-    CANCELLED: "bg-gray-50 text-gray-700 border-gray-200"
+    CLOSED: "bg-muted text-muted-foreground border-border"
   }
   
   const labels: Record<string, string> = {
     OPEN: "Open",
-    IN_PROGRESS: "In Progress",
-    PENDING: "Pending",
-    SCHEDULED: "Scheduled",
     RESOLVED: "Resolved",
-    CLOSED: "Closed",
-    CANCELLED: "Cancelled"
+    CLOSED: "Closed"
   }
   
   return (
@@ -406,12 +389,8 @@ function EditTicketModal({ ticket, isOpen, onClose, onSave }: EditTicketModalPro
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="OPEN">Open</SelectItem>
-                  <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                  <SelectItem value="PENDING">Pending</SelectItem>
-                  <SelectItem value="SCHEDULED">Scheduled</SelectItem>
                   <SelectItem value="RESOLVED">Resolved</SelectItem>
                   <SelectItem value="CLOSED">Closed</SelectItem>
-                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -669,7 +648,6 @@ export function TicketTable() {
   // Calculate summary statistics
   const totalTickets = tickets.length
   const openTickets = tickets.filter(ticket => ticket.status === "OPEN").length
-  const inProgressTickets = tickets.filter(ticket => ticket.status === "IN_PROGRESS").length
   const resolvedTickets = tickets.filter(ticket => ticket.status === "RESOLVED").length
   const closedTickets = tickets.filter(ticket => ticket.status === "CLOSED").length
   const highPriorityTickets = tickets.filter(ticket => ticket.priority === "HIGH" || ticket.priority === "CRITICAL").length
@@ -684,7 +662,7 @@ export function TicketTable() {
     const matchesStatus = selectedStatus === "all" || ticket.status === selectedStatus
     const matchesPriority = selectedPriority === "all" || ticket.priority === selectedPriority
     const matchesTab = activeTab === "all" || 
-                      (activeTab === "open" && ["OPEN", "IN_PROGRESS", "PENDING", "SCHEDULED"].includes(ticket.status)) ||
+                      (activeTab === "open" && ticket.status === "OPEN") ||
                       (activeTab === "resolved" && ticket.status === "RESOLVED") ||
                       (activeTab === "closed" && ticket.status === "CLOSED")
     
@@ -790,7 +768,7 @@ export function TicketTable() {
                 All Tickets ({totalTickets})
               </TabsTrigger>
               <TabsTrigger value="open" className="data-[state=active]:bg-background">
-                Active ({openTickets + inProgressTickets})
+                Open ({openTickets})
               </TabsTrigger>
               <TabsTrigger value="resolved" className="data-[state=active]:bg-background">
                 Resolved ({resolvedTickets})
@@ -826,18 +804,18 @@ export function TicketTable() {
           <Card className="bg-card shadow-sm border-border">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">In Progress</CardTitle>
-                <div className="p-2 bg-blue-50 rounded-lg">
-                  <Clock className="h-4 w-4 text-blue-600" />
+                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Resolved</CardTitle>
+                <div className="p-2 bg-green-50 rounded-lg">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
                 </div>
               </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-foreground">{inProgressTickets}</span>
+                  <span className="text-3xl font-bold text-foreground">{resolvedTickets}</span>
                 </div>
-                <p className="text-sm text-muted-foreground">being worked on</p>
+                <p className="text-sm text-muted-foreground">completed tickets</p>
               </div>
             </CardContent>
           </Card>
@@ -945,7 +923,7 @@ export function TicketTable() {
                 <TableHead className="w-[120px] py-4 px-6 font-semibold text-foreground">Priority</TableHead>
                 <TableHead className="w-[150px] py-4 px-6 font-semibold text-foreground">Created By</TableHead>
                 <TableHead className="w-[120px] py-4 px-6 font-semibold text-foreground">Attachments</TableHead>
-                <TableHead className="w-[120px] py-4 px-6 font-semibold text-foreground">Due Date</TableHead>
+                <TableHead className="w-[120px] py-4 px-6 font-semibold text-foreground">Expected Date</TableHead>
                 <TableHead className="py-4 px-6 font-semibold text-foreground">Department</TableHead>
                 <TableHead className="w-[60px] py-4 px-6"></TableHead>
               </TableRow>

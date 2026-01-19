@@ -23,7 +23,31 @@ export class TicketController {
       } = req.body;
 
       // Use authenticated user as reporter if not provided
-      const finalReporterId = reporterId || (req as any).user?.id;
+      const authenticatedUser = (req as any).user;
+      let finalReporterId = reporterId;
+      
+      if (!finalReporterId && authenticatedUser) {
+        // For admin users, we need to look up their adminId from the database
+        if (authenticatedUser.userType === 'ADMIN') {
+          const admin = await ticketService.prisma.admin.findUnique({
+            where: { id: authenticatedUser.id },
+            select: { adminId: true }
+          });
+          finalReporterId = admin?.adminId;
+        } else if (authenticatedUser.userType === 'EMPLOYEE') {
+          const employee = await ticketService.prisma.employee.findUnique({
+            where: { id: authenticatedUser.id },
+            select: { employeeId: true }
+          });
+          finalReporterId = employee?.employeeId;
+        } else {
+          // Fallback to the internal ID
+          finalReporterId = authenticatedUser.id;
+        }
+      }
+
+      console.log('Controller - finalReporterId:', finalReporterId);
+      console.log('Controller - authenticatedUser:', authenticatedUser);
 
       // Validate required fields
       if (!title || !description || !category || !priority || !finalReporterId) {
@@ -48,7 +72,7 @@ export class TicketController {
         customerId,
         customerPhone,
         attachments: attachments || []
-      }, finalReporterId);
+      }, finalReporterId); // Use the same finalReporterId for changedBy
 
       return res.status(201).json({
         success: true,

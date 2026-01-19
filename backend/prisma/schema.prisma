@@ -775,12 +775,8 @@ enum TicketPriority {
 
 enum TicketStatus {
   OPEN
-  IN_PROGRESS
-  PENDING
-  SCHEDULED
   RESOLVED
   CLOSED
-  CANCELLED
 }
 
 enum TicketHistoryAction {

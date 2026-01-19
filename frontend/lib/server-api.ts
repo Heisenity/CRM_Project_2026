@@ -2021,7 +2021,7 @@ export async function getDailyAttendanceStatus(employeeId: string): Promise<Dail
 
 export type TicketCategory = 'AUTHENTICATION' | 'HARDWARE' | 'SOFTWARE' | 'NETWORK' | 'SECURITY' | 'DATABASE' | 'MAINTENANCE' | 'SETUP' | 'OTHER'
 export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
-export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'PENDING' | 'SCHEDULED' | 'RESOLVED' | 'CLOSED' | 'CANCELLED'
+export type TicketStatus = 'OPEN' | 'RESOLVED' | 'CLOSED'
 
 export type Ticket = {
   id: string

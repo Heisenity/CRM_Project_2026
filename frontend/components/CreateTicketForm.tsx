@@ -19,11 +19,23 @@ import {
   X,
   Upload,
   FileText,
-  Trash2
+  Trash2,
+  CheckCircle,
+  Phone,
+  Search
 } from "lucide-react"
 import { showToast } from "@/lib/toast-utils"
 import { playNotificationSound } from "@/lib/notification-sound"
-import { authenticatedFetch } from "@/lib/api-client"
+import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch"
+
+interface Customer {
+  id: string
+  customerId: string
+  name: string
+  phone: string
+  email?: string
+  address?: string
+}
 
 // Success popup component
 interface SuccessPopupProps {
@@ -52,12 +64,12 @@ function SuccessPopup({ isOpen, onClose, onCreateAnother, ticketId }: SuccessPop
       <div className="bg-card rounded-xl shadow-2xl p-8 max-w-md w-full mx-4 animate-in fade-in-0 zoom-in-95 duration-300">
         <div className="text-center space-y-4">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-            <Ticket className="h-8 w-8 text-green-600" />
+            <CheckCircle className="h-8 w-8 text-green-600" />
           </div>
           <div>
             <h3 className="text-xl font-semibold text-foreground">Ticket Created Successfully!</h3>
             <p className="text-muted-foreground mt-2">Your support ticket has been created and assigned ID:</p>
-            <Badge className="mt-2 bg-green-50 text-green-700 border-green-200 font-mono">
+            <Badge className="mt-2 bg-green-50 text-green-700 border-green-200 font-mono text-lg px-4 py-2">
               {ticketId}
             </Badge>
           </div>
@@ -87,11 +99,16 @@ function SuccessPopup({ isOpen, onClose, onCreateAnother, ticketId }: SuccessPop
 
 export function CreateTicketForm() {
   const router = useRouter()
+  const { authenticatedFetch, isAuthenticated } = useAuthenticatedFetch()
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [showSuccessPopup, setShowSuccessPopup] = React.useState(false)
   const [createdTicketId, setCreatedTicketId] = React.useState("")
+  const [customers, setCustomers] = React.useState<Customer[]>([])
+  const [loadingCustomers, setLoadingCustomers] = React.useState(false)
+  const [customerSearch, setCustomerSearch] = React.useState("")
   const [uploadedFiles, setUploadedFiles] = React.useState<File[]>([])
   const [uploadingFiles, setUploadingFiles] = React.useState(false)
+  
   // Calculate default due date (7 days from now)
   const getDefaultDueDate = React.useCallback(() => {
     return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
@@ -103,11 +120,66 @@ export function CreateTicketForm() {
     category: "",
     priority: "",
     department: "",
-    assignee: "",
     dueDate: getDefaultDueDate(),
-    tags: "",
-    estimatedHours: ""
+    estimatedHours: "",
+    customerId: "none"
   })
+
+  const fetchCustomers = React.useCallback(async () => {
+    try {
+      setLoadingCustomers(true)
+      
+      const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/customers?limit=100`)
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          console.warn('Authentication required to fetch customers. User may not be logged in.')
+          showToast.error('Please log in to access customer information')
+          return
+        }
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+
+      if (result.customers) {
+        setCustomers(result.customers)
+        console.log(`Loaded ${result.customers.length} customers`)
+      } else {
+        console.error('Unexpected response format:', result)
+        showToast.error('Failed to load customers')
+      }
+    } catch (error) {
+      console.error('Error fetching customers:', error)
+      if (error instanceof Error && error.message.includes('No valid session token')) {
+        showToast.error('Please log in to access customer information')
+      } else {
+        showToast.error('Failed to load customers')
+      }
+    } finally {
+      setLoadingCustomers(false)
+    }
+  }, [authenticatedFetch])
+
+  // Fetch customers on component mount
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      fetchCustomers()
+    }
+  }, [isAuthenticated, fetchCustomers])
+
+  // Filter customers based on search
+  const filteredCustomers = React.useMemo(() => {
+    if (!customerSearch) return customers
+    
+    return customers.filter(customer => 
+      customer.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+      customer.customerId.toLowerCase().includes(customerSearch.toLowerCase()) ||
+      customer.phone.includes(customerSearch)
+    )
+  }, [customers, customerSearch])
+
+  const selectedCustomer = customers.find(c => c.id === formData.customerId && formData.customerId !== "none")
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -209,13 +281,19 @@ export function CreateTicketForm() {
           department: formData.department || undefined,
           dueDate: formData.dueDate || undefined,
           estimatedHours: formData.estimatedHours ? parseFloat(formData.estimatedHours) : undefined,
-          tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()).filter(Boolean) : undefined,
+          // Add uploaded files information with URLs
           attachments: uploadedFiles.map((file, index) => ({
             fileName: file.name,
             fileSize: file.size,
             mimeType: file.type,
             filePath: attachmentUrls[index] || null
-          }))
+          })),
+          // Add customer information if selected
+          ...(selectedCustomer && {
+            customerName: selectedCustomer.name,
+            customerId: selectedCustomer.customerId,
+            customerPhone: selectedCustomer.phone,
+          })
         })
       })
 
@@ -245,11 +323,11 @@ export function CreateTicketForm() {
       category: "",
       priority: "",
       department: "",
-      assignee: "",
       dueDate: getDefaultDueDate(),
-      tags: "",
-      estimatedHours: ""
+      estimatedHours: "",
+      customerId: "none"
     })
+    setCustomerSearch("")
     setUploadedFiles([])
   }
 
@@ -294,10 +372,119 @@ export function CreateTicketForm() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Ticket className="h-5 w-5 text-blue-600" />
-                  Basic Information
+                  Ticket Information
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
+                {/* Customer Selection */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <User className="h-4 w-4 text-blue-600" />
+                    <Label className="text-sm font-medium text-blue-900">
+                      Customer (Optional)
+                    </Label>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search customers by name, ID, or phone..."
+                        value={customerSearch}
+                        onChange={(e) => setCustomerSearch(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                    
+                    <Select 
+                      value={formData.customerId} 
+                      onValueChange={(value) => handleInputChange("customerId", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={
+                          loadingCustomers 
+                            ? "Loading customers..." 
+                            : customers.length === 0 
+                              ? "No customers available (login required)" 
+                              : "Select a customer (optional)"
+                        } />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No customer selected</SelectItem>
+                        {customers.length === 0 && !loadingCustomers && (
+                          <SelectItem value="no-access" disabled>
+                            No customers available - please ensure you are logged in
+                          </SelectItem>
+                        )}
+                        {filteredCustomers.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            <div className="flex items-center gap-2 py-1">
+                              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                <User className="h-4 w-4 text-blue-600" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{customer.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {customer.customerId} • {customer.phone}
+                                </p>
+                              </div>
+                            </div>
+                          </SelectItem>
+                        ))}
+                        {filteredCustomers.length === 0 && customerSearch && customers.length > 0 && (
+                          <SelectItem value="no-results" disabled>
+                            No customers found matching &ldquo;{customerSearch}&rdquo;
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    
+                    {customers.length === 0 && !loadingCustomers && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-md p-3 mt-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4 text-amber-600" />
+                            <span className="text-sm text-amber-800">No customers loaded</span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={fetchCustomers}
+                            className="text-amber-700 border-amber-300 hover:bg-amber-100"
+                          >
+                            Retry
+                          </Button>
+                        </div>
+                        <p className="text-xs text-amber-700 mt-1">
+                          Make sure you are logged in to access customer information.
+                        </p>
+                      </div>
+                    )}
+                    
+                    {selectedCustomer && (
+                      <div className="bg-white border border-blue-200 rounded-md p-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <User className="h-5 w-5 text-blue-600" />
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">{selectedCustomer.name}</p>
+                            <p className="text-xs text-muted-foreground flex items-center gap-2">
+                              <span>{selectedCustomer.customerId}</span>
+                              <span>•</span>
+                              <Phone className="h-3 w-3" />
+                              <span>{selectedCustomer.phone}</span>
+                            </p>
+                            {selectedCustomer.email && (
+                              <p className="text-xs text-muted-foreground">{selectedCustomer.email}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="md:col-span-2">
                     <Label htmlFor="title" className="text-sm font-medium text-foreground">
@@ -322,14 +509,15 @@ export function CreateTicketForm() {
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Authentication">Authentication</SelectItem>
-                        <SelectItem value="Hardware">Hardware</SelectItem>
-                        <SelectItem value="Software">Software</SelectItem>
-                        <SelectItem value="Network">Network</SelectItem>
-                        <SelectItem value="Security">Security</SelectItem>
-                        <SelectItem value="Database">Database</SelectItem>
-                        <SelectItem value="Maintenance">Maintenance</SelectItem>
-                        <SelectItem value="Setup">Setup</SelectItem>
+                        <SelectItem value="AUTHENTICATION">Authentication</SelectItem>
+                        <SelectItem value="HARDWARE">Hardware</SelectItem>
+                        <SelectItem value="SOFTWARE">Software</SelectItem>
+                        <SelectItem value="NETWORK">Network</SelectItem>
+                        <SelectItem value="SECURITY">Security</SelectItem>
+                        <SelectItem value="DATABASE">Database</SelectItem>
+                        <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                        <SelectItem value="SETUP">Setup</SelectItem>
+                        <SelectItem value="OTHER">Other</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -343,19 +531,25 @@ export function CreateTicketForm() {
                         <SelectValue placeholder="Select priority" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="high">
+                        <SelectItem value="CRITICAL">
                           <div className="flex items-center gap-2">
                             <AlertTriangle className="h-4 w-4 text-red-600" />
+                            Critical Priority
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="HIGH">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4 text-orange-600" />
                             High Priority
                           </div>
                         </SelectItem>
-                        <SelectItem value="medium">
+                        <SelectItem value="MEDIUM">
                           <div className="flex items-center gap-2">
                             <Clock className="h-4 w-4 text-amber-600" />
                             Medium Priority
                           </div>
                         </SelectItem>
-                        <SelectItem value="low">
+                        <SelectItem value="LOW">
                           <div className="flex items-center gap-2">
                             <Clock className="h-4 w-4 text-green-600" />
                             Low Priority
@@ -441,22 +635,11 @@ export function CreateTicketForm() {
                     </div>
                   )}
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* Assignment & Timeline */}
-            <Card className="bg-card shadow-sm border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5 text-blue-600" />
-                  Assignment & Timeline
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
                     <Label htmlFor="department" className="text-sm font-medium text-foreground">
-                      Department
+                      Department (Optional)
                     </Label>
                     <Select value={formData.department} onValueChange={(value) => handleInputChange("department", value)}>
                       <SelectTrigger className="mt-1">
@@ -474,26 +657,8 @@ export function CreateTicketForm() {
                   </div>
 
                   <div>
-                    <Label htmlFor="assignee" className="text-sm font-medium text-foreground">
-                      Preferred Assignee
-                    </Label>
-                    <Select value={formData.assignee} onValueChange={(value) => handleInputChange("assignee", value)}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Auto-assign" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Sarah Johnson">Sarah Johnson</SelectItem>
-                        <SelectItem value="David Wilson">David Wilson</SelectItem>
-                        <SelectItem value="Robert Martinez">Robert Martinez</SelectItem>
-                        <SelectItem value="Lisa Wang">Lisa Wang</SelectItem>
-                        <SelectItem value="Michael Chen">Michael Chen</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
                     <Label htmlFor="dueDate" className="text-sm font-medium text-foreground">
-                      Due Date
+                      Expected Resolution Date
                     </Label>
                     <Input
                       id="dueDate"
@@ -503,12 +668,10 @@ export function CreateTicketForm() {
                       className="mt-1"
                     />
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <Label htmlFor="estimatedHours" className="text-sm font-medium text-foreground">
-                      Estimated Hours
+                      Estimated Hours (Optional)
                     </Label>
                     <Input
                       id="estimatedHours"
@@ -519,19 +682,6 @@ export function CreateTicketForm() {
                       className="mt-1"
                       min="0"
                       step="0.5"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="tags" className="text-sm font-medium text-foreground">
-                      Tags
-                    </Label>
-                    <Input
-                      id="tags"
-                      placeholder="urgent, security, hardware (comma separated)"
-                      value={formData.tags}
-                      onChange={(e) => handleInputChange("tags", e.target.value)}
-                      className="mt-1"
                     />
                   </div>
                 </div>
@@ -549,10 +699,10 @@ export function CreateTicketForm() {
                     <Button 
                       type="button"
                       variant="outline" 
-                      onClick={() => router.back()}
+                      onClick={resetForm}
                     >
                       <X className="h-4 w-4 mr-2" />
-                      Cancel
+                      Clear Form
                     </Button>
                     <Button 
                       type="submit"

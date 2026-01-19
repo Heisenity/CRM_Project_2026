@@ -56,16 +56,18 @@ export class TicketUploadController {
   // Upload single file for ticket
   uploadFile = async (req: Request, res: Response) => {
     try {
+      console.log('=== UPLOAD DEBUG ===')
       console.log('Upload request received:', {
         file: req.file ? 'File present' : 'No file',
         body: req.body,
-        headers: req.headers['content-type']
+        headers: req.headers['content-type'],
+        user: (req as any).user
       })
 
       const file = req.file
 
       if (!file) {
-        console.log('No file uploaded')
+        console.log('No file uploaded - multer error or no file sent')
         return res.status(400).json({
           success: false,
           error: 'No file uploaded'
@@ -75,7 +77,8 @@ export class TicketUploadController {
       console.log('File uploaded successfully:', {
         filename: file.filename,
         originalName: file.originalname,
-        size: file.size
+        size: file.size,
+        path: file.path
       })
 
       // Return file information
@@ -96,7 +99,8 @@ export class TicketUploadController {
       console.error('Error uploading file:', error)
       return res.status(500).json({
         success: false,
-        error: 'Failed to upload file'
+        error: 'Failed to upload file',
+        details: error instanceof Error ? error.message : 'Unknown error'
       })
     }
   }

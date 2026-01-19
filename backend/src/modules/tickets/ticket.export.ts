@@ -217,12 +217,8 @@ async function getTicketDataForExport(filters: TicketExportFilters) {
 function getStatusLabel(status: string): string {
   const statusLabels: Record<string, string> = {
     'OPEN': 'Open',
-    'IN_PROGRESS': 'In Progress',
-    'PENDING': 'Pending',
-    'SCHEDULED': 'Scheduled',
     'RESOLVED': 'Resolved',
-    'CLOSED': 'Closed',
-    'CANCELLED': 'Cancelled'
+    'CLOSED': 'Closed'
   }
   return statusLabels[status] || status
 }
@@ -372,10 +368,6 @@ export const exportTicketsToExcel = async (req: Request, res: Response) => {
         case 'OPEN':
           statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF2F2' } }
           statusCell.font = { color: { argb: 'FFDC2626' } }
-          break
-        case 'IN_PROGRESS':
-          statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } }
-          statusCell.font = { color: { argb: 'FF2563EB' } }
           break
         case 'RESOLVED':
           statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FDF4' } }
