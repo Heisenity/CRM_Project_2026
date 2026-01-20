@@ -508,7 +508,7 @@ export default function LandingPage({ onGetStarted, isLoggedIn = false, userProf
             </div>
             
             {!isLoggedIn && (
-              <div className="grid lg:grid-cols-4 gap-6">
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
                 {/* Customer Login */}
                 <CustomerLoginCard />
 
@@ -517,8 +517,6 @@ export default function LandingPage({ onGetStarted, isLoggedIn = false, userProf
 
                 {/* Admin Login */}
                 <AdminLoginCard />
-
-                {/* User Login - Removed as it's duplicate of Staff */}
               </div>
             )}
 
