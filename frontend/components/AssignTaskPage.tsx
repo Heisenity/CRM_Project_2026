@@ -103,7 +103,7 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
             setTaskData(prev => ({
               ...prev,
               title: `Task for ticket: ${ticketExists.ticketId}`,
-              description: `Task created to handle ticket: ${ticketExists.ticketId} - ${ticketExists.description.substring(0, 50)}...`
+              description: ticketExists.description
             }))
           }
         }
