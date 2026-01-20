@@ -651,6 +651,18 @@ export function TicketTable() {
   const resolvedTickets = tickets.filter(ticket => ticket.status === "RESOLVED").length
   const closedTickets = tickets.filter(ticket => ticket.status === "CLOSED").length
   const highPriorityTickets = tickets.filter(ticket => ticket.priority === "HIGH" || ticket.priority === "CRITICAL").length
+  
+  // Calculate resolved today tickets
+  const today = new Date()
+  today.setHours(0, 0, 0, 0) // Start of today
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1) // Start of tomorrow
+  
+  const resolvedTodayTickets = tickets.filter(ticket => {
+    if (ticket.status !== "RESOLVED") return false
+    const updatedDate = new Date(ticket.updatedAt)
+    return updatedDate >= today && updatedDate < tomorrow
+  }).length
 
   // Filter data based on search and filters
   const filteredData = tickets.filter(ticket => {
@@ -851,7 +863,7 @@ export function TicketTable() {
             <CardContent>
               <div className="space-y-2">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-foreground">5</span>
+                  <span className="text-3xl font-bold text-foreground">{resolvedTodayTickets}</span>
                 </div>
                 <p className="text-sm text-muted-foreground">tickets completed</p>
               </div>
