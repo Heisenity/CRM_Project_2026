@@ -445,6 +445,10 @@ export type CreateFieldEngineerRequest = {
   phone?: string
   teamId?: string
   isTeamLeader?: boolean
+  salary?: number
+  address?: string
+  aadharCard?: string
+  panCard?: string
 }
 
 export type CreateFieldEngineerResponse = {
@@ -571,6 +575,10 @@ export type CreateEmployeeRequest = {
   role?: 'FIELD_ENGINEER' | 'IN_OFFICE'
   sickLeaveBalance?: number
   casualLeaveBalance?: number
+  salary?: number
+  address?: string
+  aadharCard?: string
+  panCard?: string
 }
 
 export type CreateEmployeeResponse = {

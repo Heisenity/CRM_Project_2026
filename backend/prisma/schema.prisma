@@ -46,6 +46,10 @@ model Employee {
   status                  String                   @default("ACTIVE")
   sickLeaveBalance        Int                      @default(12)
   casualLeaveBalance      Int                      @default(12)
+  salary                  Decimal?                 @db.Decimal(10, 2)
+  address                 String?
+  aadharCard              String?                  @unique
+  panCard                 String?                  @unique
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
   /// *

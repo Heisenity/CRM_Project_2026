@@ -82,6 +82,10 @@ export const getAllEmployees = async (req: Request, res: Response) => {
         status: true,
         sickLeaveBalance: true,
         casualLeaveBalance: true,
+        salary: true,
+        address: true,
+        aadharCard: true,
+        panCard: true,
         createdAt: true,
         updatedAt: true,
         assignedBy: true
@@ -117,7 +121,22 @@ export const getAllEmployees = async (req: Request, res: Response) => {
 // Create new employee
 export const createEmployee = async (req: Request, res: Response) => {
   try {
-    const { name, email, phone, teamId, isTeamLeader = false, assignedBy, password, role = 'IN_OFFICE', sickLeaveBalance = 12, casualLeaveBalance = 12 } = req.body
+    const { 
+      name, 
+      email, 
+      phone, 
+      teamId, 
+      isTeamLeader = false, 
+      assignedBy, 
+      password, 
+      role = 'IN_OFFICE', 
+      sickLeaveBalance = 12, 
+      casualLeaveBalance = 12,
+      salary,
+      address,
+      aadharCard,
+      panCard
+    } = req.body
 
     // Validate required fields
     if (!name || !email || !password) {
@@ -147,6 +166,34 @@ export const createEmployee = async (req: Request, res: Response) => {
       })
     }
 
+    // Check if Aadhar card already exists (if provided)
+    if (aadharCard) {
+      const existingAadhar = await prisma.employee.findUnique({
+        where: { aadharCard }
+      })
+
+      if (existingAadhar) {
+        return res.status(400).json({
+          success: false,
+          error: 'Employee with this Aadhar card already exists'
+        })
+      }
+    }
+
+    // Check if PAN card already exists (if provided)
+    if (panCard) {
+      const existingPan = await prisma.employee.findUnique({
+        where: { panCard }
+      })
+
+      if (existingPan) {
+        return res.status(400).json({
+          success: false,
+          error: 'Employee with this PAN card already exists'
+        })
+      }
+    }
+
     // Generate role-based employee ID
     const employeeId = await EmployeeIdGeneratorService.generateNextEmployeeId(role)
 
@@ -167,7 +214,11 @@ export const createEmployee = async (req: Request, res: Response) => {
         role: role,
         status: 'ACTIVE',
         sickLeaveBalance: parseInt(sickLeaveBalance) || 12,
-        casualLeaveBalance: parseInt(casualLeaveBalance) || 12
+        casualLeaveBalance: parseInt(casualLeaveBalance) || 12,
+        salary: salary ? parseFloat(salary) : null,
+        address: address || null,
+        aadharCard: aadharCard || null,
+        panCard: panCard || null
       },
       select: {
         id: true,
@@ -181,6 +232,10 @@ export const createEmployee = async (req: Request, res: Response) => {
         status: true,
         sickLeaveBalance: true,
         casualLeaveBalance: true,
+        salary: true,
+        address: true,
+        aadharCard: true,
+        panCard: true,
         createdAt: true,
         updatedAt: true
       }
@@ -204,7 +259,21 @@ export const createEmployee = async (req: Request, res: Response) => {
 export const updateEmployee = async (req: Request, res: Response) => {
   try {
     const { id } = req.params
-    const { name, email, phone, teamId, isTeamLeader, status, password, sickLeaveBalance, casualLeaveBalance } = req.body
+    const { 
+      name, 
+      email, 
+      phone, 
+      teamId, 
+      isTeamLeader, 
+      status, 
+      password, 
+      sickLeaveBalance, 
+      casualLeaveBalance,
+      salary,
+      address,
+      aadharCard,
+      panCard
+    } = req.body
 
     if (!id) {
       return res.status(400).json({
@@ -239,6 +308,34 @@ export const updateEmployee = async (req: Request, res: Response) => {
       }
     }
 
+    // Check if Aadhar card is being changed and if it already exists
+    if (aadharCard && aadharCard !== existingEmployee.aadharCard) {
+      const aadharExists = await prisma.employee.findUnique({
+        where: { aadharCard }
+      })
+
+      if (aadharExists) {
+        return res.status(400).json({
+          success: false,
+          error: 'Employee with this Aadhar card already exists'
+        })
+      }
+    }
+
+    // Check if PAN card is being changed and if it already exists
+    if (panCard && panCard !== existingEmployee.panCard) {
+      const panExists = await prisma.employee.findUnique({
+        where: { panCard }
+      })
+
+      if (panExists) {
+        return res.status(400).json({
+          success: false,
+          error: 'Employee with this PAN card already exists'
+        })
+      }
+    }
+
     // Prepare update data
     const updateData: any = {}
     if (name) updateData.name = name
@@ -249,6 +346,10 @@ export const updateEmployee = async (req: Request, res: Response) => {
     if (status) updateData.status = status
     if (sickLeaveBalance !== undefined) updateData.sickLeaveBalance = parseInt(sickLeaveBalance)
     if (casualLeaveBalance !== undefined) updateData.casualLeaveBalance = parseInt(casualLeaveBalance)
+    if (salary !== undefined) updateData.salary = salary ? parseFloat(salary) : null
+    if (address !== undefined) updateData.address = address
+    if (aadharCard !== undefined) updateData.aadharCard = aadharCard
+    if (panCard !== undefined) updateData.panCard = panCard
     if (password) {
       updateData.password = await bcrypt.hash(password, 12)
     }
@@ -275,6 +376,10 @@ export const updateEmployee = async (req: Request, res: Response) => {
         status: true,
         sickLeaveBalance: true,
         casualLeaveBalance: true,
+        salary: true,
+        address: true,
+        aadharCard: true,
+        panCard: true,
         createdAt: true,
         updatedAt: true
       }
@@ -368,6 +473,10 @@ export const getEmployeeById = async (req: Request, res: Response) => {
         status: true,
         sickLeaveBalance: true,
         casualLeaveBalance: true,
+        salary: true,
+        address: true,
+        aadharCard: true,
+        panCard: true,
         createdAt: true,
         updatedAt: true,
         assignedBy: true

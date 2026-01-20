@@ -18,6 +18,7 @@ import { authRouter } from './auth.route';
 import employeeIdRoutes from './employeeId.route';
 import fieldEngineerRoutes from './fieldEngineer.route';
 import projectRoutes from './project.route';
+import adminRoutes from './admin.route';
 import { ProjectController } from '../controllers/project.controller';
 
 const router = Router();
@@ -32,6 +33,9 @@ router.use('/attendance', attendanceRoutes);
 
 // Mount employee routes
 router.use('/employees', employeeRoutes);
+
+// Mount admin routes
+router.use('/admins', adminRoutes);
 
 // Mount task routes
 router.use('/tasks', taskRoutes);

@@ -29,7 +29,8 @@ import {
     Clock,
     FileText,
     FolderOpen,
-    Bell
+    Bell,
+    UserCog
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -42,6 +43,13 @@ const navigationItems = [
         icon: LayoutDashboard,
         badge: null,
         description: "Overview and analytics"
+    },
+    {
+        title: "Employee Management",
+        url: "/employee-management",
+        icon: UserCog,
+        badge: null,
+        description: "Manage all employees and staff"
     },
     {
         title: "Task Management",
@@ -58,7 +66,7 @@ const navigationItems = [
         description: "Field engineer attendance"
     },
     {
-        title: "InOffice Employee",
+        title: "Office Employee",
         url: "/inoffice-attendance",
         icon: Clock,
         badge: null,
@@ -86,7 +94,7 @@ const navigationItems = [
         description: "Manage tenders and EMD tracking"
     },
     {
-        title: "Docs. and Leave Management",
+        title: "HR Center",
         url: "/leave-management",
         icon: FileText,
         badge: null,
@@ -226,7 +234,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     <SidebarGroupContent>
                         <SidebarMenu className="space-y-1">
                             {filteredNavigationItems.map((item) => {
-                                const isActive = pathname === item.url
+                                // Check if current path matches the item or is a sub-route
+                                const isActive = pathname === item.url || 
+                                    (item.url === '/employee-management' && pathname.startsWith('/employees'))
                                 return (
                                     <SidebarMenuItem key={item.title}>
                                         <SidebarMenuButton 

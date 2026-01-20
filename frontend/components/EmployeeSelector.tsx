@@ -49,7 +49,11 @@ export function EmployeeSelector({
     email: '',
     password: '',
     phone: '',
-    isTeamLeader: false
+    isTeamLeader: false,
+    salary: '',
+    address: '',
+    aadharCard: '',
+    panCard: ''
   })
 
   // Load field engineers on component mount
@@ -80,6 +84,18 @@ export function EmployeeSelector({
       return
     }
 
+    // Validate Aadhar card format (12 digits)
+    if (newEmployee.aadharCard && !/^\d{12}$/.test(newEmployee.aadharCard)) {
+      console.error('Aadhar card must be 12 digits')
+      return
+    }
+
+    // Validate PAN card format (5 letters, 4 digits, 1 letter)
+    if (newEmployee.panCard && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(newEmployee.panCard)) {
+      console.error('PAN card format should be like ABCDE1234F')
+      return
+    }
+
     setAddingEmployee(true)
     try {
       const response = await createFieldEngineer({
@@ -88,7 +104,11 @@ export function EmployeeSelector({
         email: newEmployee.email,
         password: newEmployee.password,
         phone: newEmployee.phone || undefined,
-        isTeamLeader: newEmployee.isTeamLeader
+        isTeamLeader: newEmployee.isTeamLeader,
+        salary: newEmployee.salary ? parseFloat(newEmployee.salary) : undefined,
+        address: newEmployee.address || undefined,
+        aadharCard: newEmployee.aadharCard || undefined,
+        panCard: newEmployee.panCard || undefined
       })
 
       if (response.success && response.data) {
@@ -105,7 +125,11 @@ export function EmployeeSelector({
           email: '',
           password: '',
           phone: '',
-          isTeamLeader: false
+          isTeamLeader: false,
+          salary: '',
+          address: '',
+          aadharCard: '',
+          panCard: ''
         })
         setShowAddForm(false)
       }
@@ -245,6 +269,69 @@ export function EmployeeSelector({
                     <SelectItem value="leader">Team Leader</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-green-800">
+                  Monthly Salary (₹)
+                </Label>
+                <Input
+                  type="number"
+                  value={newEmployee.salary}
+                  onChange={(e) => setNewEmployee(prev => ({ ...prev, salary: e.target.value }))}
+                  placeholder="Enter monthly salary"
+                  min="0"
+                  step="0.01"
+                  className="border-green-300 focus:border-green-500 focus:ring-green-500"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-green-800">
+                  Address
+                </Label>
+                <Input
+                  value={newEmployee.address}
+                  onChange={(e) => setNewEmployee(prev => ({ ...prev, address: e.target.value }))}
+                  placeholder="Enter complete address"
+                  className="border-green-300 focus:border-green-500 focus:ring-green-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-green-800">
+                    Aadhar Card Number
+                  </Label>
+                  <Input
+                    value={newEmployee.aadharCard}
+                    onChange={(e) => setNewEmployee(prev => ({ ...prev, aadharCard: e.target.value }))}
+                    placeholder="Enter 12-digit Aadhar number"
+                    maxLength={12}
+                    className="border-green-300 focus:border-green-500 focus:ring-green-500 font-mono"
+                  />
+                  <div className="text-xs text-green-600">
+                    Format: 12 digits (e.g., 123456789012)
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-green-800">
+                    PAN Card Number
+                  </Label>
+                  <Input
+                    value={newEmployee.panCard}
+                    onChange={(e) => setNewEmployee(prev => ({ ...prev, panCard: e.target.value.toUpperCase() }))}
+                    placeholder="Enter PAN number"
+                    maxLength={10}
+                    className="border-green-300 focus:border-green-500 focus:ring-green-500 font-mono"
+                  />
+                  <div className="text-xs text-green-600">
+                    Format: ABCDE1234F (5 letters, 4 digits, 1 letter)
+                  </div>
+                </div>
               </div>
             </div>
 

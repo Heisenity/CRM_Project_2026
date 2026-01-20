@@ -30,6 +30,10 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
     phone: '',
     sickLeaveBalance: 12,
     casualLeaveBalance: 12,
+    salary: '',
+    address: '',
+    aadharCard: '',
+    panCard: '',
     photo: null as File | null
   })
 
@@ -61,6 +65,18 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
       return
     }
 
+    // Validate Aadhar card format (12 digits) if provided
+    if (formData.aadharCard && !/^\d{12}$/.test(formData.aadharCard)) {
+      setError('Aadhar card must be 12 digits')
+      return
+    }
+
+    // Validate PAN card format (5 letters, 4 digits, 1 letter) if provided
+    if (formData.panCard && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formData.panCard)) {
+      setError('PAN card format should be like ABCDE1234F')
+      return
+    }
+
     setLoading(true)
     setError(null)
 
@@ -74,7 +90,11 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
         isTeamLeader: false, // Always false during employee creation
         role: role, // Use the role prop
         sickLeaveBalance: formData.sickLeaveBalance,
-        casualLeaveBalance: formData.casualLeaveBalance
+        casualLeaveBalance: formData.casualLeaveBalance,
+        salary: formData.salary ? parseFloat(formData.salary) : undefined,
+        address: formData.address.trim() || undefined,
+        aadharCard: formData.aadharCard.trim() || undefined,
+        panCard: formData.panCard.trim() || undefined
       }
 
       const employeeResponse = await createEmployee(employeeData)
@@ -98,6 +118,10 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
           phone: '',
           sickLeaveBalance: 12,
           casualLeaveBalance: 12,
+          salary: '',
+          address: '',
+          aadharCard: '',
+          panCard: '',
           photo: null
         })
         setShowSuccess(false)
@@ -382,6 +406,69 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
                           placeholder="12"
                           className="border-green-300 focus:border-green-500 focus:ring-green-500"
                         />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-green-800">
+                          Monthly Salary (₹)
+                        </Label>
+                        <Input
+                          type="number"
+                          value={formData.salary}
+                          onChange={(e) => setFormData(prev => ({ ...prev, salary: e.target.value }))}
+                          placeholder="Enter monthly salary"
+                          min="0"
+                          step="0.01"
+                          className="border-green-300 focus:border-green-500 focus:ring-green-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Address Field */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-green-800">
+                        Address
+                      </Label>
+                      <Input
+                        value={formData.address}
+                        onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                        placeholder="Enter complete address"
+                        className="border-green-300 focus:border-green-500 focus:ring-green-500"
+                      />
+                    </div>
+
+                    {/* Identity Documents */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-green-800">
+                          Aadhar Card Number
+                        </Label>
+                        <Input
+                          value={formData.aadharCard}
+                          onChange={(e) => setFormData(prev => ({ ...prev, aadharCard: e.target.value }))}
+                          placeholder="Enter 12-digit Aadhar number"
+                          maxLength={12}
+                          className="border-green-300 focus:border-green-500 focus:ring-green-500 font-mono"
+                        />
+                        <div className="text-xs text-green-600">
+                          Format: 12 digits (e.g., 123456789012)
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-green-800">
+                          PAN Card Number
+                        </Label>
+                        <Input
+                          value={formData.panCard}
+                          onChange={(e) => setFormData(prev => ({ ...prev, panCard: e.target.value.toUpperCase() }))}
+                          placeholder="Enter PAN number"
+                          maxLength={10}
+                          className="border-green-300 focus:border-green-500 focus:ring-green-500 font-mono"
+                        />
+                        <div className="text-xs text-green-600">
+                          Format: ABCDE1234F (5 letters, 4 digits, 1 letter)
+                        </div>
                       </div>
                     </div>
                     

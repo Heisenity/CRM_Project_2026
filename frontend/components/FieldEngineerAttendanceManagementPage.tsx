@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
 import { AddAttendanceRecord } from "@/components/AddAttendanceRecord"
-import { showToast, showConfirm } from "@/lib/toast-utils"
+import { showToast } from "@/lib/toast-utils"
 
 import {
   ChevronLeft,
@@ -22,7 +22,6 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  MoreVertical,
   Loader2,
   RefreshCw,
   X,
@@ -31,7 +30,7 @@ import {
   Calendar,
   Plus
 } from "lucide-react"
-import { getAttendanceRecords, getAllEmployees, deleteAttendanceRecord, exportAttendanceToExcel, ExportParams, AttendanceRecord, Employee } from "@/lib/server-api"
+import { getAttendanceRecords, getAllEmployees, exportAttendanceToExcel, ExportParams, AttendanceRecord, Employee } from "@/lib/server-api"
 
 interface DateRange {
   from: Date | null
@@ -144,8 +143,6 @@ export function AttendanceManagementPage() {
     status: '',
     dateRange: { from: new Date(), to: null } as DateRange
   })
-  const [deleteLoading, setDeleteLoading] = React.useState<string | null>(null)
-  const [deletedRecords, setDeletedRecords] = React.useState<Set<string>>(new Set())
   const [exportLoading, setExportLoading] = React.useState<'excel' | 'pdf' | null>(null)
 
   const fetchAttendanceData = React.useCallback(async () => {
@@ -209,11 +206,6 @@ export function AttendanceManagementPage() {
               hasAttendance: true
             }
           } else {
-
-            if (deletedRecords.has(employee.employeeId)) {
-              return null
-            }
-
             // Create a placeholder record for employees without attendance
             return {
               id: `placeholder-${employee.id}`,
@@ -273,7 +265,7 @@ export function AttendanceManagementPage() {
     } finally {
       setLoading(false)
     }
-  }, [pagination.page, pagination.limit, filters, deletedRecords])
+  }, [pagination.page, pagination.limit, filters])
 
   React.useEffect(() => {
     fetchAttendanceData()
@@ -295,33 +287,6 @@ export function AttendanceManagementPage() {
     setTimeout(() => {
       fetchAttendanceData()
     }, 1000)
-  }
-
-  const handleDeleteRecord = async (record: ExtendedAttendanceRecord) => {
-    if (!record.hasAttendance) return
-
-    showConfirm(
-      `Are you sure you want to delete the attendance record for ${record.employeeName} on ${new Date(record.date).toLocaleDateString()}?`,
-      async () => {
-        try {
-          setDeleteLoading(record.id)
-          const response = await deleteAttendanceRecord(record.id)
-
-          if (response.success) {
-            fetchAttendanceData()
-            showToast.success('Attendance record deleted successfully')
-          } else {
-            showToast.error(response.error || 'Failed to delete attendance record')
-          }
-        } catch (error) {
-          console.error('Error deleting attendance record:', error)
-          showToast.error('Failed to delete attendance record')
-        } finally {
-          setDeleteLoading(null)
-        }
-      },
-      'Delete Attendance Record'
-    )
   }
 
   const handleExport = async (quickRange?: 'yesterday' | '15days' | '30days') => {
@@ -802,7 +767,6 @@ export function AttendanceManagementPage() {
                     <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Clock In</TableHead>
                     <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Clock Out</TableHead>
                     <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Overtime</TableHead>
-                    <TableHead className="w-[60px] py-4 px-6"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -888,33 +852,6 @@ export function AttendanceManagementPage() {
                             </div>
                           )
                         })()}
-                      </TableCell>
-                      <TableCell className="py-4 px-6">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {record.hasAttendance && (
-                              <DropdownMenuItem
-                                onClick={() => handleDeleteRecord(record)}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                disabled={deleteLoading === record.id}
-                              >
-                                {deleteLoading === record.id ? (
-                                  <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    Deleting...
-                                  </>
-                                ) : (
-                                  'Delete Record'
-                                )}
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
