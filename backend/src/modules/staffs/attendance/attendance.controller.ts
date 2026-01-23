@@ -100,7 +100,7 @@ export const getAttendanceRecords = async (req: Request, res: Response) => {
     // Get total count for pagination
     const total = await prisma.attendance.count({ where })
 
-    // Get attendance records with employee details
+    // Get attendance records with employee details and sessions
     const attendances = await prisma.attendance.findMany({
       where,
       include: {
@@ -114,6 +114,9 @@ export const getAttendanceRecords = async (req: Request, res: Response) => {
             isTeamLeader: true,
             role: true
           }
+        },
+        sessions: {
+          orderBy: { clockIn: 'asc' }
         }
       },
       orderBy: [
@@ -155,6 +158,17 @@ export const getAttendanceRecords = async (req: Request, res: Response) => {
       rejectedBy: attendance.rejectedBy,
       rejectedAt: attendance.rejectedAt?.toISOString(),
       approvalReason: attendance.approvalReason,
+      // Add sessions data
+      sessions: attendance.sessions.map(session => ({
+        id: session.id,
+        clockIn: session.clockIn.toISOString(),
+        clockOut: session.clockOut?.toISOString(),
+        photo: session.photo,
+        location: session.location,
+        ipAddress: session.ipAddress,
+        deviceInfo: session.deviceInfo,
+        createdAt: session.createdAt.toISOString()
+      })),
       createdAt: attendance.createdAt.toISOString(),
       updatedAt: attendance.updatedAt.toISOString()
     }))

@@ -41,6 +41,41 @@ interface ExtendedAttendanceRecord extends AttendanceRecord {
   hasAttendance: boolean
 }
 
+interface AttendanceSessionRow {
+  id: string
+  employeeId: string
+  employeeName: string
+  email: string
+  phone?: string
+  teamId?: string
+  isTeamLeader: boolean
+  date: string
+  sessionId?: string
+  sessionNumber?: number
+  clockIn?: string
+  clockOut?: string
+  status: 'PRESENT' | 'ABSENT' | 'LATE' | 'MARKDOWN'
+  source: 'SELF' | 'ADMIN'
+  location?: string
+  latitude?: number
+  longitude?: number
+  ipAddress?: string
+  deviceInfo?: string
+  photo?: string
+  locked: boolean
+  lockedReason?: string
+  attemptCount: 'ZERO' | 'ONE' | 'TWO' | 'THREE'
+  approvalStatus?: string
+  approvedBy?: string
+  approvedAt?: string
+  rejectedBy?: string
+  rejectedAt?: string
+  approvalReason?: string
+  createdAt: string
+  updatedAt: string
+  hasAttendance: boolean
+}
+
 const getStatusIcon = (status: string) => {
   switch (status) {
     case "PRESENT":
@@ -129,7 +164,7 @@ export function AttendanceManagementPage() {
     month: 'long',
     day: 'numeric'
   }))
-  const [combinedData, setCombinedData] = React.useState<ExtendedAttendanceRecord[]>([])
+  const [combinedData, setCombinedData] = React.useState<AttendanceSessionRow[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [pagination, setPagination] = React.useState({
@@ -196,18 +231,87 @@ export function AttendanceManagementPage() {
       if (response.success && response.data) {
         const records = response.data.records
 
-        // Create combined data: all employees with their attendance status
-        const combined = employees.map(employee => {
+        // Create combined data: all employees with their attendance sessions as separate rows
+        const combined: AttendanceSessionRow[] = []
+        
+        employees.forEach(employee => {
           const attendanceRecord = records.find(record => record.employeeId === employee.employeeId)
 
-          if (attendanceRecord) {
-            return {
-              ...attendanceRecord,
+          if (attendanceRecord && attendanceRecord.sessions && attendanceRecord.sessions.length > 0) {
+            // Create a row for each session
+            attendanceRecord.sessions.forEach((session, index) => {
+              combined.push({
+                id: `${attendanceRecord.id}-session-${session.id}`,
+                employeeId: attendanceRecord.employeeId,
+                employeeName: attendanceRecord.employeeName,
+                email: attendanceRecord.email,
+                phone: attendanceRecord.phone,
+                teamId: attendanceRecord.teamId,
+                isTeamLeader: attendanceRecord.isTeamLeader,
+                date: attendanceRecord.date,
+                sessionId: session.id,
+                sessionNumber: index + 1,
+                clockIn: session.clockIn,
+                clockOut: session.clockOut,
+                status: attendanceRecord.status,
+                source: attendanceRecord.source,
+                location: session.location || attendanceRecord.location,
+                latitude: attendanceRecord.latitude,
+                longitude: attendanceRecord.longitude,
+                ipAddress: session.ipAddress || attendanceRecord.ipAddress,
+                deviceInfo: session.deviceInfo || attendanceRecord.deviceInfo,
+                photo: session.photo || attendanceRecord.photo,
+                locked: attendanceRecord.locked,
+                lockedReason: attendanceRecord.lockedReason,
+                attemptCount: attendanceRecord.attemptCount,
+                approvalStatus: attendanceRecord.approvalStatus,
+                approvedBy: attendanceRecord.approvedBy,
+                approvedAt: attendanceRecord.approvedAt,
+                rejectedBy: attendanceRecord.rejectedBy,
+                rejectedAt: attendanceRecord.rejectedAt,
+                approvalReason: attendanceRecord.approvalReason,
+                createdAt: session.createdAt,
+                updatedAt: attendanceRecord.updatedAt,
+                hasAttendance: true
+              })
+            })
+          } else if (attendanceRecord) {
+            // Single row for attendance without sessions (fallback)
+            combined.push({
+              id: attendanceRecord.id,
+              employeeId: attendanceRecord.employeeId,
+              employeeName: attendanceRecord.employeeName,
+              email: attendanceRecord.email,
+              phone: attendanceRecord.phone,
+              teamId: attendanceRecord.teamId,
+              isTeamLeader: attendanceRecord.isTeamLeader,
+              date: attendanceRecord.date,
+              clockIn: attendanceRecord.clockIn,
+              clockOut: attendanceRecord.clockOut,
+              status: attendanceRecord.status,
+              source: attendanceRecord.source,
+              location: attendanceRecord.location,
+              latitude: attendanceRecord.latitude,
+              longitude: attendanceRecord.longitude,
+              ipAddress: attendanceRecord.ipAddress,
+              deviceInfo: attendanceRecord.deviceInfo,
+              photo: attendanceRecord.photo,
+              locked: attendanceRecord.locked,
+              lockedReason: attendanceRecord.lockedReason,
+              attemptCount: attendanceRecord.attemptCount,
+              approvalStatus: attendanceRecord.approvalStatus,
+              approvedBy: attendanceRecord.approvedBy,
+              approvedAt: attendanceRecord.approvedAt,
+              rejectedBy: attendanceRecord.rejectedBy,
+              rejectedAt: attendanceRecord.rejectedAt,
+              approvalReason: attendanceRecord.approvalReason,
+              createdAt: attendanceRecord.createdAt,
+              updatedAt: attendanceRecord.updatedAt,
               hasAttendance: true
-            }
+            })
           } else {
             // Create a placeholder record for employees without attendance
-            return {
+            combined.push({
               id: `placeholder-${employee.id}`,
               employeeId: employee.employeeId,
               employeeName: employee.name,
@@ -230,12 +334,12 @@ export function AttendanceManagementPage() {
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
               hasAttendance: false
-            }
+            })
           }
-        }).filter(Boolean)
+        })
 
         // Apply client-side search filter if needed
-        let filteredCombined = combined.filter((record): record is ExtendedAttendanceRecord => record !== null)
+        let filteredCombined = combined
         if (filters.search) {
           const searchLower = filters.search.toLowerCase()
           filteredCombined = filteredCombined.filter(record =>
@@ -365,27 +469,46 @@ export function AttendanceManagementPage() {
 
   // Calculate statistics
   const stats = React.useMemo(() => {
-    const total = combinedData.length
-    const present = combinedData.filter(r => r.status === 'PRESENT').length
-    const late = combinedData.filter(r => r.status === 'LATE').length
-    const absent = combinedData.filter(r => r.status === 'ABSENT').length
+    // Group sessions by employee to get unique employee counts
+    const employeeGroups = combinedData.reduce((acc, record) => {
+      if (!acc[record.employeeId]) {
+        acc[record.employeeId] = {
+          status: record.status,
+          sessions: []
+        }
+      }
+      if (record.hasAttendance && record.clockIn) {
+        acc[record.employeeId].sessions.push(record)
+      }
+      return acc
+    }, {} as Record<string, { status: string, sessions: AttendanceSessionRow[] }>)
 
-    const totalOvertimeMinutes = combinedData
-      .filter(r => r.clockIn && r.clockOut && r.hasAttendance)
-      .reduce((acc, r) => {
-        const { totalHours } = calculateWorkHours(r.clockIn, r.clockOut)
+    const employees = Object.values(employeeGroups)
+    const total = employees.length
+    const present = employees.filter(e => e.status === 'PRESENT').length
+    const late = employees.filter(e => e.status === 'LATE').length
+    const absent = employees.filter(e => e.status === 'ABSENT').length
+
+    const totalOvertimeMinutes = employees
+      .flatMap(e => e.sessions)
+      .filter(s => s.clockIn && s.clockOut)
+      .reduce((acc, s) => {
+        const { totalHours } = calculateWorkHours(s.clockIn, s.clockOut)
         const overtimeHours = Math.max(0, totalHours - STANDARD_WORK_HOURS)
         return acc + (overtimeHours * 60)
       }, 0)
 
-    const avgHours = combinedData
-      .filter(r => r.clockIn && r.hasAttendance)
-      .reduce((acc, r) => {
-        const clockInTime = new Date(r.clockIn!)
-        const endTime = r.clockOut ? new Date(r.clockOut) : new Date()
+    const totalWorkingHours = employees
+      .flatMap(e => e.sessions)
+      .filter(s => s.clockIn)
+      .reduce((acc, s) => {
+        const clockInTime = new Date(s.clockIn!)
+        const endTime = s.clockOut ? new Date(s.clockOut) : new Date()
         const diffHours = (endTime.getTime() - clockInTime.getTime()) / (1000 * 60 * 60)
         return acc + Math.max(0, diffHours)
-      }, 0) / Math.max(1, combinedData.filter(r => r.clockIn && r.hasAttendance).length)
+      }, 0)
+
+    const avgHours = totalWorkingHours / Math.max(1, employees.filter(e => e.sessions.length > 0).length)
 
     return {
       total,
@@ -719,7 +842,7 @@ export function AttendanceManagementPage() {
 
               <div className="flex items-center justify-between">
                 <Badge variant="outline" className="text-gray-600">
-                  {combinedData.length} field engineers found
+                  {combinedData.length} attendance sessions found
                 </Badge>
               </div>
             </div>
@@ -752,7 +875,7 @@ export function AttendanceManagementPage() {
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
                 <Users className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-600 font-medium">No field engineers found</p>
+                <p className="text-gray-600 font-medium">No attendance sessions found</p>
                 <p className="text-gray-500 text-sm">Try adjusting your filters</p>
               </div>
             </div>
@@ -763,6 +886,7 @@ export function AttendanceManagementPage() {
                   <TableRow className="bg-gray-50/80 border-b border-gray-200">
                     <TableHead className="w-[280px] py-4 px-6 font-semibold text-gray-700">Employee</TableHead>
                     <TableHead className="w-[100px] py-4 px-6 font-semibold text-gray-700">Date</TableHead>
+                    <TableHead className="w-[80px] py-4 px-6 font-semibold text-gray-700">Session</TableHead>
                     <TableHead className="w-[100px] py-4 px-6 font-semibold text-gray-700">Status</TableHead>
                     <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Clock In</TableHead>
                     <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Clock Out</TableHead>
@@ -810,6 +934,15 @@ export function AttendanceManagementPage() {
                             {formatDate(record.date)}
                           </span>
                         </div>
+                      </TableCell>
+                      <TableCell className="py-4 px-6">
+                        {record.sessionNumber ? (
+                          <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50">
+                            #{record.sessionNumber}
+                          </Badge>
+                        ) : (
+                          <span className="text-gray-400 text-sm">-</span>
+                        )}
                       </TableCell>
                       <TableCell className="py-4 px-6">
                         <div className="flex items-center gap-2">
@@ -865,7 +998,7 @@ export function AttendanceManagementPage() {
         {!loading && !error && combinedData.length > 0 && (
           <div className="flex items-center justify-between text-sm text-gray-500 bg-white rounded-lg p-4 border border-gray-200">
             <div>
-              Showing {combinedData.length} of {pagination.total} field engineers
+              Showing {combinedData.length} attendance sessions from {stats.total} field engineers
             </div>
             <div className="flex items-center gap-2">
               <Button

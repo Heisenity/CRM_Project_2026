@@ -48,7 +48,6 @@ export async function dailyClockIn(data: DailyClockInData): Promise<DailyAttenda
     const today = getTodayDate();
     const now = new Date();
 
-    // Find employee
     const employee = await prisma.employee.findUnique({
       where: { employeeId: data.employeeId }
     });
@@ -57,117 +56,150 @@ export async function dailyClockIn(data: DailyClockInData): Promise<DailyAttenda
       return { success: false, message: 'Employee not found' };
     }
 
-    // Allow both field engineers and office employees
     if (employee.role !== 'FIELD_ENGINEER' && employee.role !== 'IN_OFFICE') {
-      return { 
-        success: false, 
-        message: 'Daily clock-in is only available for field engineers and office employees' 
-      };
-    }
-
-    // Check if already clocked in today
-    let attendance = await prisma.attendance.findUnique({
-      where: { employeeId_date: { employeeId: employee.id, date: today } }
-    });
-
-    if (attendance?.clockIn) {
-      return {
-        success: true,
-        message: 'You are already clocked in for today',
-        data: {
-          attendanceId: attendance.id,
-          clockIn: attendance.clockIn.toISOString(),
-          clockOut: attendance.clockOut?.toISOString(),
-          approvalStatus: attendance.approvalStatus,
-          needsApproval: false
-        }
-      };
-    }
-
-    if (attendance?.locked) {
-      return { success: false, message: 'Attendance is locked and cannot be modified' };
+      return { success: false, message: 'Clock-in not allowed for this role' };
     }
 
     const deviceInfo = getDeviceInfo(data.userAgent);
     const deviceString = `${deviceInfo.os} - ${deviceInfo.browser} - ${deviceInfo.device}`;
-    const locationText = data.locationText || 'Field Location';
 
-    if (attendance) {
-      // Update existing attendance record
-      attendance = await prisma.attendance.update({
-        where: { id: attendance.id },
-        data: {
-          pendingCheckInAt: now,
-          approvalStatus: 'PENDING',
-          location: locationText,
-          ipAddress: data.ipAddress,
-          deviceInfo: deviceString,
-          photo: data.photo,
-          source: 'SELF',
-          updatedAt: now
+    // 1️⃣ Check if attendance already exists for today
+    let attendance = await prisma.attendance.findUnique({
+      where: {
+        employeeId_date: {
+          employeeId: employee.id,
+          date: today
         }
-      });
-    } else {
-      // Create new attendance record
+      }
+    });
+
+    let isNewAttendance = false;
+
+    // Create attendance if it doesn't exist
+    if (!attendance) {
       attendance = await prisma.attendance.create({
         data: {
           employeeId: employee.id,
           date: today,
-          clockIn: null, // Will be set after admin approval
-          clockOut: null,
-          pendingCheckInAt: now,
-          approvalStatus: 'PENDING',
           status: 'PRESENT',
-          location: locationText,
+          approvalStatus: 'PENDING',
+          location: data.locationText || 'Field Location',
           ipAddress: data.ipAddress,
           deviceInfo: deviceString,
-          photo: data.photo,
-          source: 'SELF',
-          attemptCount: 'ZERO',
-          locked: false
+          source: 'SELF'
         }
       });
+      isNewAttendance = true;
+      console.log('Created new attendance record:', attendance.id, 'for employee:', employee.employeeId);
     }
 
-    // Notify admin for approval
-    try {
-      const notificationService = new NotificationService();
-      await notificationService.createAdminNotification({
-        type: 'ATTENDANCE_APPROVAL_REQUEST',
-        title: 'Field Engineer Clock-In Approval Required',
-        message: `${employee.name} (${employee.employeeId}) has clocked in and requires approval.`,
-        data: {
-          attendanceId: attendance.id,
-          employeeId: data.employeeId,
-          employeeName: employee.name,
-          employeeRole: employee.role,
-          checkInTime: now.toISOString(),
-          location: locationText,
-          status: 'PRESENT',
-          photo: data.photo
+    if (attendance.locked) {
+      return { success: false, message: 'Attendance is locked and cannot be modified' };
+    }
+
+    // 2️⃣ Check for OPEN session
+    const openSession = await prisma.attendanceSession.findFirst({
+      where: {
+        attendanceId: attendance.id,
+        clockOut: null
+      }
+    });
+
+    if (openSession) {
+      return {
+        success: false,
+        message: 'You are already clocked in'
+      };
+    }
+
+    // 3️⃣ Handle first clock-in vs subsequent clock-ins differently
+    if (!attendance.clockIn && attendance.approvalStatus === 'PENDING') {
+      // FIRST CLOCK-IN OF THE DAY - Store pending, don't create session yet
+      await prisma.attendance.update({
+        where: { id: attendance.id },
+        data: { 
+          pendingCheckInAt: now,  // Store for admin approval
+          photo: data.photo,
+          location: data.locationText || attendance.location,
+          ipAddress: data.ipAddress,
+          deviceInfo: deviceString,
+          updatedAt: now
         }
       });
-    } catch (notificationError) {
-      console.error('Failed to send notification:', notificationError);
-      // Don't fail the clock-in if notification fails
+      console.log('Stored pending first clock-in for admin approval for employee:', employee.employeeId);
+    } else if (attendance.clockIn && attendance.approvalStatus === 'APPROVED') {
+      // SUBSEQUENT CLOCK-IN - Day already approved, create session immediately
+      await prisma.attendanceSession.create({
+        data: {
+          attendanceId: attendance.id,
+          clockIn: now,
+          photo: data.photo,
+          location: data.locationText,
+          ipAddress: data.ipAddress,
+          deviceInfo: deviceString
+        }
+      });
+      console.log('Created new session for already approved attendance for employee:', employee.employeeId);
+    } else {
+      // Edge case: attendance exists but not approved yet
+      return {
+        success: false,
+        message: 'Please wait for admin approval of your first clock-in before clocking in again.'
+      };
+    }
+
+    // 🔔 Notify admin for approval (only for new attendance records)
+    if (isNewAttendance && attendance.approvalStatus === 'PENDING') {
+      try {
+        console.log('Sending admin notification for new attendance:', attendance.id);
+        const notificationService = new NotificationService();
+        const notificationResult = await notificationService.createAdminNotification({
+          type: 'ATTENDANCE_APPROVAL_REQUEST',
+          title: 'Attendance Approval Required',
+          message: `${employee.name} (${employee.employeeId}) has clocked in and requires approval.`,
+          data: {
+            attendanceId: attendance.id,
+            employeeId: employee.employeeId,
+            employeeName: employee.name,
+            employeeRole: employee.role,
+            checkInTime: now.toISOString(), // Use checkInTime (not clockInTime) to match frontend
+            pendingCheckInAt: now.toISOString(),
+            location: data.locationText || 'Field Location',
+            photo: data.photo, // Include the clock-in photo
+            ipAddress: data.ipAddress,
+            deviceInfo: deviceString,
+            timestamp: now.toISOString(),
+            status: 'PRESENT'
+          }
+        });
+        
+        if (notificationResult.success) {
+          console.log('Admin notification created successfully for attendance:', attendance.id);
+        } else {
+          console.error('Failed to create admin notification:', notificationResult.error);
+        }
+      } catch (err) {
+        console.error('Admin notification error:', err);
+      }
+    } else {
+      console.log('Skipping notification - isNewAttendance:', isNewAttendance, 'approvalStatus:', attendance.approvalStatus);
     }
 
     return {
       success: true,
-      message: 'Clock-in submitted successfully. Waiting for admin approval.',
+      message: 'Clock-in successful',
       data: {
         attendanceId: attendance.id,
-        approvalStatus: 'PENDING',
-        needsApproval: true
+        approvalStatus: attendance.approvalStatus,
+        needsApproval: attendance.approvalStatus === 'PENDING'
       }
     };
 
+
+
   } catch (error) {
     console.error('Daily clock-in error:', error);
-    return { 
-      success: false, 
-      message: 'Failed to clock in. Please try again.' 
-    };
+    return { success: false, message: 'Failed to clock in. Please try again.' };
   }
 }
 
@@ -183,7 +215,6 @@ export async function dailyClockOut(employeeId: string): Promise<DailyAttendance
     const today = getTodayDate();
     const now = new Date();
 
-    // Find employee
     const employee = await prisma.employee.findUnique({
       where: { employeeId }
     });
@@ -192,122 +223,101 @@ export async function dailyClockOut(employeeId: string): Promise<DailyAttendance
       return { success: false, message: 'Employee not found' };
     }
 
-    // Allow both field engineers and office employees
     if (employee.role !== 'FIELD_ENGINEER' && employee.role !== 'IN_OFFICE') {
-      return { 
-        success: false, 
-        message: 'Daily clock-out is only available for field engineers and office employees' 
-      };
+      return { success: false, message: 'Clock-out not allowed for this role' };
     }
 
-    // Get today's attendance
     const attendance = await prisma.attendance.findUnique({
-      where: { employeeId_date: { employeeId: employee.id, date: today } }
+      where: {
+        employeeId_date: {
+          employeeId: employee.id,
+          date: today
+        }
+      }
     });
 
     if (!attendance) {
       return { success: false, message: 'No attendance record found for today' };
     }
 
-    if (!attendance.clockIn) {
-      return { 
-        success: false, 
-        message: 'You need to clock in first (and get approval) before clocking out' 
-      };
+    if (attendance.locked) {
+      return { success: false, message: 'Attendance is locked and cannot be modified' };
     }
 
-    if (attendance.clockOut) {
-      return {
-        success: true,
-        message: 'You have already clocked out for today',
-        data: {
-          attendanceId: attendance.id,
-          clockIn: attendance.clockIn.toISOString(),
-          clockOut: attendance.clockOut.toISOString(),
-          approvalStatus: attendance.approvalStatus,
-          needsApproval: false
-        }
-      };
+    // 🔑 Find OPEN session
+    const openSession = await prisma.attendanceSession.findFirst({
+      where: {
+        attendanceId: attendance.id,
+        clockOut: null
+      },
+      orderBy: { clockIn: 'desc' }
+    });
+
+    if (!openSession) {
+      return { success: false, message: 'No active clock-in session found' };
     }
 
-    // Set clock-out time
-    const updatedAttendance = await prisma.attendance.update({
+    // 🔒 Close session and update main attendance record
+    await prisma.attendanceSession.update({
+      where: { id: openSession.id },
+      data: { clockOut: now }
+    });
+
+    // Update the main attendance record with the final clock-out time
+    await prisma.attendance.update({
       where: { id: attendance.id },
-      data: {
+      data: { 
         clockOut: now,
         updatedAt: now
       }
     });
 
-    // Auto-unassign vehicle
+    console.log('Clock-out completed for employee:', employeeId, 'at:', now.toISOString());
+
+    // 🚗 Auto-unassign vehicle (unchanged)
     try {
       const vehicleService = new VehicleService();
       const vehicleResult = await vehicleService.getEmployeeVehicle(employeeId);
 
       if (vehicleResult.success && vehicleResult.data) {
         const vehicle = vehicleResult.data;
-        const unassignResult = await vehicleService.unassignVehicle(vehicle.id);
-
-        if (unassignResult.success) {
-          // Notify admin about vehicle unassignment
-          const notificationService = new NotificationService();
-          await notificationService.createAdminNotification({
-            type: 'VEHICLE_UNASSIGNED',
-            title: 'Vehicle Auto-Unassigned',
-            message: `Vehicle ${vehicle.vehicleNumber} has been automatically unassigned from ${employee.name} after daily clock-out.`,
-            data: {
-              vehicleId: vehicle.id,
-              vehicleNumber: vehicle.vehicleNumber,
-              employeeId: employeeId,
-              employeeName: employee.name,
-              clockOutTime: now.toISOString()
-            }
-          });
-        }
+        await vehicleService.unassignVehicle(vehicle.id);
       }
-    } catch (vehicleError) {
-      console.error('Vehicle unassignment error:', vehicleError);
-      // Don't fail clock-out if vehicle unassignment fails
+    } catch (err) {
+      console.error('Vehicle unassign error:', err);
     }
 
-    // Notify admin about clock-out
+    // 🔔 Notify admin
     try {
       const notificationService = new NotificationService();
       await notificationService.createAdminNotification({
         type: 'ATTENDANCE_ALERT',
-        title: 'Field Engineer Clocked Out',
-        message: `${employee.name} (${employee.employeeId}) has clocked out for the day.`,
+        title: 'Employee Clocked Out',
+        message: `${employee.name} (${employee.employeeId}) has clocked out.`,
         data: {
-          attendanceId: updatedAttendance.id,
-          employeeId: employeeId,
+          attendanceId: attendance.id,
+          employeeId,
           employeeName: employee.name,
-          clockOutTime: now.toISOString(),
-          totalHours: calculateWorkHours(attendance.clockIn, now)
+          clockOutTime: now.toISOString()
         }
       });
-    } catch (notificationError) {
-      console.error('Failed to send clock-out notification:', notificationError);
-      // Don't fail the clock-out if notification fails
+    } catch (err) {
+      console.error('Clock-out notification error:', err);
     }
 
     return {
       success: true,
-      message: 'Successfully clocked out for the day',
+      message: 'Clock-out successful',
       data: {
-        attendanceId: updatedAttendance.id,
-        clockIn: updatedAttendance.clockIn!.toISOString(),
-        clockOut: updatedAttendance.clockOut!.toISOString(),
-        approvalStatus: updatedAttendance.approvalStatus,
+        attendanceId: attendance.id,
+        approvalStatus: attendance.approvalStatus,
         needsApproval: false
       }
     };
 
   } catch (error) {
     console.error('Daily clock-out error:', error);
-    return { 
-      success: false, 
-      message: 'Failed to clock out. Please try again.' 
-    };
+    return { success: false, message: 'Failed to clock out. Please try again.' };
   }
 }
 
@@ -317,7 +327,7 @@ export async function dailyClockOut(employeeId: string): Promise<DailyAttendance
 export async function getDailyAttendanceStatus(employeeId: string) {
   try {
     const today = getTodayDate();
-    
+
     const employee = await prisma.employee.findUnique({
       where: { employeeId }
     });
@@ -327,25 +337,69 @@ export async function getDailyAttendanceStatus(employeeId: string) {
     }
 
     const attendance = await prisma.attendance.findUnique({
-      where: { employeeId_date: { employeeId: employee.id, date: today } }
+      where: {
+        employeeId_date: {
+          employeeId: employee.id,
+          date: today
+        }
+      },
+      include: {
+        sessions: {
+          orderBy: { clockIn: 'asc' }
+        }
+      }
     });
+
+    if (!attendance) {
+      return {
+        success: true,
+        data: {
+          hasAttendance: false,
+          clockIn: null,
+          clockOut: null,
+          isClockedIn: false,
+          canClockOut: false,
+          workHours: null,
+          approvalStatus: 'NOT_REQUIRED',
+          needsApproval: false,
+          isPendingApproval: false,
+          approvalReason: null,
+          rejectedBy: null,
+          rejectedAt: null
+        }
+      };
+    }
+
+    const openSession = attendance.sessions.find(s => s.clockOut === null);
+    const latestSession = attendance.sessions[attendance.sessions.length - 1];
+
+    const totalMs = attendance.sessions.reduce((sum, session) => {
+      if (!session.clockOut) return sum;
+      return sum + (session.clockOut.getTime() - session.clockIn.getTime());
+    }, 0);
+
+    const workHours =
+      totalMs > 0
+        ? formatDuration(totalMs)
+        : null;
 
     return {
       success: true,
       data: {
-        hasAttendance: !!attendance,
-        clockIn: attendance?.clockIn?.toISOString() || null,
-        clockOut: attendance?.clockOut?.toISOString() || null,
-        approvalStatus: attendance?.approvalStatus || 'NOT_REQUIRED',
-        needsApproval: attendance?.approvalStatus === 'PENDING',
-        isPendingApproval: attendance?.approvalStatus === 'PENDING' && !attendance?.clockIn,
-        canClockOut: !!attendance?.clockIn && !attendance?.clockOut,
-        workHours: attendance?.clockIn && attendance?.clockOut 
-          ? calculateWorkHours(attendance.clockIn, attendance.clockOut)
-          : null,
-        approvalReason: attendance?.approvalReason || null,
-        rejectedBy: attendance?.rejectedBy || null,
-        rejectedAt: attendance?.rejectedAt?.toISOString() || null
+        hasAttendance: true,
+        clockIn: attendance.clockIn?.toISOString() || null,  // Only show clockIn if approved
+        clockOut: attendance.clockOut?.toISOString() || null,
+        isClockedIn: !!openSession,
+        canClockOut: !!openSession,  // Can clock out if there's an open session (regardless of approval status for subsequent sessions)
+        workHours,
+        approvalStatus: attendance.approvalStatus,
+        needsApproval: attendance.approvalStatus === 'PENDING',
+        isPendingApproval: attendance.approvalStatus === 'PENDING',
+        approvalReason: attendance.approvalReason || null,
+        rejectedBy: attendance.rejectedBy || null,
+        rejectedAt: attendance.rejectedAt?.toISOString() || null,
+        pendingCheckInAt: attendance.pendingCheckInAt?.toISOString() || null,  // Show pending time for reference
+        hasOpenSession: !!openSession  // Add this to help frontend logic
       }
     };
 
@@ -355,14 +409,58 @@ export async function getDailyAttendanceStatus(employeeId: string) {
   }
 }
 
+export async function approveDailyAttendance(attendanceId: string, adminId: string) {
+  const attendance = await prisma.attendance.findUnique({
+    where: { id: attendanceId },
+    include: { sessions: true }
+  });
+
+  if (!attendance) {
+    throw new Error('Attendance not found');
+  }
+
+  if (attendance.approvalStatus !== 'PENDING') {
+    throw new Error('Attendance is not pending');
+  }
+
+  // Use pendingCheckInAt as the official clock-in time, fallback to now
+  const clockInTime = attendance.pendingCheckInAt || new Date();
+
+  // Create the FIRST attendance session now that it's approved
+  // (subsequent sessions will be created directly by dailyClockIn)
+  await prisma.attendanceSession.create({
+    data: {
+      attendanceId: attendance.id,
+      clockIn: clockInTime,
+      photo: attendance.photo,
+      location: attendance.location,
+      ipAddress: attendance.ipAddress,
+      deviceInfo: attendance.deviceInfo
+    }
+  });
+
+  await prisma.attendance.update({
+    where: { id: attendanceId },
+    data: {
+      approvalStatus: 'APPROVED',
+      approvedBy: adminId,
+      approvedAt: new Date(),
+      clockIn: clockInTime,  // NOW set the official clock-in time
+      pendingCheckInAt: null  // Clear the pending timestamp
+    }
+  });
+
+  console.log('Attendance approved, clockIn set, and FIRST session created for attendance:', attendanceId);
+}
+
+
 /**
  * Helper function to calculate work hours
  */
-function calculateWorkHours(clockIn: Date, clockOut: Date): string {
-  const diffMs = clockOut.getTime() - clockIn.getTime();
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-  
-  return `${diffHours}h ${diffMinutes}m`;
+function formatDuration(ms: number): string {
+  const hours = Math.floor(ms / (1000 * 60 * 60));
+  const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+  return `${hours}h ${minutes}m`;
 }
+
 

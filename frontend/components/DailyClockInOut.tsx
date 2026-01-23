@@ -8,7 +8,7 @@ import { showToast } from "@/lib/toast-utils"
 import { playNotificationSound } from "@/lib/notification-sound"
 import { Camera, Clock, CheckCircle, XCircle, AlertTriangle } from "lucide-react"
 import { useEffect, useRef, useState, useCallback } from "react"
-import { dailyClockIn, dailyClockOut, getDailyAttendanceStatus } from "@/lib/server-api"
+import { dailyClockIn, dailyClockOut, getDailyAttendanceStatus, ApprovalStatus, DailyAttendanceStatusResponse } from "@/lib/server-api"
 
 /**
  * =============================================================================
@@ -25,21 +25,14 @@ import { dailyClockIn, dailyClockOut, getDailyAttendanceStatus } from "@/lib/ser
 interface DailyClockInOutProps {
   employeeId: string
   employeeRole: 'FIELD_ENGINEER' | 'IN_OFFICE' | null
-  onAttendanceStatusChange?: (status: DailyAttendanceStatus) => void
+  onAttendanceStatusChange?: (status: NonNullable<DailyAttendanceStatusResponse['data']>) => void
 }
 
-interface DailyAttendanceStatus {
-  hasAttendance: boolean
-  clockIn: string | null
-  clockOut: string | null
-  approvalStatus: 'NOT_REQUIRED' | 'PENDING' | 'APPROVED' | 'REJECTED'
-  needsApproval: boolean
-  isPendingApproval: boolean
-  canClockOut: boolean
-  workHours: string | null
-  approvalReason: string | null
-  rejectedBy: string | null
-  rejectedAt: string | null
+type DailyAttendanceStatus = NonNullable<DailyAttendanceStatusResponse['data']>
+
+// Type guard to check if approval status is rejected
+const isRejectedStatus = (status: string | undefined): status is 'REJECTED' => {
+  return status === 'REJECTED'
 }
 
 export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusChange }: DailyClockInOutProps) {
@@ -50,7 +43,7 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
   const [videoReady, setVideoReady] = useState(false)
   const [attendanceStatus, setAttendanceStatus] = useState<DailyAttendanceStatus | null>(null)
   const [currentTime, setCurrentTime] = useState(new Date())
-  
+
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
 
@@ -61,6 +54,32 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
     }, 1000)
     return () => clearInterval(timer)
   }, [])
+
+  // Cleanup camera stream on unmount
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop())
+      }
+    }
+  }, [])
+
+  // Force video refresh when camera becomes active
+  useEffect(() => {
+    if (cameraActive && videoRef.current && streamRef.current) {
+      const video = videoRef.current;
+      console.log('Forcing video refresh...');
+
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        if (video.srcObject !== streamRef.current) {
+          video.srcObject = streamRef.current;
+          video.load();
+          video.play().catch(console.error);
+        }
+      }, 100);
+    }
+  }, [cameraActive])
 
   // Fetch daily attendance status
   const fetchAttendanceStatus = useCallback(async () => {
@@ -103,32 +122,6 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
     return null
   }
 
-  // Cleanup camera stream on unmount
-  useEffect(() => {
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop())
-      }
-    }
-  }, [])
-
-  // Force video refresh when camera becomes active
-  useEffect(() => {
-    if (cameraActive && videoRef.current && streamRef.current) {
-      const video = videoRef.current;
-      console.log('Forcing video refresh...');
-      
-      // Small delay to ensure DOM is ready
-      setTimeout(() => {
-        if (video.srcObject !== streamRef.current) {
-          video.srcObject = streamRef.current;
-          video.load();
-          video.play().catch(console.error);
-        }
-      }, 100);
-    }
-  }, [cameraActive])
-
   const startCamera = async () => {
     try {
       setCameraLoading(true)
@@ -146,29 +139,29 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
 
       console.log('Camera stream obtained:', stream)
       streamRef.current = stream
-      
+
       if (videoRef.current) {
         const video = videoRef.current;
         video.srcObject = stream;
-        
+
         // Force video to load
         video.load();
-        
+
         console.log('Video element setup:', {
           srcObject: !!video.srcObject,
           readyState: video.readyState,
           videoWidth: video.videoWidth,
           videoHeight: video.videoHeight
         });
-        
+
         // Wait for video to be ready
         await new Promise((resolve, reject) => {
           if (videoRef.current) {
             const video = videoRef.current;
-            
+
             video.onloadedmetadata = () => {
               console.log('Video metadata loaded, dimensions:', video.videoWidth, 'x', video.videoHeight);
-              
+
               video.play().then(() => {
                 console.log('Video playing successfully');
                 resolve(true);
@@ -177,12 +170,12 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
                 reject(playError);
               });
             };
-            
+
             video.onerror = (error) => {
               console.error('Video error:', error);
               reject(error);
             };
-            
+
             // Fallback timeout
             setTimeout(() => {
               if (video.readyState >= 2) { // HAVE_CURRENT_DATA
@@ -263,7 +256,7 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
     setIsLoading(true)
     try {
       const photo = capturePhoto()
-      
+
       const result = await dailyClockIn({
         employeeId: employeeId.trim(),
         photo: photo || undefined,
@@ -315,21 +308,6 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
     }
   }
 
-  const getNextClockInTime = () => {
-    const tomorrow = new Date()
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    tomorrow.setHours(9, 0, 0, 0) // Set to 9:00 AM next day
-    
-    return tomorrow.toLocaleString('en-US', {
-      weekday: 'long',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    })
-  }
-
   const formatTime = (timeString: string | null) => {
     if (!timeString) return 'Not set'
     return new Date(timeString).toLocaleTimeString('en-US', {
@@ -342,7 +320,7 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
   const getStatusBadge = () => {
     if (!attendanceStatus) return null
 
-    if (attendanceStatus?.approvalStatus === 'REJECTED') {
+    if (isRejectedStatus(attendanceStatus?.approvalStatus)) {
       return (
         <Badge variant="destructive">
           <XCircle className="h-4 w-4 mr-1" />
@@ -361,6 +339,15 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
     }
 
     if (attendanceStatus.clockIn && !attendanceStatus.clockOut) {
+      return (
+        <Badge variant="default">
+          <CheckCircle className="h-4 w-4 mr-1" />
+          Clocked In
+        </Badge>
+      )
+    }
+
+    if (attendanceStatus.hasOpenSession && !attendanceStatus.clockOut) {
       return (
         <Badge variant="default">
           <CheckCircle className="h-4 w-4 mr-1" />
@@ -430,19 +417,19 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
                 Your clock-in is pending admin approval. Please wait for confirmation before starting tasks.
               </AlertDescription>
             </Alert>
-          ) : attendanceStatus?.approvalStatus === 'REJECTED' ? (
+          ) : isRejectedStatus(attendanceStatus?.approvalStatus) ? (
             <Alert variant="destructive">
               <XCircle className="h-4 w-4" />
               <AlertDescription>
                 <div className="space-y-2">
                   <p className="font-medium">Your clock-in request has been rejected.</p>
-                  {attendanceStatus.approvalReason && (
+                  {attendanceStatus?.approvalReason && (
                     <div className="bg-red-50 border border-red-200 rounded p-3 mt-2">
                       <p className="text-sm font-medium text-red-800 mb-1">Rejection Reason:</p>
                       <p className="text-sm text-red-700">{attendanceStatus.approvalReason}</p>
                     </div>
                   )}
-                  {attendanceStatus.rejectedAt && (
+                  {attendanceStatus?.rejectedAt && (
                     <p className="text-xs text-red-600 mt-1">
                       Rejected on: {new Date(attendanceStatus.rejectedAt).toLocaleString()}
                     </p>
@@ -450,19 +437,26 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
                 </div>
               </AlertDescription>
             </Alert>
-          ) : attendanceStatus?.clockIn ? (
+          ) : (attendanceStatus?.clockIn && !attendanceStatus?.clockOut) || attendanceStatus?.hasOpenSession ? (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="font-medium">Clocked In:</span>
-                  <p className="text-muted-foreground">{formatTime(attendanceStatus.clockIn)}</p>
+                  <p className="text-muted-foreground">
+                    {attendanceStatus.clockIn 
+                      ? formatTime(attendanceStatus.clockIn)
+                      : attendanceStatus.pendingCheckInAt 
+                        ? `${formatTime(attendanceStatus.pendingCheckInAt)} (Pending)`
+                        : 'Not set'
+                    }
+                  </p>
                 </div>
                 <div>
                   <span className="font-medium">Clocked Out:</span>
                   <p className="text-muted-foreground">{formatTime(attendanceStatus.clockOut)}</p>
                 </div>
               </div>
-              
+
               {attendanceStatus.workHours && (
                 <div className="text-sm">
                   <span className="font-medium">Total Hours:</span>
@@ -471,7 +465,7 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
               )}
 
               {attendanceStatus.canClockOut && (
-                <Button 
+                <Button
                   onClick={handleClockOut}
                   disabled={isLoading}
                   className="w-full"
@@ -482,17 +476,6 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
                 </Button>
               )}
 
-              {/* Show next clock-in time when clocked out */}
-              {attendanceStatus.clockOut && (
-                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <div className="flex items-center gap-2 text-red-700">
-                    <Clock className="h-4 w-4" />
-                    <span className="font-medium text-sm">
-                      Next clock-in available: {getNextClockInTime()}
-                    </span>
-                  </div>
-                </div>
-              )}
             </div>
           ) : (
             <div className="space-y-4">
@@ -568,15 +551,20 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
                 )}
               </div>
 
-              <Button 
+              <Button
                 onClick={handleClockIn}
-                disabled={isLoading || !cameraActive}
+                disabled={
+                  isLoading ||
+                  !cameraActive ||
+                  isRejectedStatus(attendanceStatus?.approvalStatus) ||
+                  attendanceStatus?.isPendingApproval
+                }
                 className="w-full"
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
-                {isLoading ? 'Clocking In...' : 
-                 (attendanceStatus?.approvalStatus as string) === 'REJECTED' ? 'Resubmit Clock In' : 'Clock In for Day'}
+                {isLoading ? 'Clocking In...' : 'Clock In'}
               </Button>
+
 
               {!cameraActive && !cameraError && (
                 <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">

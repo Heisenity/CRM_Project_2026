@@ -127,7 +127,8 @@ export async function fieldEngineerCheckIn(data: {
         employeeRole: employee.role,
         checkInTime: now.toISOString(),
         location: locationText,
-        photo: attendance.photo
+        photo: attendance.photo,
+        status: 'PRESENT'
       }
     })
   } catch (error) {
@@ -267,6 +268,19 @@ export async function approveAttendance(
     // INVARIANT: Use pendingCheckInAt as clockIn, fallback to now
     const clockInTime = attendance.pendingCheckInAt || new Date()
     const now = new Date()
+
+    // Create the FIRST attendance session now that it's approved
+    // (subsequent sessions will be created directly by dailyClockIn)
+    await prisma.attendanceSession.create({
+      data: {
+        attendanceId: attendance.id,
+        clockIn: clockInTime,
+        photo: attendance.photo,
+        location: attendance.location,
+        ipAddress: attendance.ipAddress,
+        deviceInfo: attendance.deviceInfo
+      }
+    });
 
     // Prepare update data
     const updateData: any = {

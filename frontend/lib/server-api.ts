@@ -150,6 +150,23 @@ export async function getDeviceInfo(): Promise<DeviceInfo> {
     }
 }
 
+export type ApprovalStatus =
+  | 'NOT_REQUIRED'
+  | 'PENDING'
+  | 'APPROVED'
+  | 'REJECTED'
+
+export type AttendanceSession = {
+    id: string
+    clockIn: string
+    clockOut?: string
+    photo?: string
+    location?: string
+    ipAddress?: string
+    deviceInfo?: string
+    createdAt: string
+}
+
 export type AttendanceRecord = {
     id: string
     employeeId: string
@@ -172,12 +189,13 @@ export type AttendanceRecord = {
     locked: boolean
     lockedReason?: string
     attemptCount: 'ZERO' | 'ONE' | 'TWO' | 'THREE'
-    approvalStatus?: 'NOT_REQUIRED' | 'PENDING' | 'APPROVED' | 'REJECTED'
+    approvalStatus?: ApprovalStatus
     approvedBy?: string
     approvedAt?: string
     rejectedBy?: string
     rejectedAt?: string
     approvalReason?: string
+    sessions?: AttendanceSession[]
     createdAt: string
     updatedAt: string
     workedHours?: string
@@ -2187,6 +2205,8 @@ export type DailyAttendanceStatusResponse = {
     approvalReason: string | null
     rejectedBy: string | null
     rejectedAt: string | null
+    hasOpenSession?: boolean
+    pendingCheckInAt?: string | null
   }
 }
 

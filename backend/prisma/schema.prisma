@@ -108,6 +108,8 @@ model Attendance {
   employeeId       String
   pendingCheckInAt DateTime?
   employee         Employee                 @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  sessions AttendanceSession[]
 
   @@unique([employeeId, date])
   @@index([date])
@@ -115,6 +117,25 @@ model Attendance {
   @@index([approvalStatus])
   @@map("attendances")
 }
+
+model AttendanceSession {
+  id            String    @id @default(cuid())
+  attendanceId  String
+  clockIn       DateTime
+  clockOut      DateTime?
+  photo         String?
+  location      String?
+  ipAddress     String?
+  deviceInfo    String?
+  createdAt     DateTime  @default(now())
+
+  attendance Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+
+  @@index([attendanceId])
+  @@index([clockIn])
+  @@map("attendance_sessions")
+}
+
 
 model AttendanceOverride {
   id         String           @id @default(cuid())
