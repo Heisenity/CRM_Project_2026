@@ -17,7 +17,6 @@ import {
   User,
   Eye,
   EyeOff,
-  ArrowRight,
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
@@ -241,35 +240,7 @@ function StaffLoginCard() {
   )
 }
 
-// Admin Access Link Component
-function AdminAccessLink() {
-  return (
-    <Card className="group p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl border-2 border-blue-200 transition-all duration-300 hover:shadow-xl hover:from-blue-100 hover:to-blue-150">
-      <CardHeader className="text-center pb-4">
-        <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shadow-lg">
-          <ShieldCheck className="h-8 w-8 text-white" />
-        </div>
-        <CardTitle className="text-2xl font-bold text-gray-900">Admin Portal</CardTitle>
-        <CardDescription className="text-gray-600 text-sm">
-          System administrator access
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-700">
-            <strong>Note:</strong> Dedicated admin login page with enhanced security.
-          </p>
-        </div>
-        <Link href="/admin-login">
-          <Button className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl py-3 shadow-lg group">
-            <span>Go to Admin Login</span>
-            <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
-          </Button>
-        </Link>
-      </CardContent>
-    </Card>
-  )
-}
+
 
 export default function LandingPage({ onGetStarted, isLoggedIn = false, userProfile }: LandingPageProps) {
   return (
@@ -309,15 +280,12 @@ export default function LandingPage({ onGetStarted, isLoggedIn = false, userProf
             </div>
             
             {!isLoggedIn && (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
                 {/* Customer Login */}
                 <CustomerLoginCard />
 
                 {/* Staff Login */}
                 <StaffLoginCard />
-
-                {/* Admin Access Link */}
-                <AdminAccessLink />
               </div>
             )}
 
@@ -399,6 +367,12 @@ export default function LandingPage({ onGetStarted, isLoggedIn = false, userProf
             <div className="text-center md:text-right">
               <p>&copy; 2026 MediaInfoTech.</p>
               <p className="text-sm mt-1">powered by insightsnode</p>
+              <Link 
+                href="/admin-login" 
+                className="text-xs text-gray-500 hover:text-gray-300 transition-colors mt-2 inline-block"
+              >
+                Admin Access
+              </Link>
             </div>
           </div>
         </div>

@@ -70,6 +70,7 @@ export const config = {
     "/attendance/:path*",
     "/stock/:path*",
     "/tickets/:path*",
+    "/customers/:path*",
     "/staff-portal/:path*"
   ]
 }

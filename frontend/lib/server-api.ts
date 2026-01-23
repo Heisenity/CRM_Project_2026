@@ -221,6 +221,21 @@ export type CreateTaskResponse = {
     error?: string
 }
 
+export type UpdateTaskRequest = {
+    title?: string;
+    description?: string;
+    category?: string;
+    location?: string;
+    relatedTicketId?: string;
+}
+
+export type UpdateTaskResponse = {
+    success: boolean;
+    message: string;
+    data?: AssignedTask;
+    error?: string;
+}
+
 export type GetAttendanceResponse = {
     success: boolean
     data?: {
@@ -779,6 +794,30 @@ export async function assignTask(task: CreateTaskRequest): Promise<CreateTaskRes
     return response
   } catch (error) {
     console.error('assignTask error:', error)
+    throw error
+  }
+}
+
+export async function updateTask(taskId: string, updates: UpdateTaskRequest): Promise<UpdateTaskResponse> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/tasks/${taskId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updates),
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+
+    if (!res.ok) {
+      throw new Error(response.error || `Failed to update task: ${res.status}`)
+    }
+
+    return response
+  } catch (error) {
+    console.error('updateTask error:', error)
     throw error
   }
 }

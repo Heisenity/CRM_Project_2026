@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { assignTask, getTasksForEmployee, updateTask, getTasks, resetEmployeeAttendanceAttempts } from './task.controller';
+import { assignTask, getTasksForEmployee, updateTask, editTask, getTasks, resetEmployeeAttendanceAttempts } from './task.controller';
 import { exportTasksToExcel } from './task.export';
 import taskAttendanceRoutes from './task-attendance.route';
 
@@ -28,6 +28,11 @@ router.get('/employee/:employeeId', (req: Request, res: Response) => {
 // Update task status
 router.put('/:taskId', (req: Request, res: Response) => {
   return updateTask(req, res);
+});
+
+// Edit task details
+router.patch('/:taskId', (req: Request, res: Response) => {
+  return editTask(req, res);
 });
 
 // Reset attendance attempts for an employee

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { createTask, getEmployeeTasks, updateTaskStatus, getAllTasks, CreateTaskData, TaskStatus, resetAttendanceAttempts } from './task.service';
+import { createTask, getEmployeeTasks, updateTaskStatus, updateTaskDetails, getAllTasks, CreateTaskData, UpdateTaskData, TaskStatus, resetAttendanceAttempts } from './task.service';
 import { createTeamTask } from '../teams/team.service';
 
 // Assign a new task to an employee or team
@@ -154,6 +154,50 @@ export const updateTask = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to update task'
+    });
+  }
+};
+
+// Edit task details
+export const editTask = async (req: Request, res: Response) => {
+  try {
+    const { taskId } = req.params;
+    const { title, description, category, location, relatedTicketId } = req.body;
+
+    if (!taskId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Task ID is required'
+      });
+    }
+
+    // Validate that at least one field is provided
+    if (!title && !description && !category && !location && !relatedTicketId) {
+      return res.status(400).json({
+        success: false,
+        error: 'At least one field must be provided for update'
+      });
+    }
+
+    const updateData: UpdateTaskData = {};
+    if (title !== undefined) updateData.title = title;
+    if (description !== undefined) updateData.description = description;
+    if (category !== undefined) updateData.category = category;
+    if (location !== undefined) updateData.location = location;
+    if (relatedTicketId !== undefined) updateData.relatedTicketId = relatedTicketId;
+
+    const task = await updateTaskDetails(taskId, updateData);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Task details updated successfully',
+      data: task
+    });
+  } catch (error) {
+    console.error('Error editing task:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to edit task'
     });
   }
 };

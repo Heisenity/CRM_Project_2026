@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { 
+import {
   ArrowLeft,
   UserPlus,
   AlertCircle,
@@ -23,13 +23,29 @@ import {
 import { getAllEmployees, Employee, assignTask, CreateTaskRequest, getAllTeams, Team, getAllVehicles, Vehicle, assignVehicle, getAllTickets, Ticket } from "@/lib/server-api"
 import { showToast } from "@/lib/toast-utils"
 
+import { updateTask, unassignVehicle, UpdateTaskRequest } from "@/lib/server-api"
+
 interface AssignTaskPageProps {
   onBack: () => void
   preSelectedEmployeeId?: string
   onTaskAssigned?: () => void
+
+  isEdit?: boolean
+  editTask?: {
+    id: string
+    title: string
+    description: string
+    category?: string
+    location?: string
+    relatedTicketId?: string
+    employeeId?: string
+    teamId?: string
+    vehicleId?: string | null
+  }
 }
 
-export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }: AssignTaskPageProps) {
+
+export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned, isEdit, editTask }: AssignTaskPageProps) {
   const searchParams = useSearchParams()
   const [employees, setEmployees] = React.useState<Employee[]>([])
   const [teams, setTeams] = React.useState<Team[]>([])
@@ -42,6 +58,7 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
   const [selectedEmployee, setSelectedEmployee] = React.useState<string>(preSelectedEmployeeId || "")
   const [selectedVehicle, setSelectedVehicle] = React.useState<string>("none")
   const [selectedTicket, setSelectedTicket] = React.useState<string>("none")
+  const [originalVehicleId, setOriginalVehicleId] = React.useState<string | null>(null)
   const [taskData, setTaskData] = React.useState({
     title: "",
     description: "",
@@ -58,14 +75,14 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
         const [employeesResponse, teamsResponse, vehiclesResponse, ticketsResponse] = await Promise.all([
           getAllEmployees({ limit: 1000, role: 'FIELD_ENGINEER' }),
           getAllTeams(),
-          getAllVehicles({ status: 'AVAILABLE' }),
+          getAllVehicles(),
           getAllTickets({ status: 'OPEN', limit: 100 })
         ])
-        
+
         if (employeesResponse.success && employeesResponse.data) {
           setEmployees(employeesResponse.data.employees)
         }
-        
+
         if (teamsResponse.success && teamsResponse.data) {
           setTeams(teamsResponse.data)
         }
@@ -90,14 +107,14 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
   // Handle URL parameters for pre-selecting ticket
   React.useEffect(() => {
     const ticketId = searchParams.get('ticketId')
-    
+
     if (ticketId) {
       // Pre-select the ticket when it's available in the tickets list
       if (tickets.length > 0) {
         const ticketExists = tickets.find(t => t.id === ticketId)
         if (ticketExists) {
           setSelectedTicket(ticketId)
-          
+
           // Pre-populate task title with ticket info if provided
           if (!taskData.title) {
             setTaskData(prev => ({
@@ -111,15 +128,49 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
     }
   }, [searchParams, tickets, taskData.title])
 
+  React.useEffect(() => {
+    if (!isEdit || !editTask) return
+
+    setTaskData({
+      title: editTask.title,
+      description: editTask.description,
+      category: editTask.category || "",
+      location: editTask.location || ""
+    })
+
+    if (editTask.relatedTicketId) {
+      setSelectedTicket(editTask.relatedTicketId)
+    }
+
+    if (editTask.employeeId) {
+      setAssignmentType("individual")
+      setSelectedEmployee(editTask.employeeId)
+    }
+
+    if (editTask.teamId) {
+      setAssignmentType("team")
+      setSelectedTeam(editTask.teamId)
+    }
+
+    if (editTask.vehicleId) {
+      setOriginalVehicleId(editTask.vehicleId)
+      setSelectedVehicle(editTask.vehicleId)
+    } else {
+      setOriginalVehicleId(null)
+      setSelectedVehicle("none")
+    }
+  }, [isEdit, editTask])
+
+
   // Filter employees based on search term and selected team (only for individual assignment)
   const filteredEmployees = React.useMemo(() => {
     if (assignmentType === 'team') return []
-    
+
     let filtered = employees
 
     // Filter by search term
     if (searchTerm) {
-      filtered = filtered.filter(employee => 
+      filtered = filtered.filter(employee =>
         employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         employee.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
         employee.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -134,89 +185,132 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!taskData.title || !taskData.description) {
-      showToast.error('Please fill in all required fields')
+      showToast.error("Please fill in all required fields")
       return
     }
 
-    if (assignmentType === 'team' && !selectedTeam) {
-      showToast.error('Please select a team')
+    if (assignmentType === "team" && !selectedTeam) {
+      showToast.error("Please select a team")
       return
     }
 
-    if (assignmentType === 'individual' && !selectedEmployee) {
-      showToast.error('Please select an employee')
+    if (assignmentType === "individual" && !selectedEmployee) {
+      showToast.error("Please select an employee")
       return
     }
 
     setSubmitting(true)
-    
+
     try {
-      const taskRequest: CreateTaskRequest = {
-        ...(assignmentType === 'team' ? { teamId: selectedTeam } : { employeeId: selectedEmployee }),
-        title: taskData.title,
-        description: taskData.description,
-        category: taskData.category || undefined,
-        location: taskData.location || undefined,
-        ticketId: selectedTicket && selectedTicket !== "none" ? selectedTicket : undefined,
-      }
+      // -----------------------------
+      // 1. CREATE or UPDATE TASK
+      // -----------------------------
+      let createdTaskResponse: any = null
 
-      const response = await assignTask(taskRequest)
-      
-      if (response.success) {
-        // Handle vehicle assignment
-        let vehicleAssigned = false
-        
-        if (selectedVehicle && selectedVehicle !== "none") {
-          try {
-            let targetEmployeeId: string | undefined
-            
-            if (assignmentType === 'individual') {
-              targetEmployeeId = selectedEmployee
-            } else if (assignmentType === 'team' && selectedTeamData?.teamLeader) {
-              targetEmployeeId = selectedTeamData.teamLeader.employeeId
-            }
-            
-            if (targetEmployeeId) {
-              const vehicleResponse = await assignVehicle(selectedVehicle, { employeeId: targetEmployeeId })
-              if (vehicleResponse.success) {
-                vehicleAssigned = true
-                console.log('Vehicle assigned successfully')
-              } else {
-                console.warn('Task assigned but vehicle assignment failed:', vehicleResponse.error)
-              }
-            }
-          } catch (vehicleError) {
-            console.warn('Task assigned but vehicle assignment failed:', vehicleError)
-          }
+      if (isEdit && editTask?.id) {
+        const updatePayload: UpdateTaskRequest = {
+          title: taskData.title,
+          description: taskData.description,
+          category: taskData.category || undefined,
+          location: taskData.location || undefined,
+          relatedTicketId:
+            selectedTicket !== "none" ? selectedTicket : undefined,
         }
 
-        // Show success message
-        if (assignmentType === 'team') {
-          const vehicleMsg = vehicleAssigned && selectedTeamData?.teamLeader 
-            ? ` Vehicle has been assigned to team leader ${selectedTeamData.teamLeader.name}.` 
-            : ''
-          showToast.success(`Task assigned successfully to team "${response.data?.teamName}" with ${response.data?.memberCount} members! All team members' attendance status has been automatically updated to PRESENT.${vehicleMsg}`)
-        } else {
-          const vehicleMsg = vehicleAssigned ? ' Vehicle has also been assigned to the employee.' : ''
-          showToast.success(`Task assigned successfully! Employee attendance status has been automatically updated to PRESENT.${vehicleMsg}`)
-        }
-        
-        if (onTaskAssigned) {
-          onTaskAssigned()
-        }
-        onBack()
+        await updateTask(editTask.id, updatePayload)
       } else {
-        throw new Error(response.error || 'Failed to assign task')
+        const taskRequest: CreateTaskRequest = {
+          ...(assignmentType === "team"
+            ? { teamId: selectedTeam }
+            : { employeeId: selectedEmployee }),
+          title: taskData.title,
+          description: taskData.description,
+          category: taskData.category || undefined,
+          location: taskData.location || undefined,
+          ticketId:
+            selectedTicket !== "none" ? selectedTicket : undefined,
+        }
+
+        createdTaskResponse = await assignTask(taskRequest)
+
+        if (!createdTaskResponse.success) {
+          throw new Error(
+            createdTaskResponse.error || "Failed to assign task"
+          )
+        }
       }
+
+      // -----------------------------
+      // 2. VEHICLE ASSIGNMENT LOGIC
+      // -----------------------------
+      let targetEmployeeId: string | undefined
+
+      if (assignmentType === "individual") {
+        targetEmployeeId = selectedEmployee
+      } else if (
+        assignmentType === "team" &&
+        selectedTeamData?.teamLeader
+      ) {
+        targetEmployeeId = selectedTeamData.teamLeader.employeeId
+      }
+
+      if (targetEmployeeId) {
+        // REMOVE vehicle
+        if (isEdit && originalVehicleId && selectedVehicle === "none") {
+          await unassignVehicle(originalVehicleId)
+        }
+
+        // CHANGE vehicle
+        if (
+          selectedVehicle !== "none" &&
+          selectedVehicle !== originalVehicleId
+        ) {
+          if (originalVehicleId) {
+            await unassignVehicle(originalVehicleId)
+          }
+
+          await assignVehicle(selectedVehicle, {
+            employeeId: targetEmployeeId,
+          })
+        }
+
+        // CREATE mode assign
+        if (!isEdit && selectedVehicle !== "none") {
+          await assignVehicle(selectedVehicle, {
+            employeeId: targetEmployeeId,
+          })
+        }
+      }
+
+      // -----------------------------
+      // 3. SUCCESS MESSAGE
+      // -----------------------------
+      if (assignmentType === "team") {
+        showToast.success(
+          isEdit
+            ? "Task updated successfully."
+            : `Task assigned successfully to team "${createdTaskResponse?.data?.teamName}".`
+        )
+      } else {
+        showToast.success(
+          isEdit
+            ? "Task updated successfully."
+            : "Task assigned successfully."
+        )
+      }
+
+      onTaskAssigned?.()
+      onBack()
     } catch (error) {
-      console.error('Error assigning task:', error)
-      showToast.error('Failed to assign task. Please try again.')
+      console.error("Error assigning task:", error)
+      showToast.error("Failed to save task. Please try again.")
     } finally {
       setSubmitting(false)
     }
   }
+
 
   const handleInputChange = (field: string, value: string) => {
     setTaskData(prev => ({ ...prev, [field]: value }))
@@ -228,8 +322,8 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
         {/* Header */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
           <div className="flex items-center gap-4">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={onBack}
               className="border-gray-300 hover:bg-gray-50"
@@ -478,11 +572,10 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2">
                                     <span className="font-medium text-gray-900">{ticket.ticketId}</span>
-                                    <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                      ticket.priority === 'HIGH' || ticket.priority === 'CRITICAL' ? 'bg-red-100 text-red-700' :
+                                    <span className={`text-xs px-1.5 py-0.5 rounded ${ticket.priority === 'HIGH' || ticket.priority === 'CRITICAL' ? 'bg-red-100 text-red-700' :
                                       ticket.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
-                                      'bg-green-100 text-green-700'
-                                    }`}>
+                                        'bg-green-100 text-green-700'
+                                      }`}>
                                       {ticket.priority}
                                     </span>
                                   </div>
@@ -506,11 +599,10 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
                                   <span className="font-semibold text-blue-900">{ticket.ticketId}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <span className={`text-xs px-2 py-1 rounded font-medium ${
-                                    ticket.priority === 'HIGH' || ticket.priority === 'CRITICAL' ? 'bg-red-100 text-red-700' :
+                                  <span className={`text-xs px-2 py-1 rounded font-medium ${ticket.priority === 'HIGH' || ticket.priority === 'CRITICAL' ? 'bg-red-100 text-red-700' :
                                     ticket.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
-                                    'bg-green-100 text-green-700'
-                                  }`}>
+                                      'bg-green-100 text-green-700'
+                                    }`}>
                                     {ticket.priority}
                                   </span>
                                   <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded">
@@ -574,7 +666,7 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
                       className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                     />
                   </div>
-                  
+
                   {/* Vehicle Assignment */}
                   <div className="space-y-2">
                     <Label htmlFor="vehicle" className="flex items-center gap-2">
@@ -599,7 +691,7 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="none">No vehicle assignment</SelectItem>
-                            {vehicles.filter(v => v.status === 'AVAILABLE').map((vehicle) => (
+                            {vehicles.filter(v => v.status === 'AVAILABLE' || v.id === originalVehicleId).map((vehicle) => (
                               <SelectItem key={vehicle.id} value={vehicle.id}>
                                 <div className="flex items-center gap-2">
                                   <Car className="h-4 w-4" />
@@ -622,7 +714,7 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
                             </p>
                           </div>
                         )}
-                        {vehicles.filter(v => v.status === 'AVAILABLE').length === 0 && (
+                        {vehicles.filter(v => v.status === 'AVAILABLE' || v.id === originalVehicleId).length === 0 && (
                           <p className="text-sm text-gray-500">
                             No available vehicles to assign. All vehicles are currently assigned.
                           </p>
@@ -637,7 +729,7 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="none">No vehicle assignment</SelectItem>
-                            {vehicles.filter(v => v.status === 'AVAILABLE').map((vehicle) => (
+                            {vehicles.filter(v => v.status === 'AVAILABLE' || v.id === originalVehicleId).map((vehicle) => (
                               <SelectItem key={vehicle.id} value={vehicle.id}>
                                 <div className="flex items-center gap-2">
                                   <Car className="h-4 w-4" />
@@ -660,7 +752,7 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
                             </p>
                           </div>
                         )}
-                        {vehicles.filter(v => v.status === 'AVAILABLE').length === 0 && (
+                        {vehicles.filter(v => v.status === 'AVAILABLE' || v.id === originalVehicleId).length === 0 && (
                           <p className="text-sm text-gray-500">
                             No available vehicles to assign. All vehicles are currently assigned.
                           </p>
@@ -678,20 +770,20 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
                       Fields marked with * are required
                     </div>
                     <div className="flex items-center gap-3">
-                      <Button 
-                        type="button" 
-                        variant="outline" 
+                      <Button
+                        type="button"
+                        variant="outline"
                         onClick={onBack}
                         disabled={submitting}
                       >
                         Cancel
                       </Button>
-                      <Button 
-                        type="submit" 
+                      <Button
+                        type="submit"
                         className="bg-blue-600 hover:bg-blue-700"
                         disabled={
-                          submitting || 
-                          !taskData.title || 
+                          submitting ||
+                          !taskData.title ||
                           !taskData.location ||
                           (assignmentType === 'team' && !selectedTeam) ||
                           (assignmentType === 'individual' && !selectedEmployee)
@@ -705,7 +797,12 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
                         ) : (
                           <>
                             <CheckCircle className="h-4 w-4 mr-2" />
-                            {assignmentType === 'team' ? 'Assign to Team' : 'Assign to Employee'}
+                            {isEdit
+                              ? "Update Task"
+                              : assignmentType === "team"
+                                ? "Assign to Team"
+                                : "Assign to Employee"}
+
                           </>
                         )}
                       </Button>

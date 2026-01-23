@@ -24,7 +24,6 @@ import {
   TrendingUp,
   Search,
   Filter,
-  Download,
   Eye,
   Target,
   Activity,
@@ -59,6 +58,14 @@ interface Project {
   budget?: number
   progress?: number
   endDate?: string
+  customerId?: string
+  customer?: {
+    id: string
+    customerId: string
+    name: string
+    phone: string
+    email?: string
+  }
 }
 
 interface ProjectUpdate {
@@ -88,8 +95,17 @@ interface ProjectStats {
   pendingPayments: number
 }
 
+interface Customer {
+  id: string
+  customerId: string
+  name: string
+  phone: string
+  email?: string
+}
+
 export function ProjectManagement() {
   const [projects, setProjects] = React.useState<Project[]>([])
+  const [customers, setCustomers] = React.useState<Customer[]>([])
   const [stats, setStats] = React.useState<ProjectStats>({
     totalProjects: 0,
     activeProjects: 0,
@@ -120,7 +136,8 @@ export function ProjectManagement() {
     startDate: '',
     endDate: '',
     status: 'ONGOING' as 'ONGOING' | 'COMPLETED' | 'ON_HOLD',
-    priority: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+    priority: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
+    customerId: 'none'
   })
 
   const [updateForm, setUpdateForm] = React.useState({
@@ -162,6 +179,20 @@ export function ProjectManagement() {
     }
   }
 
+  // Fetch customers for project assignment
+  const fetchCustomers = async () => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/projects/customers/available`)
+      const result = await response.json()
+
+      if (result.success) {
+        setCustomers(result.data || [])
+      }
+    } catch (error) {
+      console.error('Error fetching customers:', error)
+    }
+  }
+
   const calculateStats = (projectsData: Project[]) => {
     const totalProjects = projectsData.length
     const activeProjects = projectsData.filter(p => p.status === 'ONGOING').length
@@ -190,6 +221,7 @@ export function ProjectManagement() {
 
   React.useEffect(() => {
     fetchProjects()
+    fetchCustomers()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Filter projects based on search and filters
@@ -208,10 +240,15 @@ export function ProjectManagement() {
     e.preventDefault()
 
     try {
+      const projectData = {
+        ...projectForm,
+        customerId: projectForm.customerId === "none" ? null : projectForm.customerId || null
+      }
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/projects`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(projectForm)
+        body: JSON.stringify(projectData)
       })
 
       const result = await response.json()
@@ -233,7 +270,8 @@ export function ProjectManagement() {
       startDate: '',
       endDate: '',
       status: 'ONGOING',
-      priority: 'MEDIUM'
+      priority: 'MEDIUM',
+      customerId: 'none'
     })
   }
 
@@ -244,10 +282,15 @@ export function ProjectManagement() {
     if (!selectedProject) return
 
     try {
+      const projectData = {
+        ...projectForm,
+        customerId: projectForm.customerId === "none" ? null : projectForm.customerId || null
+      }
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/projects/${selectedProject.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(projectForm)
+        body: JSON.stringify(projectData)
       })
 
       const result = await response.json()
@@ -484,6 +527,23 @@ export function ProjectManagement() {
                     </div>
 
                     <div>
+                      <Label htmlFor="customer" className="text-xs font-medium text-slate-600">Assign to Customer</Label>
+                      <Select value={projectForm.customerId || "none"} onValueChange={(value) => setProjectForm({ ...projectForm, customerId: value === "none" ? "" : value })}>
+                        <SelectTrigger className="h-9 text-sm border-slate-300">
+                          <SelectValue placeholder="Select a customer (optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No Customer</SelectItem>
+                          {customers.map((customer) => (
+                            <SelectItem key={customer.id} value={customer.id}>
+                              {customer.name} ({customer.customerId})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
                       <Label htmlFor="status" className="text-xs font-medium text-slate-600">Initial Status</Label>
                       <Select value={projectForm.status} onValueChange={(value: 'ONGOING' | 'COMPLETED' | 'ON_HOLD') => setProjectForm({ ...projectForm, status: value })}>
                         <SelectTrigger className="h-9 text-sm border-slate-300">
@@ -635,6 +695,12 @@ export function ProjectManagement() {
                       <CalendarDays className="h-4 w-4 text-slate-400" />
                       <span>{project.startDate ? new Date(project.startDate).toLocaleDateString() : '--'}</span>
                     </div>
+                    {project.customer && (
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <Building2 className="h-4 w-4 text-slate-400" />
+                        <span>{project.customer.name} ({project.customer.customerId})</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex flex-wrap gap-2 mt-2">
@@ -665,7 +731,8 @@ export function ProjectManagement() {
                         startDate: project.startDate ? project.startDate.split('T')[0] : '',
                         endDate: project.endDate ? project.endDate.split('T')[0] : '',
                         status: project.status,
-                        priority: project.priority || 'MEDIUM'
+                        priority: project.priority || 'MEDIUM',
+                        customerId: project.customerId || 'none'
                       })
                       setIsEditDialogOpen(true)
                     }}
@@ -893,6 +960,22 @@ export function ProjectManagement() {
                         <div className="mt-1">{getPriorityBadge(selectedProject.priority)}</div>
                       </div>
                     </div>
+
+                    {selectedProject.customer && (
+                      <div>
+                        <Label className="text-sm font-medium text-slate-600">Assigned Customer</Label>
+                        <div className="mt-1 p-3 bg-slate-50 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="h-4 w-4 text-slate-600" />
+                            <span className="font-medium text-slate-900">{selectedProject.customer.name}</span>
+                          </div>
+                          <div className="text-sm text-slate-600 mt-1">
+                            ID: {selectedProject.customer.customerId} • Phone: {selectedProject.customer.phone}
+                            {selectedProject.customer.email && ` • Email: ${selectedProject.customer.email}`}
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
@@ -1129,6 +1212,23 @@ export function ProjectManagement() {
                     <SelectItem value="MEDIUM">Medium Priority</SelectItem>
                     <SelectItem value="HIGH">High Priority</SelectItem>
                     <SelectItem value="CRITICAL">Critical Priority</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="edit-customer" className="text-xs font-medium text-slate-600">Assign to Customer</Label>
+                <Select value={projectForm.customerId || "none"} onValueChange={(value) => setProjectForm({ ...projectForm, customerId: value === "none" ? "" : value })}>
+                  <SelectTrigger className="h-9 text-sm border-slate-300">
+                    <SelectValue placeholder="Select a customer (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Customer</SelectItem>
+                    {customers.map((customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name} ({customer.customerId})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

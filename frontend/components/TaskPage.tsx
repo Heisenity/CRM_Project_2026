@@ -31,9 +31,10 @@ import {
   UserPlus,
   Car,
   Timer,
-  Calendar
+  Calendar,
+  Edit
 } from "lucide-react"
-import { getAttendanceRecords, getAllEmployees, getAllTeams, getAllVehicles, getAllTasks, AttendanceRecord, Employee, Team, Vehicle, exportTasksToExcel, ExportParams, getAllTickets, Ticket } from "@/lib/server-api"
+import { getAttendanceRecords, getAllEmployees, getAllTeams, getAllVehicles, getAllTasks, getEmployeeVehicle, AttendanceRecord, Employee, Team, Vehicle, exportTasksToExcel, ExportParams, getAllTickets, Ticket } from "@/lib/server-api"
 
 interface ExtendedAttendanceRecord extends AttendanceRecord {
   hasAttendance: boolean
@@ -157,6 +158,17 @@ export function TaskPage() {
   const [selectedEmployee, setSelectedEmployee] = React.useState<string | null>(null)
   const [selectedRecord, setSelectedRecord] = React.useState<ExtendedAttendanceRecord | null>(null)
   const [showViewDetails, setShowViewDetails] = React.useState(false)
+  const [selectedTask, setSelectedTask] = React.useState<{
+    id: string
+    title: string
+    description: string
+    category?: string
+    location?: string
+    relatedTicketId?: string
+    employeeId?: string
+    teamId?: string
+    vehicleId?: string | null
+  } | null>(null)
   const [exportLoading, setExportLoading] = React.useState<'excel' | null>(null)
   const [lastUpdated, setLastUpdated] = React.useState<Date>(new Date())
 
@@ -276,7 +288,7 @@ export function TaskPage() {
 
         // Apply status filter (filter by task status)
         if (filters.status) {
-          filteredCombined = filteredCombined.filter(record => 
+          filteredCombined = filteredCombined.filter(record =>
             record.assignedTask?.status === filters.status
           )
         }
@@ -317,10 +329,10 @@ export function TaskPage() {
   React.useEffect(() => {
     const action = searchParams.get('action')
     const ticketId = searchParams.get('ticketId')
-    
+
     if (action === 'assign') {
       setShowAssignPage(true)
-      
+
       // If there's a ticket ID, we could potentially pre-select it in the assign page
       if (ticketId) {
         console.log('Assigning task for ticket:', ticketId)
@@ -336,6 +348,40 @@ export function TaskPage() {
     setSelectedEmployee(employeeId)
     setShowAssignPage(true)
   }
+
+  const handleEditTask = async (record: ExtendedAttendanceRecord) => {
+    if (!record.assignedTask) {
+      showToast.error("No task assigned to edit")
+      return
+    }
+
+    let vehicleId: string | null = null
+
+    try {
+      const vehicleRes = await getEmployeeVehicle(record.employeeId)
+      if (vehicleRes.success && vehicleRes.data) {
+        vehicleId = vehicleRes.data.id
+      }
+    } catch (e) {
+      console.warn("Failed to fetch employee vehicle", e)
+    }
+
+    setSelectedTask({
+      id: record.assignedTask.id,
+      title: record.assignedTask.title,
+      description: record.assignedTask.description,
+      category: record.assignedTask.category,
+      location: record.assignedTask.location,
+      relatedTicketId: record.assignedTask.relatedTicketId,
+      employeeId: record.employeeId,
+      teamId: record.teamId,
+      vehicleId
+    })
+
+    setSelectedEmployee(record.employeeId)
+    setShowAssignPage(true)
+  }
+
 
   const handleViewDetails = (record: ExtendedAttendanceRecord) => {
     setSelectedRecord(record)
@@ -395,10 +441,17 @@ export function TaskPage() {
     <div className="min-h-screen bg-gray-50/30">
       {showAssignPage ? (
         <AssignTaskPage
-          onBack={() => setShowAssignPage(false)}
+          onBack={() => {
+            setShowAssignPage(false)
+            setSelectedTask(null)
+            setSelectedEmployee(null)
+          }}
           preSelectedEmployeeId={selectedEmployee || undefined}
+          isEdit={!!selectedTask}
+          editTask={selectedTask || undefined}
           onTaskAssigned={fetchAttendanceData}
         />
+
       ) : showVehiclePage ? (
         <div>
           {/* Back button for Vehicle Page */}
@@ -801,19 +854,18 @@ export function TaskPage() {
                             <div className="relative">
                               {(() => {
                                 return (
-                                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-sm ${
-                                    record.assignedTask 
-                                      ? record.assignedTask.status === 'COMPLETED'
-                                        ? 'bg-gradient-to-br from-green-500 to-green-600'
-                                        : record.assignedTask.status === 'IN_PROGRESS'
+                                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-sm ${record.assignedTask
+                                    ? record.assignedTask.status === 'COMPLETED'
+                                      ? 'bg-gradient-to-br from-green-500 to-green-600'
+                                      : record.assignedTask.status === 'IN_PROGRESS'
                                         ? 'bg-gradient-to-br from-blue-500 to-blue-600'
                                         : record.assignedTask.status === 'PENDING'
-                                        ? 'bg-gradient-to-br from-yellow-500 to-yellow-600'
-                                        : record.assignedTask.status === 'CANCELLED'
-                                        ? 'bg-gradient-to-br from-red-500 to-red-600'
-                                        : 'bg-gradient-to-br from-blue-500 to-blue-600' // default blue for unknown status
-                                      : 'bg-gradient-to-br from-blue-500 to-blue-600' // default blue when no task
-                                  }`}>
+                                          ? 'bg-gradient-to-br from-yellow-500 to-yellow-600'
+                                          : record.assignedTask.status === 'CANCELLED'
+                                            ? 'bg-gradient-to-br from-red-500 to-red-600'
+                                            : 'bg-gradient-to-br from-blue-500 to-blue-600' // default blue for unknown status
+                                    : 'bg-gradient-to-br from-blue-500 to-blue-600' // default blue when no task
+                                    }`}>
                                     {record.employeeName.split(' ').map(n => n[0]).join('').toUpperCase()}
                                   </div>
                                 )
@@ -1006,11 +1058,10 @@ export function TaskPage() {
                                     <span className="text-sm font-medium text-blue-600">
                                       {ticket.ticketId}
                                     </span>
-                                    <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                      ticket.priority === 'HIGH' || ticket.priority === 'CRITICAL' ? 'bg-red-100 text-red-700' :
+                                    <span className={`text-xs px-1.5 py-0.5 rounded ${ticket.priority === 'HIGH' || ticket.priority === 'CRITICAL' ? 'bg-red-100 text-red-700' :
                                       ticket.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
-                                      'bg-green-100 text-green-700'
-                                    }`}>
+                                        'bg-green-100 text-green-700'
+                                      }`}>
                                       {ticket.priority}
                                     </span>
                                   </div>
@@ -1034,6 +1085,12 @@ export function TaskPage() {
                               <DropdownMenuItem onClick={() => handleViewDetails(record)}>
                                 View Details
                               </DropdownMenuItem>
+                              {record.assignedTask && (
+                                <DropdownMenuItem onClick={() => handleEditTask(record)}>
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Edit Task
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem onClick={() => handleAssignTask(record.employeeId)}>
                                 <UserPlus className="h-4 w-4 mr-2" />
                                 Assign Task
@@ -1234,11 +1291,10 @@ export function TaskPage() {
                               return ticket ? (
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium text-blue-600">{ticket.ticketId}</span>
-                                  <span className={`text-xs px-2 py-1 rounded ${
-                                    ticket.priority === 'HIGH' || ticket.priority === 'CRITICAL' ? 'bg-red-100 text-red-700' :
+                                  <span className={`text-xs px-2 py-1 rounded ${ticket.priority === 'HIGH' || ticket.priority === 'CRITICAL' ? 'bg-red-100 text-red-700' :
                                     ticket.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
-                                    'bg-green-100 text-green-700'
-                                  }`}>
+                                      'bg-green-100 text-green-700'
+                                    }`}>
                                     {ticket.priority}
                                   </span>
                                   <span className="text-xs text-gray-500">- {ticket.ticketId}</span>
@@ -1352,6 +1408,6 @@ export function TaskPage() {
           )}
         </DialogContent>
       </Dialog>
-    </div >
+      </div >
   )
 }

@@ -23,6 +23,11 @@ router.post('/:id/products', ProjectController.addProjectProduct);
 router.get('/:id/products', ProjectController.getProjectProducts);
 router.delete('/:id/products/:productId', ProjectController.deleteProjectProduct);
 
+// Customer assignment routes
+router.get('/customers/available', ProjectController.getCustomersForAssignment);
+router.put('/:id/assign-customer', ProjectController.assignCustomerToProject);
+router.put('/:id/unassign-customer', ProjectController.unassignCustomerFromProject);
+
 // Test route
 router.get('/:id/test', (req, res) => {
   res.json({ success: true, message: 'Test route works', projectId: req.params.id });

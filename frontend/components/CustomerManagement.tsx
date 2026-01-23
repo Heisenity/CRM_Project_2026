@@ -28,9 +28,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Edit, Trash2, Eye, Download, Filter, Clock, Timer, Calendar, Loader2 } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Eye, Download, Filter, Clock, Timer, Calendar, Loader2, Building2, CalendarDays } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { exportCustomersToExcel } from "@/lib/server-api";
+import MeetingScheduler from "./MeetingScheduler";
 
 interface Customer {
   id: string;
@@ -41,6 +43,14 @@ interface Customer {
   address?: string;
   status: string;
   createdAt: string;
+  projects?: {
+    id: string;
+    name: string;
+    status: string;
+    startDate: string;
+    endDate?: string;
+    priority?: string;
+  }[];
 }
 
 export default function CustomerManagement() {
@@ -51,6 +61,7 @@ export default function CustomerManagement() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isMeetingDialogOpen, setIsMeetingDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [exportLoading, setExportLoading] = useState<'excel' | null>(null);
   const [pagination, setPagination] = useState({
@@ -68,13 +79,15 @@ export default function CustomerManagement() {
   });
 
   useEffect(() => {
-    if (session?.user) {
+    if (status === "authenticated" && session?.user) {
       fetchCustomers();
     }
-  }, [pagination.page, searchTerm, session]);
+  }, [pagination.page, searchTerm, session, status]);
 
   const fetchCustomers = async () => {
-    if (!session?.user) {
+    // Don't fetch if not authenticated
+    if (status !== "authenticated" || !session?.user) {
+      console.log("Not authenticated, skipping customer fetch")
       return;
     }
 
@@ -204,6 +217,11 @@ export default function CustomerManagement() {
   const openViewDialog = (customer: Customer) => {
     setSelectedCustomer(customer);
     setIsViewDialogOpen(true);
+  };
+
+  const openMeetingScheduler = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setIsMeetingDialogOpen(true);
   };
 
   const resetForm = () => {
@@ -358,6 +376,7 @@ export default function CustomerManagement() {
                   <TableHead>Name</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Projects</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created At</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -366,13 +385,13 @@ export default function CustomerManagement() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : customers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       No customers found
                     </TableCell>
                   </TableRow>
@@ -383,6 +402,29 @@ export default function CustomerManagement() {
                       <TableCell>{customer.name}</TableCell>
                       <TableCell>{customer.phone}</TableCell>
                       <TableCell>{customer.email || "-"}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1 max-w-xs">
+                          {customer.projects && customer.projects.length > 0 ? (
+                            customer.projects.slice(0, 2).map((project) => (
+                              <Badge
+                                key={project.id}
+                                variant="outline"
+                                className="text-xs"
+                              >
+                                <Building2 className="w-3 h-3 mr-1" />
+                                {project.name}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-sm text-gray-500">No projects</span>
+                          )}
+                          {customer.projects && customer.projects.length > 2 && (
+                            <Badge variant="secondary" className="text-xs">
+                              +{customer.projects.length - 2} more
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <span
                           className={`px-2 py-1 rounded-full text-xs ${
@@ -412,6 +454,14 @@ export default function CustomerManagement() {
                             onClick={() => openEditDialog(customer)}
                           >
                             <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openMeetingScheduler(customer)}
+                            title="Schedule Meeting"
+                          >
+                            <CalendarDays className="w-4 h-4 text-blue-600" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -571,41 +621,89 @@ export default function CustomerManagement() {
 
       {/* View Customer Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Customer Details</DialogTitle>
           </DialogHeader>
           {selectedCustomer && (
-            <div className="space-y-4">
-              <div>
-                <Label className="text-gray-500">Customer ID</Label>
-                <p className="font-medium">{selectedCustomer.customerId}</p>
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-gray-500">Customer ID</Label>
+                  <p className="font-medium">{selectedCustomer.customerId}</p>
+                </div>
+                <div>
+                  <Label className="text-gray-500">Name</Label>
+                  <p className="font-medium">{selectedCustomer.name}</p>
+                </div>
+                <div>
+                  <Label className="text-gray-500">Phone</Label>
+                  <p className="font-medium">{selectedCustomer.phone}</p>
+                </div>
+                <div>
+                  <Label className="text-gray-500">Email</Label>
+                  <p className="font-medium">{selectedCustomer.email || "-"}</p>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-gray-500">Address</Label>
+                  <p className="font-medium">{selectedCustomer.address || "-"}</p>
+                </div>
+                <div>
+                  <Label className="text-gray-500">Status</Label>
+                  <p className="font-medium">{selectedCustomer.status}</p>
+                </div>
+                <div>
+                  <Label className="text-gray-500">Created At</Label>
+                  <p className="font-medium">
+                    {new Date(selectedCustomer.createdAt).toLocaleString()}
+                  </p>
+                </div>
               </div>
-              <div>
-                <Label className="text-gray-500">Name</Label>
-                <p className="font-medium">{selectedCustomer.name}</p>
-              </div>
-              <div>
-                <Label className="text-gray-500">Phone</Label>
-                <p className="font-medium">{selectedCustomer.phone}</p>
-              </div>
-              <div>
-                <Label className="text-gray-500">Email</Label>
-                <p className="font-medium">{selectedCustomer.email || "-"}</p>
-              </div>
-              <div>
-                <Label className="text-gray-500">Address</Label>
-                <p className="font-medium">{selectedCustomer.address || "-"}</p>
-              </div>
-              <div>
-                <Label className="text-gray-500">Status</Label>
-                <p className="font-medium">{selectedCustomer.status}</p>
-              </div>
-              <div>
-                <Label className="text-gray-500">Created At</Label>
-                <p className="font-medium">
-                  {new Date(selectedCustomer.createdAt).toLocaleString()}
-                </p>
+
+              {/* Projects Section */}
+              <div className="border-t pt-4">
+                <Label className="text-gray-500 text-lg font-semibold">Associated Projects</Label>
+                {selectedCustomer.projects && selectedCustomer.projects.length > 0 ? (
+                  <div className="mt-3 space-y-3">
+                    {selectedCustomer.projects.map((project) => (
+                      <div key={project.id} className="border rounded-lg p-4 bg-gray-50">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Building2 className="w-4 h-4 text-gray-600" />
+                              <h4 className="font-medium text-gray-900">{project.name}</h4>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-gray-600">
+                              <span>Start: {new Date(project.startDate).toLocaleDateString()}</span>
+                              {project.endDate && (
+                                <span>End: {new Date(project.endDate).toLocaleDateString()}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <Badge
+                              variant={project.status === 'ONGOING' ? 'default' : 
+                                     project.status === 'COMPLETED' ? 'secondary' : 'outline'}
+                              className="text-xs"
+                            >
+                              {project.status}
+                            </Badge>
+                            {project.priority && (
+                              <Badge variant="outline" className="text-xs">
+                                {project.priority}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-3 text-center py-8 text-gray-500">
+                    <Building2 className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                    <p>No projects associated with this customer</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -614,6 +712,16 @@ export default function CustomerManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Meeting Scheduler Dialog */}
+      <MeetingScheduler
+        customer={selectedCustomer || undefined}
+        isOpen={isMeetingDialogOpen}
+        onClose={() => {
+          setIsMeetingDialogOpen(false);
+          setSelectedCustomer(null);
+        }}
+      />
     </div>
   );
 }

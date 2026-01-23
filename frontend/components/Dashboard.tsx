@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { getAllTickets, getAttendanceRecords, getDatabaseStats } from "@/lib/server-api"
+import { useSession } from "next-auth/react"
 
 type DatabaseStats = {
   admins: number
@@ -58,6 +59,7 @@ type TicketData = {
 }
 
 export function Dashboard() {
+  const { data: session, status } = useSession()
   const [lastScannedProduct, setLastScannedProduct] = React.useState<string | null>(null)
   const [leaveApplications, setLeaveApplications] = React.useState<LeaveApplication[]>([])
   const [loadingLeaves, setLoadingLeaves] = React.useState(true)
@@ -88,6 +90,13 @@ export function Dashboard() {
   // Fetch database statistics
   React.useEffect(() => {
     const fetchDatabaseStats = async () => {
+      // Don't fetch if not authenticated
+      if (status !== "authenticated" || !session?.user) {
+        console.log("Not authenticated, skipping database stats fetch")
+        setLoadingStats(false)
+        return
+      }
+
       try {
         const response = await getDatabaseStats()
         
@@ -119,7 +128,7 @@ export function Dashboard() {
     }
 
     fetchDatabaseStats()
-  }, [])
+  }, [status, session]) // Add dependencies
 
   // Fetch today's attendance data
   React.useEffect(() => {
@@ -157,7 +166,17 @@ export function Dashboard() {
   // Fetch recent tickets
   React.useEffect(() => {
     const fetchRecentTickets = async () => {
+      // Don't fetch if not authenticated
+      if (status !== "authenticated" || !session?.user) {
+        console.log("Not authenticated, skipping ticket fetch")
+        return
+      }
+
       try {
+        console.log("Session status:", status)
+        console.log("Session data:", session)
+        console.log("Session token:", (session?.user as any)?.sessionToken)
+        
         const response = await getAllTickets({ limit: 3 })
         
         if (response.success && response.data) {
@@ -171,7 +190,7 @@ export function Dashboard() {
     }
 
     fetchRecentTickets()
-  }, [])
+  }, [status, session]) // Add dependencies
 
   // Fetch recent leave applications
   React.useEffect(() => {

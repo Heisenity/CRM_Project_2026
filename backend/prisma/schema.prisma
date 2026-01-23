@@ -328,10 +328,13 @@ model Project {
   priority    ProjectPriority  @default(MEDIUM)
   budget      Decimal?         @db.Decimal(12, 2)
   progress    Int?             @default(0)
+  customerId  String?
+  customer    Customer?        @relation("CustomerProjects", fields: [customerId], references: [id])
   payments    ProjectPayment[]
   products    ProjectProduct[]
   updates     ProjectUpdate[]
 
+  @@index([customerId])
   @@map("projects")
 }
 
@@ -623,6 +626,7 @@ model Customer {
   updatedAt       DateTime                 @updatedAt
   sessions        CustomerSession[]
   supportRequests CustomerSupportRequest[]
+  projects        Project[]                @relation("CustomerProjects")
 
   @@index([customerId])
   @@index([phone])

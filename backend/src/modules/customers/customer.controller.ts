@@ -92,7 +92,17 @@ export class CustomerController {
             address: true,
             status: true,
             createdAt: true,
-            updatedAt: true
+            updatedAt: true,
+            projects: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                startDate: true,
+                endDate: true,
+                priority: true
+              }
+            }
           }
         }),
         prisma.customer.count({ where })
@@ -129,7 +139,18 @@ export class CustomerController {
           address: true,
           status: true,
           createdAt: true,
-          updatedAt: true
+          updatedAt: true,
+          projects: {
+            select: {
+              id: true,
+              name: true,
+              status: true,
+              startDate: true,
+              endDate: true,
+              priority: true,
+              description: true
+            }
+          }
         }
       });
 

@@ -7,6 +7,15 @@ export class ProjectController {
     try {
       const projects = await prisma.project.findMany({
         include: {
+          customer: {
+            select: {
+              id: true,
+              customerId: true,
+              name: true,
+              phone: true,
+              email: true
+            }
+          },
           updates: {
             orderBy: { createdAt: 'desc' }
           },
@@ -84,7 +93,8 @@ export class ProjectController {
         endDate,
         priority,
         budget,
-        progress
+        progress,
+        customerId
       } = req.body;
 
       if (!name || !startDate) {
@@ -103,9 +113,19 @@ export class ProjectController {
           endDate: endDate ? new Date(endDate) : null,
           priority: priority || 'MEDIUM',
           budget: budget ? parseFloat(budget) : null,
-          progress: progress ? parseInt(progress) : 0
+          progress: progress ? parseInt(progress) : 0,
+          customerId: customerId || null
         },
         include: {
+          customer: {
+            select: {
+              id: true,
+              customerId: true,
+              name: true,
+              phone: true,
+              email: true
+            }
+          },
           updates: true,
           payments: true,
           products: true
@@ -138,7 +158,8 @@ export class ProjectController {
         endDate,
         priority,
         budget,
-        progress
+        progress,
+        customerId
       } = req.body;
 
       const updateData: any = {};
@@ -151,11 +172,21 @@ export class ProjectController {
       if (priority) updateData.priority = priority;
       if (budget !== undefined) updateData.budget = budget ? parseFloat(budget) : null;
       if (progress !== undefined) updateData.progress = progress ? parseInt(progress) : null;
+      if (customerId !== undefined) updateData.customerId = customerId;
 
       const project = await prisma.project.update({
         where: { id },
         data: updateData,
         include: {
+          customer: {
+            select: {
+              id: true,
+              customerId: true,
+              name: true,
+              phone: true,
+              email: true
+            }
+          },
           updates: {
             orderBy: { createdAt: 'desc' }
           },
@@ -399,6 +430,104 @@ export class ProjectController {
       res.status(500).json({
         success: false,
         message: 'Failed to delete project product'
+      });
+    }
+  }
+
+  // Get all customers for project assignment
+  static async getCustomersForAssignment(req: Request, res: Response) {
+    try {
+      const customers = await prisma.customer.findMany({
+        where: { status: 'ACTIVE' },
+        select: {
+          id: true,
+          customerId: true,
+          name: true,
+          phone: true,
+          email: true
+        },
+        orderBy: { name: 'asc' }
+      });
+
+      res.json({
+        success: true,
+        data: customers
+      });
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch customers'
+      });
+    }
+  }
+
+  // Assign customer to project
+  static async assignCustomerToProject(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { customerId } = req.body;
+
+      if (!customerId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Customer ID is required'
+        });
+      }
+
+      const project = await prisma.project.update({
+        where: { id },
+        data: { customerId },
+        include: {
+          customer: {
+            select: {
+              id: true,
+              customerId: true,
+              name: true,
+              phone: true,
+              email: true
+            }
+          }
+        }
+      });
+
+      res.json({
+        success: true,
+        data: project,
+        message: 'Customer assigned to project successfully'
+      });
+    } catch (error) {
+      console.error('Error assigning customer to project:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to assign customer to project'
+      });
+    }
+  }
+
+  // Unassign customer from project
+  static async unassignCustomerFromProject(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      const project = await prisma.project.update({
+        where: { id },
+        data: { customerId: null },
+        include: {
+          customer: true
+        }
+      });
+
+      res.json({
+        success: true,
+        data: project,
+        message: 'Customer unassigned from project successfully'
+      });
+    } catch (error) {
+      console.error('Error unassigning customer from project:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to unassign customer from project'
       });
     }
   }

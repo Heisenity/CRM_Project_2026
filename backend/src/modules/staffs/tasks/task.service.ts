@@ -14,6 +14,14 @@ export interface CreateTaskData {
   relatedTicketId?: string;
 }
 
+export interface UpdateTaskData {
+  title?: string;
+  description?: string;
+  category?: string;
+  location?: string;
+  relatedTicketId?: string;
+}
+
 export interface TaskRecord {
   id: string;
   employeeId: string;
@@ -299,6 +307,40 @@ export async function getAllTasks(page: number = 1, limit: number = 50, status?:
     };
   } catch (error) {
     console.error('Error getting all tasks:', error);
+    throw error;
+  }
+}
+
+/**
+ * updateTaskDetails
+ * - Updates task details like title, description, category, location, relatedTicketId
+ * - Does not affect task status or timing
+ */
+export async function updateTaskDetails(taskId: string, data: UpdateTaskData): Promise<TaskRecord> {
+  try {
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: { employee: true }
+    });
+
+    if (!task) {
+      throw new Error('Task not found');
+    }
+
+    const updatedTask = await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        ...data,
+        updatedAt: new Date()
+      },
+      include: {
+        employee: true
+      }
+    });
+
+    return mapTaskToRecord(updatedTask, updatedTask.employee.employeeId);
+  } catch (error) {
+    console.error('Error updating task details:', error);
     throw error;
   }
 }
