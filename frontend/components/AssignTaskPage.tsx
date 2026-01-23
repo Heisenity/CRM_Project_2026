@@ -14,7 +14,6 @@ import {
   AlertCircle,
   CheckCircle,
   Users,
-  Search,
   MapPin,
   Shield,
   Car,
@@ -217,6 +216,16 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned, 
           location: taskData.location || undefined,
           relatedTicketId:
             selectedTicket !== "none" ? selectedTicket : undefined,
+
+          ...(assignmentType === "team"
+            ? {
+              teamId: selectedTeam,
+              employeeId: null,
+            }
+            : {
+              employeeId: selectedEmployee,
+              teamId: null,
+            }),
         }
 
         await updateTask(editTask.id, updatePayload)
@@ -256,9 +265,14 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned, 
         targetEmployeeId = selectedTeamData.teamLeader.employeeId
       }
 
-      if (targetEmployeeId) {
+      if (!targetEmployeeId) return
+
+      // -----------------------------
+      // EDIT MODE
+      // -----------------------------
+      if (isEdit) {
         // REMOVE vehicle
-        if (isEdit && originalVehicleId && selectedVehicle === "none") {
+        if (originalVehicleId && selectedVehicle === "none") {
           await unassignVehicle(originalVehicleId)
         }
 
@@ -275,14 +289,17 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned, 
             employeeId: targetEmployeeId,
           })
         }
-
-        // CREATE mode assign
-        if (!isEdit && selectedVehicle !== "none") {
-          await assignVehicle(selectedVehicle, {
-            employeeId: targetEmployeeId,
-          })
-        }
       }
+
+      // -----------------------------
+      // CREATE MODE (ONLY ONCE)
+      // -----------------------------
+      if (!isEdit && selectedVehicle !== "none") {
+        await assignVehicle(selectedVehicle, {
+          employeeId: targetEmployeeId,
+        })
+      }
+
 
       // -----------------------------
       // 3. SUCCESS MESSAGE
@@ -305,7 +322,9 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned, 
       onBack()
     } catch (error) {
       console.error("Error assigning task:", error)
-      showToast.error("Failed to save task. Please try again.")
+      showToast.warning(
+        "Task saved, but vehicle assignment failed. You can reassign it from edit."
+      )
     } finally {
       setSubmitting(false)
     }
@@ -359,7 +378,7 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned, 
                     setAssignmentType(value)
                     setSelectedTeam("")
                     setSelectedEmployee("")
-                    setSelectedVehicle("none") // Reset vehicle selection when changing assignment type
+                    setSelectedVehicle(originalVehicleId ?? "none")
                   }}>
                     <SelectTrigger className="w-full">
                       <SelectValue />
