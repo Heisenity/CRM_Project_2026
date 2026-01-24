@@ -240,7 +240,7 @@ export class CustomerSupportController {
     try {
       const { id } = req.params;
       const employeeId = (req as any).user?.id;
-      const { title, category, priority, department, dueDate, estimatedHours } = req.body;
+      const { title, category, priority, dueDate, estimatedHours } = req.body;
 
       // Verify the request is accepted by this employee
       const request = await prisma.customerSupportRequest.findUnique({
@@ -282,10 +282,9 @@ export class CustomerSupportController {
         data: {
           ticketId,
           description: title ? `${title}: ${request.message}` : request.message,
-          category: category || 'OTHER',
+          categoryId: category || 'OTHER',
           priority: priority || 'MEDIUM',
           status: 'OPEN',
-          department: department || 'Customer Support',
           assigneeId: employeeId,
           reporterId: employeeId,
           dueDate: dueDate ? new Date(dueDate) : null,

@@ -15,6 +15,7 @@ import ticketCategoryRoutes from '../modules/tickets/ticketCategory.route';
 import { ticketUploadRouter } from '../modules/tickets/upload.route';
 import customerRoutes from '../modules/customers/customer.route';
 import customerSupportRoutes from '../modules/customers/customerSupport.route';
+import productRoutes from '../modules/products/product.route';
 import databaseRoutes from './database.route';
 import { authRouter } from './auth.route';
 import employeeIdRoutes from './employeeId.route';
@@ -92,6 +93,9 @@ router.use('/customers', customerRoutes);
 
 // Mount customer support routes
 router.use('/customer-support', customerSupportRoutes);
+
+// Mount product routes
+router.use('/products', productRoutes);
 
 // Health check
 router.get('/health', (_req: Request, res: Response) => {

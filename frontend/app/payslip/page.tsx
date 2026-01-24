@@ -78,7 +78,7 @@ export default function PayslipPage() {
         </div>
 
         {/* Payslip Management Component */}
-        <PayslipManagement adminId={adminId} adminName={adminName} />
+        <PayslipManagement adminId={adminId} />
       </div>
     </div>
   )
