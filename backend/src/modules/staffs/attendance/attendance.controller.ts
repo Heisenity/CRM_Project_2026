@@ -1,5 +1,6 @@
 // controllers/attendance.controller.ts
 import { Request, Response } from 'express'
+import { Prisma } from "@prisma/client"
 import { prisma } from '../../../lib/prisma'
 import { getDeviceInfo } from '../../../utils/deviceinfo'
 import { createAttendanceRecord, getRemainingAttempts, approveAttendance, rejectAttendance, getPendingAttendanceApprovals, dayClockOut } from './attendance.service'
@@ -475,3 +476,215 @@ export const dayClockOutController = async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, error: 'Failed to clock out for the day' })
   }
 }
+
+// Update attendance times
+export const updateAttendanceRecord = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params
+    const { clockIn, clockOut } = req.body
+
+    if (!id) {
+      return res.status(400).json({ success: false, error: 'Attendance ID is required' })
+    }
+
+    // Find the attendance record
+    const attendance = await prisma.attendance.findUnique({
+      where: { id },
+      include: {
+        employee: {
+          select: { name: true, employeeId: true }
+        }
+      }
+    })
+
+    if (!attendance) {
+      return res.status(404).json({ success: false, error: 'Attendance record not found' })
+    }
+
+    // Prepare update data with proper type safety
+    const updateData: Prisma.AttendanceUpdateInput = {}
+    
+    if (clockIn !== undefined) {
+      if (clockIn && clockIn.trim() !== '') {
+        try {
+          updateData.clockIn = new Date(clockIn)
+        } catch (error) {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid clockIn date format'
+          })
+        }
+      } else {
+        updateData.clockIn = null
+      }
+    }
+    
+    if (clockOut !== undefined) {
+      if (clockOut && clockOut.trim() !== '') {
+        try {
+          updateData.clockOut = new Date(clockOut)
+        } catch (error) {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid clockOut date format'
+          })
+        }
+      } else {
+        updateData.clockOut = null
+      }
+    }
+
+    // Only proceed with update if there's something to update
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No valid fields provided for update'
+      })
+    }
+
+    // Update the attendance record
+    const updatedAttendance = await prisma.attendance.update({
+      where: { id },
+      data: updateData
+    })
+
+    return res.status(200).json({
+      success: true,
+      message: 'Attendance updated successfully',
+      data: updatedAttendance
+    })
+
+  } catch (error) {
+    console.error('Error updating attendance:', error)
+    
+    // Handle Prisma-specific errors
+    if (error instanceof Error) {
+      if (error.message.includes('Record to update not found')) {
+        return res.status(404).json({
+          success: false,
+          error: 'Attendance record not found'
+        })
+      }
+    }
+    
+    return res.status(500).json({ success: false, error: 'Failed to update attendance' })
+  }
+}
+
+// Update a specific attendance session
+export const updateAttendanceSession = async (req: Request, res: Response) => {
+  try {
+    const { attendanceId, sessionId } = req.params
+    const { clockIn, clockOut } = req.body
+
+    if (!attendanceId || !sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: "Attendance ID and Session ID are required"
+      })
+    }
+
+    // Ensure attendance exists
+    const attendance = await prisma.attendance.findUnique({
+      where: { id: attendanceId }
+    })
+
+    if (!attendance) {
+      return res.status(404).json({
+        success: false,
+        error: "Attendance record not found"
+      })
+    }
+
+    // Ensure session exists and belongs to the attendance record
+    const existingSession = await prisma.attendanceSession.findFirst({
+      where: { 
+        id: sessionId,
+        attendanceId: attendanceId
+      }
+    })
+
+    if (!existingSession) {
+      return res.status(404).json({
+        success: false,
+        error: "Attendance session not found"
+      })
+    }
+
+    // ✅ Build Prisma-safe update object
+    const updateData: Prisma.AttendanceSessionUpdateInput = {}
+
+    // Handle clockIn - only update if provided in request body
+    if (clockIn !== undefined) {
+      if (clockIn && clockIn.trim() !== '') {
+        try {
+          updateData.clockIn = new Date(clockIn)
+        } catch (error) {
+          return res.status(400).json({
+            success: false,
+            error: "Invalid clockIn date format"
+          })
+        }
+      } else {
+        // Cannot set clockIn to null as it's required in schema
+        return res.status(400).json({
+          success: false,
+          error: "Clock-in time is required and cannot be empty"
+        })
+      }
+    }
+
+    // Handle clockOut - can be null since it's optional in schema
+    if (clockOut !== undefined) {
+      if (clockOut && clockOut.trim() !== '') {
+        try {
+          updateData.clockOut = new Date(clockOut)
+        } catch (error) {
+          return res.status(400).json({
+            success: false,
+            error: "Invalid clockOut date format"
+          })
+        }
+      } else {
+        updateData.clockOut = null
+      }
+    }
+
+    // Only proceed with update if there's something to update
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "No valid fields provided for update"
+      })
+    }
+
+    const updatedSession = await prisma.attendanceSession.update({
+      where: { id: sessionId },
+      data: updateData
+    })
+
+    return res.status(200).json({
+      success: true,
+      message: "Attendance session updated successfully",
+      data: updatedSession
+    })
+  } catch (error) {
+    console.error("Error updating attendance session:", error)
+    
+    // Handle Prisma-specific errors
+    if (error instanceof Error) {
+      if (error.message.includes('Record to update not found')) {
+        return res.status(404).json({
+          success: false,
+          error: "Attendance session not found"
+        })
+      }
+    }
+    
+    return res.status(500).json({
+      success: false,
+      error: "Failed to update attendance session"
+    })
+  }
+}
+

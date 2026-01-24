@@ -10,6 +10,8 @@ import {
   approveAttendanceRecord,
   rejectAttendanceRecord,
   dayClockOutController,
+  updateAttendanceRecord,
+  updateAttendanceSession
 } from "./attendance.controller";
 
 import {
@@ -64,6 +66,10 @@ router.post("/:attendanceId/approve", approveAttendanceRecord);
 // POST /attendance/:attendanceId/reject
 router.post("/:attendanceId/reject", rejectAttendanceRecord);
 
+// Update attendance times
+// PUT /attendance/:id
+router.put("/:id", updateAttendanceRecord);
+
 /**
  * =========================
  * Validation
@@ -92,5 +98,13 @@ router.get("/export/excel", exportAttendanceToExcel);
 
 // Daily attendance routes (clock-in/clock-out for field engineers)
 router.use('/', dailyAttendanceRoutes);
+
+// Update a specific attendance session
+// PUT /attendance/:attendanceId/sessions/:sessionId
+router.put(
+  "/:attendanceId/sessions/:sessionId",
+  updateAttendanceSession
+);
+
 
 export default router;

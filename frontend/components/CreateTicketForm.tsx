@@ -121,7 +121,6 @@ export function CreateTicketForm() {
     description: "",
     categoryId: "",
     priority: "",
-    department: "",
     dueDate: getDefaultDueDate(),
     estimatedHours: "",
     customerId: "none"
@@ -253,7 +252,7 @@ export function CreateTicketForm() {
     }
     
     if (!formData.categoryId) {
-      showToast.error('Please select a category')
+      showToast.error('Please select a problem type')
       return
     }
     
@@ -274,7 +273,6 @@ export function CreateTicketForm() {
           description: formData.description,
           categoryId: formData.categoryId,
           priority: formData.priority,
-          department: formData.department || undefined,
           dueDate: formData.dueDate || undefined,
           estimatedHours: formData.estimatedHours ? parseFloat(formData.estimatedHours) : undefined,
           // Add uploaded files information with URLs
@@ -317,7 +315,6 @@ export function CreateTicketForm() {
       description: "",
       categoryId: "",
       priority: "",
-      department: "",
       dueDate: getDefaultDueDate(),
       estimatedHours: "",
       customerId: "none"
@@ -468,13 +465,13 @@ export function CreateTicketForm() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <Label htmlFor="category" className="text-sm font-medium text-foreground">
-                      Category *
+                      Problem *
                     </Label>
                     <div className="mt-1">
                       <CategorySelector
                         value={formData.categoryId}
                         onValueChange={(value) => handleInputChange("categoryId", value)}
-                        placeholder="Select category"
+                        placeholder="Select problem type"
                       />
                     </div>
                   </div>
@@ -593,26 +590,7 @@ export function CreateTicketForm() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                    <Label htmlFor="department" className="text-sm font-medium text-foreground">
-                      Department (Optional)
-                    </Label>
-                    <Select value={formData.department} onValueChange={(value) => handleInputChange("department", value)}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Select department" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="IT Support">IT Support</SelectItem>
-                        <SelectItem value="IT Infrastructure">IT Infrastructure</SelectItem>
-                        <SelectItem value="Security">Security</SelectItem>
-                        <SelectItem value="Facilities">Facilities</SelectItem>
-                        <SelectItem value="Procurement">Procurement</SelectItem>
-                        <SelectItem value="HR Department">HR Department</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <Label htmlFor="dueDate" className="text-sm font-medium text-foreground">
                       Expected Resolution Date

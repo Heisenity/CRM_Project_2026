@@ -115,7 +115,13 @@ export const generatePayslip = async (req: Request, res: Response) => {
 
     // Generate PDF payslip
     console.log('Generating PDF...')
-    const pdfBuffer = await generatePayslipPDF(employee, payrollRecord, payslipDetails)
+    const enhancedPayslipDetails = {
+      ...payslipDetails,
+      daysPaid: payslipDetails.daysPaid || 30,
+      uanNumber: payslipDetails.uanNumber || employee.uanNumber || 'N/A',
+      esiNumber: payslipDetails.esiNumber || employee.esiNumber || 'N/A'
+    }
+    const pdfBuffer = await generatePayslipPDF(employee, payrollRecord, enhancedPayslipDetails)
     console.log('PDF generated, size:', pdfBuffer.length, 'bytes')
     
     // Save PDF to employee documents
@@ -218,9 +224,9 @@ const generatePayslipPDF = async (employee: any, payrollRecord: any, payslipDeta
         ['Employee Name', employee.name],
         ['Designation', employee.role],
         ['Location', employee.team?.name || 'N/A'],
-        ['UAN no.', 'N/A'],
-        ['ESI No.', 'N/A'],
-        ['Days Paid', '30']
+        ['UAN no.', payslipDetails.uanNumber || 'N/A'],
+        ['ESI No.', payslipDetails.esiNumber || 'N/A'],
+        ['Days Paid', payslipDetails.daysPaid?.toString() || '30']
       ]
 
       employeeInfo.forEach(([label, value]) => {

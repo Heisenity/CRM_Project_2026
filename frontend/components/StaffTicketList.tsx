@@ -24,7 +24,6 @@ interface TicketData {
   categoryId: string
   priority: string
   status: string
-  department?: string
   category?: {
     id: string
     name: string

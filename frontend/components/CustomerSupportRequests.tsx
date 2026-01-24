@@ -46,7 +46,6 @@ export default function CustomerSupportRequests() {
   const [ticketForm, setTicketForm] = useState({
     category: "OTHER",
     priority: "MEDIUM",
-    department: "Customer Support",
     dueDate: "",
     estimatedHours: ""
   });
@@ -119,7 +118,6 @@ export default function CustomerSupportRequests() {
     setTicketForm({
       category: "OTHER",
       priority: "MEDIUM",
-      department: "Customer Support",
       dueDate: "",
       estimatedHours: ""
     });
@@ -374,15 +372,6 @@ export default function CustomerSupportRequests() {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="department">Department</Label>
-              <Input
-                id="department"
-                value={ticketForm.department}
-                onChange={(e) => setTicketForm({ ...ticketForm, department: e.target.value })}
-              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">

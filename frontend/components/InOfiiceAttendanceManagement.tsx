@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { AddAttendanceRecord } from "@/components/AddAttendanceRecord"
 import { showToast, showConfirm } from "@/lib/toast-utils"
@@ -29,7 +31,9 @@ import {
   Timer,
   Calendar,
   Plus,
-  Settings
+  Settings,
+  MoreVertical,
+  Edit
 } from "lucide-react"
 import { getAttendanceRecords, getAllEmployees, exportAttendanceToExcel, ExportParams, AttendanceRecord, Employee } from "@/lib/server-api"
 
@@ -121,6 +125,21 @@ const formatDate = (dateString: string) => {
   })
 }
 
+// UTC (DB) → local (datetime-local input)
+const toLocalInput = (iso?: string) => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const pad = (n: number) => n.toString().padStart(2, '0')
+
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+// local (datetime-local input) → UTC (DB)
+const fromLocalInput = (value?: string) => {
+  if (!value) return null
+  return new Date(value).toISOString()
+}
+
 const STANDARD_WORK_HOURS = 8
 
 const calculateWorkHours = (clockIn?: string, clockOut?: string) => {
@@ -179,6 +198,21 @@ export function AttendanceManagementPage() {
     dateRange: { from: new Date(), to: null } as DateRange
   })
   const [exportLoading, setExportLoading] = React.useState<'excel' | 'pdf' | null>(null)
+  
+  // Edit dialog state
+  const [editDialog, setEditDialog] = React.useState<{
+    open: boolean
+    record: AttendanceSessionRow | null
+    clockIn: string
+    clockOut: string
+    loading: boolean
+  }>({
+    open: false,
+    record: null,
+    clockIn: '',
+    clockOut: '',
+    loading: false
+  })
 
   const fetchAttendanceData = React.useCallback(async () => {
     try {
@@ -465,6 +499,62 @@ export function AttendanceManagementPage() {
     }))
 
     setPagination(prev => ({ ...prev, page: 1 }))
+  }
+
+  // Edit attendance functions
+  const handleEditAttendance = (record: AttendanceSessionRow) => {
+    setEditDialog({
+      open: true,
+      record,
+      clockIn: toLocalInput(record.clockIn),
+      clockOut: toLocalInput(record.clockOut),
+      loading: false
+    })
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editDialog.record) return
+
+    setEditDialog(prev => ({ ...prev, loading: true }))
+
+    try {
+      let url: string
+      
+      // Check if this is a session update or attendance record update
+      if (editDialog.record.sessionId) {
+        // This is a session update - extract attendanceId from the composite ID
+        const attendanceId = editDialog.record.id.split('-session-')[0]
+        url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/attendance/${attendanceId}/sessions/${editDialog.record.sessionId}`
+      } else {
+        // This is a direct attendance record update
+        url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/attendance/${editDialog.record.id}`
+      }
+
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          clockIn: fromLocalInput(editDialog.clockIn),
+          clockOut: fromLocalInput(editDialog.clockOut),
+        }),
+      })
+
+      if (response.ok) {
+        showToast.success('Attendance updated successfully')
+        setEditDialog({ open: false, record: null, clockIn: '', clockOut: '', loading: false })
+        fetchAttendanceData() // Refresh data
+      } else {
+        const error = await response.json()
+        showToast.error(error.message || 'Failed to update attendance')
+      }
+    } catch (error) {
+      console.error('Error updating attendance:', error)
+      showToast.error('Failed to update attendance')
+    } finally {
+      setEditDialog(prev => ({ ...prev, loading: false }))
+    }
   }
 
   // Calculate statistics
@@ -892,6 +982,7 @@ export function AttendanceManagementPage() {
                     <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Clock In</TableHead>
                     <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Clock Out</TableHead>
                     <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Overtime</TableHead>
+                    <TableHead className="w-[60px] py-4 px-6 font-semibold text-gray-700">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -987,6 +1078,23 @@ export function AttendanceManagementPage() {
                           )
                         })()}
                       </TableCell>
+                      <TableCell className="py-4 px-6">
+                        {record.hasAttendance && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEditAttendance(record)}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit Times
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1054,6 +1162,73 @@ export function AttendanceManagementPage() {
         )}
       </div>
       )}
-    </div>
+
+    {/* Edit Attendance Dialog */}
+    <Dialog open={editDialog.open} onOpenChange={(open) => {
+      if (!open) {
+        setEditDialog({ open: false, record: null, clockIn: '', clockOut: '', loading: false })
+      }
+    }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit Attendance Times</DialogTitle>
+        </DialogHeader>
+        {editDialog.record && (
+          <div className="space-y-4">
+            <div className="text-sm text-gray-600">
+              <p><strong>Employee:</strong> {editDialog.record?.employeeName}</p>
+              <p><strong>Date:</strong> {editDialog.record ? formatDate(editDialog.record.date) : ''}</p>
+              {editDialog.record?.sessionNumber && (
+                <p><strong>Session:</strong> #{editDialog.record.sessionNumber}</p>
+              )}
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="clockIn">Clock In Time</Label>
+                <Input
+                  id="clockIn"
+                  type="datetime-local"
+                  value={editDialog.clockIn}
+                  onChange={(e) => setEditDialog(prev => ({ ...prev, clockIn: e.target.value }))}
+                  className="mt-1"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="clockOut">Clock Out Time</Label>
+                <Input
+                  id="clockOut"
+                  type="datetime-local"
+                  value={editDialog.clockOut}
+                  onChange={(e) => setEditDialog(prev => ({ ...prev, clockOut: e.target.value }))}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            
+            <div className="flex gap-2 pt-4">
+              <Button
+                onClick={handleSaveEdit}
+                disabled={editDialog.loading}
+                className="flex-1"
+              >
+                {editDialog.loading ? 'Saving...' : 'Save Changes'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setEditDialog({ open: false, record: null, clockIn: '', clockOut: '', loading: false })}
+                disabled={editDialog.loading}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+
+  </div>
   )
 }

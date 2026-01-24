@@ -54,7 +54,6 @@ interface Ticket {
   categoryId: string
   priority: string
   status: string
-  department?: string
   assigneeId?: string
   reporterId?: string
   dueDate?: string
@@ -184,8 +183,8 @@ function TicketDetailsModal({ ticket, isOpen, onClose }: TicketDetailsModalProps
               <div className="mt-1">{getPriorityBadge(ticket.priority)}</div>
             </div>
             <div>
-              <Label className="text-sm font-medium text-muted-foreground">Category</Label>
-              <p className="text-sm">{ticket.category?.name || 'Unknown Category'}</p>
+              <Label className="text-sm font-medium text-muted-foreground">Problem</Label>
+              <p className="text-sm">{ticket.category?.name || 'Unknown Problem'}</p>
             </div>
           </div>
 
@@ -277,7 +276,6 @@ function EditTicketModal({ ticket, isOpen, onClose, onSave }: EditTicketModalPro
     categoryId: '',
     priority: '',
     status: '',
-    department: '',
     dueDate: '',
     estimatedHours: ''
   })
@@ -290,7 +288,6 @@ function EditTicketModal({ ticket, isOpen, onClose, onSave }: EditTicketModalPro
         categoryId: ticket.categoryId || '',
         priority: ticket.priority || '',
         status: ticket.status || '',
-        department: ticket.department || '',
         dueDate: ticket.dueDate ? new Date(ticket.dueDate).toISOString().split('T')[0] : '',
         estimatedHours: ticket.estimatedHours?.toString() || ''
       })
@@ -340,11 +337,11 @@ function EditTicketModal({ ticket, isOpen, onClose, onSave }: EditTicketModalPro
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="category">Category</Label>
+              <Label htmlFor="category">Problem</Label>
               <CategorySelector
                 value={formData.categoryId}
                 onValueChange={(value) => setFormData(prev => ({ ...prev, categoryId: value }))}
-                placeholder="Select category"
+                placeholder="Select problem type"
               />
             </div>
 
@@ -378,28 +375,11 @@ function EditTicketModal({ ticket, isOpen, onClose, onSave }: EditTicketModalPro
                 </SelectContent>
               </Select>
             </div>
-
-            <div>
-              <Label htmlFor="department">Department</Label>
-              <Select value={formData.department} onValueChange={(value) => setFormData(prev => ({ ...prev, department: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select department" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="IT Support">IT Support</SelectItem>
-                  <SelectItem value="IT Infrastructure">IT Infrastructure</SelectItem>
-                  <SelectItem value="Security">Security</SelectItem>
-                  <SelectItem value="Facilities">Facilities</SelectItem>
-                  <SelectItem value="Procurement">Procurement</SelectItem>
-                  <SelectItem value="HR Department">HR Department</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="dueDate">Due Date</Label>
+              <Label htmlFor="dueDate">Expected Date</Label>
               <Input
                 id="dueDate"
                 type="date"
@@ -457,6 +437,7 @@ export function TicketTable() {
   const [activeTab, setActiveTab] = React.useState("all")
   const [tickets, setTickets] = React.useState<Ticket[]>([])
   const [loading, setLoading] = React.useState(true)
+  const [categories, setCategories] = React.useState<Array<{id: string, name: string}>>([])
   
   // Modal states
   const [selectedTicket, setSelectedTicket] = React.useState<Ticket | null>(null)
@@ -516,6 +497,26 @@ export function TicketTable() {
     }
   }, [authenticatedFetch])
 
+  const fetchCategories = React.useCallback(async () => {
+    try {
+      const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/ticket-categories`)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+      
+      if (result.success) {
+        setCategories(result.data || [])
+      } else {
+        console.error('Failed to fetch categories:', result)
+      }
+    } catch (error) {
+      console.error('Failed to fetch categories:', error)
+    }
+  }, [authenticatedFetch])
+
   // Handler functions for ticket actions
   const handleViewDetails = (ticket: Ticket) => {
     setSelectedTicket(ticket)
@@ -564,6 +565,7 @@ export function TicketTable() {
       if (result.success) {
         // Refresh tickets list
         await fetchTickets()
+        await fetchCategories()
         return result.data
       } else {
         throw new Error(result.message || 'Failed to update ticket')
@@ -636,11 +638,12 @@ export function TicketTable() {
   React.useEffect(() => {
     if (isAuthenticated) {
       fetchTickets()
+      fetchCategories()
     }
     
     // Removed auto-refresh to prevent page reloading
     // Users can manually refresh using the Refresh button
-  }, [isAuthenticated, fetchTickets])
+  }, [isAuthenticated, fetchTickets, fetchCategories])
 
   // Calculate summary statistics
   const totalTickets = tickets.length
@@ -702,7 +705,10 @@ export function TicketTable() {
             <div className="flex items-center gap-3">
               <Button 
                 variant="outline" 
-                onClick={fetchTickets}
+                onClick={() => {
+                  fetchTickets()
+                  fetchCategories()
+                }}
                 disabled={loading}
                 className="border-border hover:bg-accent"
               >
@@ -886,19 +892,19 @@ export function TicketTable() {
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="border-border hover:bg-accent">
                       <Filter className="h-4 w-4 mr-2" />
-                      Category
+                      Problem
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="w-48">
-                    <DropdownMenuItem onClick={() => setSelectedCategory("all")}>All Categories</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSelectedCategory("AUTHENTICATION")}>Authentication</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSelectedCategory("HARDWARE")}>Hardware</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSelectedCategory("SOFTWARE")}>Software</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSelectedCategory("NETWORK")}>Network</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSelectedCategory("SECURITY")}>Security</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSelectedCategory("DATABASE")}>Database</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSelectedCategory("MAINTENANCE")}>Maintenance</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSelectedCategory("SETUP")}>Setup</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setSelectedCategory("all")}>All Problems</DropdownMenuItem>
+                    {categories.map((category) => (
+                      <DropdownMenuItem 
+                        key={category.id} 
+                        onClick={() => setSelectedCategory(category.name)}
+                      >
+                        {category.name}
+                      </DropdownMenuItem>
+                    ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <DropdownMenu>
@@ -933,7 +939,6 @@ export function TicketTable() {
                 <TableHead className="w-[150px] py-4 px-6 font-semibold text-foreground">Created By</TableHead>
                 <TableHead className="w-[120px] py-4 px-6 font-semibold text-foreground">Attachments</TableHead>
                 <TableHead className="w-[120px] py-4 px-6 font-semibold text-foreground">Expected Date</TableHead>
-                <TableHead className="py-4 px-6 font-semibold text-foreground">Department</TableHead>
                 <TableHead className="w-[60px] py-4 px-6"></TableHead>
               </TableRow>
             </TableHeader>
@@ -993,7 +998,7 @@ export function TicketTable() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="font-semibold text-foreground truncate">{ticket.ticketId}</p>
-                          <p className="text-sm text-muted-foreground">{ticket.category?.name || 'Unknown Category'}</p>
+                          <p className="text-sm text-muted-foreground">{ticket.category?.name || 'Unknown Problem'}</p>
                           <p className="text-xs text-muted-foreground line-clamp-1">{ticket.description}</p>
                           {ticket._count && ticket._count.comments > 0 && (
                             <div className="flex items-center gap-1 mt-1">
@@ -1126,9 +1131,6 @@ export function TicketTable() {
                           <p className="text-xs text-muted-foreground">{ticket.estimatedHours}h estimated</p>
                         )}
                       </div>
-                    </TableCell>
-                    <TableCell className="py-4 px-6">
-                      <span className="text-sm text-muted-foreground">{ticket.department}</span>
                     </TableCell>
                     <TableCell className="py-4 px-6">
                       <DropdownMenu>

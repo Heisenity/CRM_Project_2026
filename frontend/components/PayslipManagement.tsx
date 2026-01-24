@@ -1,6 +1,4 @@
-"use client"
-
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -8,9 +6,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Download, FileText, Calendar, User, DollarSign } from "lucide-react"
+import { Loader2, FileText, CalendarIcon, User, DollarSign } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch"
+import { getDaysInMonth } from "date-fns"
 
 interface Employee {
   id: string
@@ -19,6 +18,8 @@ interface Employee {
   email: string
   salary: number | string
   role: string
+  uanNumber?: string
+  esiNumber?: string
   team?: {
     name: string
   }
@@ -45,6 +46,10 @@ interface PayslipFormData {
   employeeId: string
   month: number
   year: number
+  selectedDate: Date | undefined
+  daysPaid: number
+  uanNumber: string
+  esiNumber: string
   basicSalary: number
   houseRentAllowance: number
   skillAllowance: number
@@ -64,19 +69,21 @@ interface PayslipFormData {
 
 interface PayslipManagementProps {
   adminId: string
-  adminName: string
 }
 
-export function PayslipManagement({ adminId, adminName }: PayslipManagementProps) {
+export function PayslipManagement({ adminId }: PayslipManagementProps) {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [payrollRecords, setPayrollRecords] = useState<PayrollRecord[]>([])
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
-  const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [formData, setFormData] = useState<PayslipFormData>({
     employeeId: '',
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
+    selectedDate: new Date(),
+    daysPaid: getDaysInMonth(new Date()),
+    uanNumber: '',
+    esiNumber: '',
     basicSalary: 0,
     houseRentAllowance: 0,
     skillAllowance: 0,
@@ -112,16 +119,7 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
     { value: 12, label: 'December' }
   ]
 
-  const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i)
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchEmployees()
-      fetchPayrollRecords()
-    }
-  }, [isAuthenticated])
-
-  const fetchEmployees = async () => {
+  const fetchEmployees = useCallback(async () => {
     try {
       const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees`)
       const result = await response.json()
@@ -141,9 +139,9 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
         variant: "destructive"
       })
     }
-  }
+  }, [authenticatedFetch, toast])
 
-  const fetchPayrollRecords = async () => {
+  const fetchPayrollRecords = useCallback(async () => {
     try {
       const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/payroll`)
       const result = await response.json()
@@ -158,7 +156,14 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
       console.error('Error fetching payroll records:', error)
       setPayrollRecords([])
     }
-  }
+  }, [authenticatedFetch])
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchEmployees()
+      fetchPayrollRecords()
+    }
+  }, [isAuthenticated, fetchEmployees, fetchPayrollRecords])
 
   const handleEmployeeSelect = (employeeId: string) => {
     const employee = employees.find(emp => emp.id === employeeId)
@@ -167,7 +172,9 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
       setFormData(prev => ({
         ...prev,
         employeeId: employee.id,
-        basicSalary: Number(employee.salary) || 0
+        basicSalary: Number(employee.salary) || prev.basicSalary,
+        uanNumber: employee.uanNumber || '',
+        esiNumber: employee.esiNumber || ''
       }))
     }
   }
@@ -175,21 +182,21 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
   const handleInputChange = (field: keyof PayslipFormData, value: string | number) => {
     setFormData(prev => ({
       ...prev,
-      [field]: typeof value === 'string' ? (parseFloat(value) || 0) : (Number(value) || 0)
+      [field]: typeof value === 'string' ? (value === '' ? 0 : parseFloat(value) || 0) : (Number(value) || 0)
     }))
   }
 
   const calculateTotals = () => {
-    const totalIncome = (formData.basicSalary || 0) + (formData.houseRentAllowance || 0) + 
-                       (formData.skillAllowance || 0) + (formData.conveyanceAllowance || 0) + 
-                       (formData.medicalAllowance || 0)
-
     const totalDeductions = (formData.professionalTax || 0) + (formData.providentFund || 0) + 
                            (formData.esi || 0) + (formData.incomeTax || 0) + (formData.personalLoan || 0) + 
                            (formData.otherAdvance || 0)
 
     const totalReimbursements = (formData.medicalExp || 0) + (formData.lta || 0) + 
                                (formData.repairMaintenance || 0) + (formData.fuelExp || 0)
+
+    const totalIncome = (formData.basicSalary || 0) + (formData.houseRentAllowance || 0) + 
+                       (formData.skillAllowance || 0) + (formData.conveyanceAllowance || 0) + 
+                       (formData.medicalAllowance || 0)
 
     const netPay = totalIncome - totalDeductions + totalReimbursements
 
@@ -226,7 +233,10 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
         overtime: 0,
         netSalary: netPay,
         processedBy: adminId,
-        payslipDetails: formData
+        payslipDetails: {
+          ...formData,
+          daysPaid: formData.daysPaid
+        }
       }
 
       const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/payroll/generate`, {
@@ -247,6 +257,10 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
           employeeId: '',
           month: new Date().getMonth() + 1,
           year: new Date().getFullYear(),
+          selectedDate: new Date(),
+          daysPaid: getDaysInMonth(new Date()),
+          uanNumber: '',
+          esiNumber: '',
           basicSalary: 0,
           houseRentAllowance: 0,
           skillAllowance: 0,
@@ -295,7 +309,7 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Employee Selection */}
+          {/* Employee Selection and Date */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="employee">Select Employee</Label>
@@ -320,7 +334,16 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
 
             <div className="space-y-2">
               <Label htmlFor="month">Month</Label>
-              <Select onValueChange={(value) => handleInputChange('month', parseInt(value))} value={formData.month.toString()}>
+              <Select onValueChange={(value) => {
+                const month = parseInt(value)
+                const date = new Date(formData.year, month - 1, 1)
+                setFormData(prev => ({
+                  ...prev,
+                  month,
+                  selectedDate: date,
+                  daysPaid: getDaysInMonth(date)
+                }))
+              }} value={formData.month.toString()}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -336,12 +359,21 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
 
             <div className="space-y-2">
               <Label htmlFor="year">Year</Label>
-              <Select onValueChange={(value) => handleInputChange('year', parseInt(value))} value={formData.year.toString()}>
+              <Select onValueChange={(value) => {
+                const year = parseInt(value)
+                const date = new Date(year, formData.month - 1, 1)
+                setFormData(prev => ({
+                  ...prev,
+                  year,
+                  selectedDate: date,
+                  daysPaid: getDaysInMonth(date)
+                }))
+              }} value={formData.year.toString()}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {years.map((year) => (
+                  {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map((year) => (
                     <SelectItem key={year} value={year.toString()}>
                       {year}
                     </SelectItem>
@@ -351,9 +383,28 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
             </div>
           </div>
 
+          {/* Days Paid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="daysPaid">Days Paid</Label>
+              <Input
+                id="daysPaid"
+                type="number"
+                min="1"
+                max="31"
+                value={formData.daysPaid === 0 ? '' : formData.daysPaid}
+                onChange={(e) => handleInputChange('daysPaid', e.target.value)}
+                className="w-full"
+              />
+              <div className="text-sm text-gray-500">
+                Days in {months.find(m => m.value === formData.month)?.label} {formData.year}: {getDaysInMonth(new Date(formData.year, formData.month - 1, 1))}
+              </div>
+            </div>
+          </div>
+
           {selectedEmployee && (
             <div className="bg-blue-50 p-4 rounded-lg">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 mb-3">
                 <User className="h-5 w-5 text-blue-600" />
                 <div>
                   <p className="font-medium text-blue-900">{selectedEmployee.name}</p>
@@ -362,6 +413,32 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
                     {selectedEmployee.team && ` | Team: ${selectedEmployee.team.name}`}
                   </p>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* UAN and ESI Input Fields */}
+          {selectedEmployee && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="uanNumber">UAN Number</Label>
+                <Input
+                  id="uanNumber"
+                  type="text"
+                  value={formData.uanNumber}
+                  onChange={(e) => setFormData(prev => ({ ...prev, uanNumber: e.target.value }))}
+                  placeholder="Enter UAN number"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="esiNumber">ESI Number</Label>
+                <Input
+                  id="esiNumber"
+                  type="text"
+                  value={formData.esiNumber}
+                  onChange={(e) => setFormData(prev => ({ ...prev, esiNumber: e.target.value }))}
+                  placeholder="Enter ESI number"
+                />
               </div>
             </div>
           )}
@@ -380,7 +457,7 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
                   <Input
                     id="basicSalary"
                     type="number"
-                    value={formData.basicSalary}
+                    value={formData.basicSalary === 0 ? '' : formData.basicSalary}
                     onChange={(e) => handleInputChange('basicSalary', e.target.value)}
                     placeholder="0.00"
                   />
@@ -391,7 +468,7 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
                   <Input
                     id="houseRentAllowance"
                     type="number"
-                    value={formData.houseRentAllowance}
+                    value={formData.houseRentAllowance === 0 ? '' : formData.houseRentAllowance}
                     onChange={(e) => handleInputChange('houseRentAllowance', e.target.value)}
                     placeholder="0.00"
                   />
@@ -402,7 +479,7 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
                   <Input
                     id="skillAllowance"
                     type="number"
-                    value={formData.skillAllowance}
+                    value={formData.skillAllowance === 0 ? '' : formData.skillAllowance}
                     onChange={(e) => handleInputChange('skillAllowance', e.target.value)}
                     placeholder="0.00"
                   />
@@ -413,7 +490,7 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
                   <Input
                     id="conveyanceAllowance"
                     type="number"
-                    value={formData.conveyanceAllowance}
+                    value={formData.conveyanceAllowance === 0 ? '' : formData.conveyanceAllowance}
                     onChange={(e) => handleInputChange('conveyanceAllowance', e.target.value)}
                     placeholder="0.00"
                   />
@@ -424,7 +501,7 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
                   <Input
                     id="medicalAllowance"
                     type="number"
-                    value={formData.medicalAllowance}
+                    value={formData.medicalAllowance === 0 ? '' : formData.medicalAllowance}
                     onChange={(e) => handleInputChange('medicalAllowance', e.target.value)}
                     placeholder="0.00"
                   />
@@ -448,7 +525,7 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
                   <Input
                     id="professionalTax"
                     type="number"
-                    value={formData.professionalTax}
+                    value={formData.professionalTax === 0 ? '' : formData.professionalTax}
                     onChange={(e) => handleInputChange('professionalTax', e.target.value)}
                     placeholder="0.00"
                   />
@@ -459,7 +536,7 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
                   <Input
                     id="providentFund"
                     type="number"
-                    value={formData.providentFund}
+                    value={formData.providentFund === 0 ? '' : formData.providentFund}
                     onChange={(e) => handleInputChange('providentFund', e.target.value)}
                     placeholder="0.00"
                   />
@@ -470,7 +547,7 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
                   <Input
                     id="esi"
                     type="number"
-                    value={formData.esi}
+                    value={formData.esi === 0 ? '' : formData.esi}
                     onChange={(e) => handleInputChange('esi', e.target.value)}
                     placeholder="0.00"
                   />
@@ -481,7 +558,7 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
                   <Input
                     id="incomeTax"
                     type="number"
-                    value={formData.incomeTax}
+                    value={formData.incomeTax === 0 ? '' : formData.incomeTax}
                     onChange={(e) => handleInputChange('incomeTax', e.target.value)}
                     placeholder="0.00"
                   />
@@ -492,7 +569,7 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
                   <Input
                     id="personalLoan"
                     type="number"
-                    value={formData.personalLoan}
+                    value={formData.personalLoan === 0 ? '' : formData.personalLoan}
                     onChange={(e) => handleInputChange('personalLoan', e.target.value)}
                     placeholder="0.00"
                   />
@@ -503,7 +580,7 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
                   <Input
                     id="otherAdvance"
                     type="number"
-                    value={formData.otherAdvance}
+                    value={formData.otherAdvance === 0 ? '' : formData.otherAdvance}
                     onChange={(e) => handleInputChange('otherAdvance', e.target.value)}
                     placeholder="0.00"
                   />
@@ -528,7 +605,7 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
                 <Input
                   id="medicalExp"
                   type="number"
-                  value={formData.medicalExp}
+                  value={formData.medicalExp === 0 ? '' : formData.medicalExp}
                   onChange={(e) => handleInputChange('medicalExp', e.target.value)}
                   placeholder="0.00"
                 />
@@ -539,7 +616,7 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
                 <Input
                   id="lta"
                   type="number"
-                  value={formData.lta}
+                  value={formData.lta === 0 ? '' : formData.lta}
                   onChange={(e) => handleInputChange('lta', e.target.value)}
                   placeholder="0.00"
                 />
@@ -550,7 +627,7 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
                 <Input
                   id="repairMaintenance"
                   type="number"
-                  value={formData.repairMaintenance}
+                  value={formData.repairMaintenance === 0 ? '' : formData.repairMaintenance}
                   onChange={(e) => handleInputChange('repairMaintenance', e.target.value)}
                   placeholder="0.00"
                 />
@@ -561,7 +638,7 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
                 <Input
                   id="fuelExp"
                   type="number"
-                  value={formData.fuelExp}
+                  value={formData.fuelExp === 0 ? '' : formData.fuelExp}
                   onChange={(e) => handleInputChange('fuelExp', e.target.value)}
                   placeholder="0.00"
                 />
@@ -609,7 +686,7 @@ export function PayslipManagement({ adminId, adminName }: PayslipManagementProps
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
+            <CalendarIcon className="h-5 w-5" />
             Recent Payroll Records
           </CardTitle>
         </CardHeader>

@@ -113,20 +113,50 @@ export async function dailyClockIn(data: DailyClockInData): Promise<DailyAttenda
     }
 
     // 3️⃣ Handle first clock-in vs subsequent clock-ins differently
-    if (!attendance.clockIn && attendance.approvalStatus === 'PENDING') {
-      // FIRST CLOCK-IN OF THE DAY - Store pending, don't create session yet
-      await prisma.attendance.update({
-        where: { id: attendance.id },
-        data: { 
-          pendingCheckInAt: now,  // Store for admin approval
-          photo: data.photo,
-          location: data.locationText || attendance.location,
-          ipAddress: data.ipAddress,
-          deviceInfo: deviceString,
-          updatedAt: now
-        }
-      });
-      console.log('Stored pending first clock-in for admin approval for employee:', employee.employeeId);
+    if (!attendance.clockIn && (attendance.approvalStatus === 'PENDING' || attendance.approvalStatus === 'NOT_REQUIRED')) {
+      if (attendance.approvalStatus === 'NOT_REQUIRED') {
+        // Re-enabled attendance - create session immediately without approval
+        const session = await prisma.attendanceSession.create({
+          data: {
+            attendanceId: attendance.id,
+            clockIn: now,
+            photo: data.photo,
+            location: data.locationText,
+            ipAddress: data.ipAddress,
+            deviceInfo: deviceString
+          }
+        });
+
+        // Set the official clockIn time
+        await prisma.attendance.update({
+          where: { id: attendance.id },
+          data: {
+            clockIn: now,
+            approvalStatus: 'APPROVED',
+            photo: data.photo,
+            location: data.locationText || attendance.location,
+            ipAddress: data.ipAddress,
+            deviceInfo: deviceString,
+            updatedAt: now
+          }
+        });
+
+        console.log('Re-enabled attendance - created session immediately for employee:', employee.employeeId);
+      } else {
+        // FIRST CLOCK-IN OF THE DAY - Store pending, don't create session yet
+        await prisma.attendance.update({
+          where: { id: attendance.id },
+          data: { 
+            pendingCheckInAt: now,  // Store for admin approval
+            photo: data.photo,
+            location: data.locationText || attendance.location,
+            ipAddress: data.ipAddress,
+            deviceInfo: deviceString,
+            updatedAt: now
+          }
+        });
+        console.log('Stored pending first clock-in for admin approval for employee:', employee.employeeId);
+      }
     } else if (attendance.clockIn && attendance.approvalStatus === 'APPROVED') {
       // SUBSEQUENT CLOCK-IN - Day already approved, create session immediately
       await prisma.attendanceSession.create({
@@ -140,6 +170,11 @@ export async function dailyClockIn(data: DailyClockInData): Promise<DailyAttenda
         }
       });
       console.log('Created new session for already approved attendance for employee:', employee.employeeId);
+    } else if (attendance.approvalStatus === 'REJECTED') {
+      return {
+        success: false,
+        message: 'Your attendance was rejected. Please contact admin to re-enable clock-in.'
+      };
     } else {
       // Edge case: attendance exists but not approved yet
       return {
@@ -148,7 +183,7 @@ export async function dailyClockIn(data: DailyClockInData): Promise<DailyAttenda
       };
     }
 
-    // 🔔 Notify admin for approval (only for new attendance records)
+    // 🔔 Notify admin for approval (only for new attendance records that need approval)
     if (isNewAttendance && attendance.approvalStatus === 'PENDING') {
       try {
         console.log('Sending admin notification for new attendance:', attendance.id);

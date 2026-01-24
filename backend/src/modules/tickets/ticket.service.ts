@@ -6,7 +6,6 @@ interface CreateTicketInput {
   description: string;
   categoryId: string;
   priority: TicketPriority;
-  department?: string;
   assigneeId?: string;
   reporterId: string;
   dueDate?: Date;
@@ -28,7 +27,6 @@ interface UpdateTicketInput {
   categoryId?: string;
   priority?: TicketPriority;
   status?: TicketStatus;
-  department?: string;
   assigneeId?: string;
   dueDate?: Date;
   estimatedHours?: number;
@@ -132,7 +130,6 @@ export class TicketService {
         description: data.description,
         categoryId: data.categoryId,
         priority: data.priority,
-        department: data.department,
         assigneeId: data.assigneeId,
         reporterId: reporterId, // This will be null for admin reporters or unknown users
         dueDate: data.dueDate,
@@ -592,7 +589,6 @@ export class TicketService {
         categoryId: data.categoryId,
         priority: data.priority,
         status: data.status,
-        department: data.department,
         assigneeId: data.assigneeId,
         dueDate: data.dueDate,
         estimatedHours: data.estimatedHours,

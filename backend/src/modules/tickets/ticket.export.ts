@@ -9,7 +9,6 @@ interface TicketExportFilters {
   status?: string
   priority?: string
   category?: string
-  department?: string
   assigneeId?: string
   reporterId?: string
   quickRange?: 'yesterday' | '15days' | '30days'
@@ -87,11 +86,6 @@ async function getTicketDataForExport(filters: TicketExportFilters) {
   // Category filter
   if (filters.category) {
     where.category = filters.category
-  }
-
-  // Department filter
-  if (filters.department) {
-    where.department = filters.department
   }
 
   // Assignee filter
@@ -185,7 +179,6 @@ async function getTicketDataForExport(filters: TicketExportFilters) {
     category: ticket.category,
     priority: ticket.priority,
     status: ticket.status,
-    department: ticket.department || '',
     customerName: ticket.customerName || '',
     customerId: ticket.customerId || '',
     customerPhone: ticket.customerPhone || '',
@@ -245,7 +238,6 @@ export const exportTicketsToExcel = async (req: Request, res: Response) => {
       status: req.query.status as string,
       priority: req.query.priority as string,
       category: req.query.category as string,
-      department: req.query.department as string,
       assigneeId: req.query.assigneeId as string,
       reporterId: req.query.reporterId as string,
       quickRange: req.query.quickRange as any
@@ -263,7 +255,6 @@ export const exportTicketsToExcel = async (req: Request, res: Response) => {
       'Category',
       'Priority',
       'Status',
-      'Department',
       'Customer Name',
       'Customer ID',
       'Customer Phone',
@@ -312,7 +303,6 @@ export const exportTicketsToExcel = async (req: Request, res: Response) => {
         ticket.category,
         getPriorityLabel(ticket.priority),
         getStatusLabel(ticket.status),
-        ticket.department,
         ticket.customerName,
         ticket.customerId,
         ticket.customerPhone,

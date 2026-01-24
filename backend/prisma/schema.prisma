@@ -50,6 +50,8 @@ model Employee {
   address                 String?
   aadharCard              String?                  @unique
   panCard                 String?                  @unique
+  uanNumber               String?
+  esiNumber               String?
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
   /// *
@@ -412,7 +414,6 @@ model SupportTicket {
   categoryId             String
   priority               TicketPriority
   status                 TicketStatus            @default(OPEN)
-  department             String?
   assigneeId             String?
   reporterId             String?
   dueDate                DateTime?               @db.Date
