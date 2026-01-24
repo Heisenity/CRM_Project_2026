@@ -5,3 +5,8 @@
 # Uploaded files (keep directory structure but ignore actual files)
 uploads/documents/*
 !uploads/documents/.gitkeep
+
+# Deployment credentials (contains sensitive information)
+deployment-credentials/
+*.credentials.txt
+*.credentials.json
