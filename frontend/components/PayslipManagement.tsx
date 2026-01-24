@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, FileText, CalendarIcon, User, DollarSign } from "lucide-react"
+import { Loader2, FileText, CalendarIcon, User, DollarSign, Edit, Send, ArrowLeft } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch"
 import { getDaysInMonth } from "date-fns"
@@ -20,6 +20,7 @@ interface Employee {
   role: string
   uanNumber?: string
   esiNumber?: string
+  bankAccountNumber?: string
   team?: {
     name: string
   }
@@ -36,6 +37,25 @@ interface PayrollRecord {
   netSalary: number | string
   status: 'DRAFT' | 'PROCESSED' | 'PAID'
   processedAt?: string
+  // Detailed breakdown fields
+  daysPaid?: number
+  uanNumber?: string
+  esiNumber?: string
+  bankAccountNumber?: string
+  houseRentAllowance?: number | string
+  skillAllowance?: number | string
+  conveyanceAllowance?: number | string
+  medicalAllowance?: number | string
+  professionalTax?: number | string
+  providentFund?: number | string
+  esi?: number | string
+  incomeTax?: number | string
+  personalLoan?: number | string
+  otherAdvance?: number | string
+  medicalExp?: number | string
+  lta?: number | string
+  repairMaintenance?: number | string
+  fuelExp?: number | string
   employee: {
     name: string
     employeeId: string
@@ -50,6 +70,7 @@ interface PayslipFormData {
   daysPaid: number
   uanNumber: string
   esiNumber: string
+  bankAccountNumber: string
   basicSalary: number
   houseRentAllowance: number
   skillAllowance: number
@@ -76,6 +97,8 @@ export function PayslipManagement({ adminId }: PayslipManagementProps) {
   const [payrollRecords, setPayrollRecords] = useState<PayrollRecord[]>([])
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
   const [generating, setGenerating] = useState(false)
+  const [editingRecord, setEditingRecord] = useState<PayrollRecord | null>(null)
+  const [sendingPayslip, setSendingPayslip] = useState<string | null>(null)
   const [formData, setFormData] = useState<PayslipFormData>({
     employeeId: '',
     month: new Date().getMonth() + 1,
@@ -84,6 +107,7 @@ export function PayslipManagement({ adminId }: PayslipManagementProps) {
     daysPaid: getDaysInMonth(new Date()),
     uanNumber: '',
     esiNumber: '',
+    bankAccountNumber: '',
     basicSalary: 0,
     houseRentAllowance: 0,
     skillAllowance: 0,
@@ -174,7 +198,8 @@ export function PayslipManagement({ adminId }: PayslipManagementProps) {
         employeeId: employee.id,
         basicSalary: Number(employee.salary) || prev.basicSalary,
         uanNumber: employee.uanNumber || '',
-        esiNumber: employee.esiNumber || ''
+        esiNumber: employee.esiNumber || '',
+        bankAccountNumber: employee.bankAccountNumber || ''
       }))
     }
   }
@@ -261,6 +286,7 @@ export function PayslipManagement({ adminId }: PayslipManagementProps) {
           daysPaid: getDaysInMonth(new Date()),
           uanNumber: '',
           esiNumber: '',
+          bankAccountNumber: '',
           basicSalary: 0,
           houseRentAllowance: 0,
           skillAllowance: 0,
@@ -296,6 +322,185 @@ export function PayslipManagement({ adminId }: PayslipManagementProps) {
     }
   }
 
+  const editPayrollRecord = (record: PayrollRecord) => {
+    setEditingRecord(record)
+    // Find the employee for this record
+    const employee = employees.find(emp => emp.employeeId === record.employee.employeeId)
+    if (employee) {
+      setSelectedEmployee(employee)
+      // Populate form with existing data from the record
+      setFormData({
+        employeeId: employee.id,
+        month: record.month,
+        year: record.year,
+        selectedDate: new Date(record.year, record.month - 1, 1),
+        daysPaid: record.daysPaid || getDaysInMonth(new Date(record.year, record.month - 1, 1)),
+        uanNumber: record.uanNumber || employee.uanNumber || '',
+        esiNumber: record.esiNumber || employee.esiNumber || '',
+        bankAccountNumber: record.bankAccountNumber || employee.bankAccountNumber || '',
+        basicSalary: Number(record.basicSalary),
+        houseRentAllowance: Number(record.houseRentAllowance || 0),
+        skillAllowance: Number(record.skillAllowance || 0),
+        conveyanceAllowance: Number(record.conveyanceAllowance || 0),
+        medicalAllowance: Number(record.medicalAllowance || 0),
+        professionalTax: Number(record.professionalTax || 0),
+        providentFund: Number(record.providentFund || 0),
+        esi: Number(record.esi || 0),
+        incomeTax: Number(record.incomeTax || 0),
+        personalLoan: Number(record.personalLoan || 0),
+        otherAdvance: Number(record.otherAdvance || 0),
+        medicalExp: Number(record.medicalExp || 0),
+        lta: Number(record.lta || 0),
+        repairMaintenance: Number(record.repairMaintenance || 0),
+        fuelExp: Number(record.fuelExp || 0)
+      })
+    }
+  }
+
+  const updatePayrollRecord = async () => {
+    if (!editingRecord) return
+
+    setGenerating(true)
+    try {
+      const { totalIncome, totalDeductions, netPay } = calculateTotals()
+      
+      const updateData = {
+        basicSalary: formData.basicSalary,
+        allowances: formData.houseRentAllowance + formData.skillAllowance + 
+                   formData.conveyanceAllowance + formData.medicalAllowance,
+        deductions: totalDeductions,
+        overtime: 0,
+        netSalary: netPay,
+        payslipDetails: {
+          ...formData,
+          daysPaid: formData.daysPaid
+        }
+      }
+
+      const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/payroll/${editingRecord.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData)
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: "Payroll record updated successfully"
+        })
+        
+        // Reset editing state
+        setEditingRecord(null)
+        setSelectedEmployee(null)
+        
+        // Reset form
+        setFormData({
+          employeeId: '',
+          month: new Date().getMonth() + 1,
+          year: new Date().getFullYear(),
+          selectedDate: new Date(),
+          daysPaid: getDaysInMonth(new Date()),
+          uanNumber: '',
+          esiNumber: '',
+          bankAccountNumber: '',
+          basicSalary: 0,
+          houseRentAllowance: 0,
+          skillAllowance: 0,
+          conveyanceAllowance: 0,
+          medicalAllowance: 0,
+          professionalTax: 0,
+          providentFund: 0,
+          esi: 0,
+          incomeTax: 0,
+          personalLoan: 0,
+          otherAdvance: 0,
+          medicalExp: 0,
+          lta: 0,
+          repairMaintenance: 0,
+          fuelExp: 0
+        })
+        
+        // Refresh payroll records
+        fetchPayrollRecords()
+      } else {
+        throw new Error(result.message || 'Failed to update payroll record')
+      }
+    } catch (error) {
+      console.error('Error updating payroll record:', error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update payroll record",
+        variant: "destructive"
+      })
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const sendPayslip = async (recordId: string) => {
+    setSendingPayslip(recordId)
+    try {
+      const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/payroll/${recordId}/send`, {
+        method: 'POST'
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: result.message
+        })
+        
+        // Refresh payroll records to update status
+        fetchPayrollRecords()
+      } else {
+        throw new Error(result.message || 'Failed to send payslip')
+      }
+    } catch (error) {
+      console.error('Error sending payslip:', error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to send payslip",
+        variant: "destructive"
+      })
+    } finally {
+      setSendingPayslip(null)
+    }
+  }
+
+  const cancelEdit = () => {
+    setEditingRecord(null)
+    setSelectedEmployee(null)
+    // Reset form
+    setFormData({
+      employeeId: '',
+      month: new Date().getMonth() + 1,
+      year: new Date().getFullYear(),
+      selectedDate: new Date(),
+      daysPaid: getDaysInMonth(new Date()),
+      uanNumber: '',
+      esiNumber: '',
+      bankAccountNumber: '',
+      basicSalary: 0,
+      houseRentAllowance: 0,
+      skillAllowance: 0,
+      conveyanceAllowance: 0,
+      medicalAllowance: 0,
+      professionalTax: 0,
+      providentFund: 0,
+      esi: 0,
+      incomeTax: 0,
+      personalLoan: 0,
+      otherAdvance: 0,
+      medicalExp: 0,
+      lta: 0,
+      repairMaintenance: 0,
+      fuelExp: 0
+    })
+  }
+
   const { totalIncome, totalDeductions, totalReimbursements, netPay } = calculateTotals()
 
   return (
@@ -303,17 +508,39 @@ export function PayslipManagement({ adminId }: PayslipManagementProps) {
       {/* Payslip Generation Form */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Generate Payslip
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              {editingRecord ? 'Edit Payslip' : 'Generate Payslip'}
+            </CardTitle>
+            {editingRecord && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={cancelEdit}
+                className="flex items-center gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back
+              </Button>
+            )}
+          </div>
+          {editingRecord && (
+            <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
+              Editing payslip for {editingRecord.employee.name} - {months.find(m => m.value === editingRecord.month)?.label} {editingRecord.year}
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Employee Selection and Date */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="employee">Select Employee</Label>
-              <Select onValueChange={handleEmployeeSelect} value={formData.employeeId}>
+              <Select 
+                onValueChange={handleEmployeeSelect} 
+                value={formData.employeeId}
+                disabled={!!editingRecord}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Choose employee..." />
                 </SelectTrigger>
@@ -334,16 +561,20 @@ export function PayslipManagement({ adminId }: PayslipManagementProps) {
 
             <div className="space-y-2">
               <Label htmlFor="month">Month</Label>
-              <Select onValueChange={(value) => {
-                const month = parseInt(value)
-                const date = new Date(formData.year, month - 1, 1)
-                setFormData(prev => ({
-                  ...prev,
-                  month,
-                  selectedDate: date,
-                  daysPaid: getDaysInMonth(date)
-                }))
-              }} value={formData.month.toString()}>
+              <Select 
+                onValueChange={(value) => {
+                  const month = parseInt(value)
+                  const date = new Date(formData.year, month - 1, 1)
+                  setFormData(prev => ({
+                    ...prev,
+                    month,
+                    selectedDate: date,
+                    daysPaid: getDaysInMonth(date)
+                  }))
+                }} 
+                value={formData.month.toString()}
+                disabled={!!editingRecord}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -359,16 +590,20 @@ export function PayslipManagement({ adminId }: PayslipManagementProps) {
 
             <div className="space-y-2">
               <Label htmlFor="year">Year</Label>
-              <Select onValueChange={(value) => {
-                const year = parseInt(value)
-                const date = new Date(year, formData.month - 1, 1)
-                setFormData(prev => ({
-                  ...prev,
-                  year,
-                  selectedDate: date,
-                  daysPaid: getDaysInMonth(date)
-                }))
-              }} value={formData.year.toString()}>
+              <Select 
+                onValueChange={(value) => {
+                  const year = parseInt(value)
+                  const date = new Date(year, formData.month - 1, 1)
+                  setFormData(prev => ({
+                    ...prev,
+                    year,
+                    selectedDate: date,
+                    daysPaid: getDaysInMonth(date)
+                  }))
+                }} 
+                value={formData.year.toString()}
+                disabled={!!editingRecord}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -417,9 +652,9 @@ export function PayslipManagement({ adminId }: PayslipManagementProps) {
             </div>
           )}
 
-          {/* UAN and ESI Input Fields */}
+          {/* UAN, ESI and Bank Account Input Fields */}
           {selectedEmployee && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="uanNumber">UAN Number</Label>
                 <Input
@@ -438,6 +673,16 @@ export function PayslipManagement({ adminId }: PayslipManagementProps) {
                   value={formData.esiNumber}
                   onChange={(e) => setFormData(prev => ({ ...prev, esiNumber: e.target.value }))}
                   placeholder="Enter ESI number"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bankAccountNumber">Bank Account Number</Label>
+                <Input
+                  id="bankAccountNumber"
+                  type="text"
+                  value={formData.bankAccountNumber}
+                  onChange={(e) => setFormData(prev => ({ ...prev, bankAccountNumber: e.target.value }))}
+                  placeholder="Enter bank account number"
                 />
               </div>
             </div>
@@ -659,22 +904,22 @@ export function PayslipManagement({ adminId }: PayslipManagementProps) {
             </div>
           </div>
 
-          {/* Generate Button */}
+          {/* Generate/Update Button */}
           <div className="flex justify-end">
             <Button 
-              onClick={generatePayslip} 
+              onClick={editingRecord ? updatePayrollRecord : generatePayslip} 
               disabled={!selectedEmployee || generating}
               className="px-8"
             >
               {generating ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Generating...
+                  {editingRecord ? 'Updating...' : 'Generating...'}
                 </>
               ) : (
                 <>
                   <FileText className="h-4 w-4 mr-2" />
-                  Generate Payslip
+                  {editingRecord ? 'Update Payslip' : 'Generate Payslip'}
                 </>
               )}
             </Button>
@@ -716,6 +961,28 @@ export function PayslipManagement({ adminId }: PayslipManagementProps) {
                       >
                         {record.status}
                       </Badge>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => editPayrollRecord(record)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => sendPayslip(record.id)}
+                        disabled={sendingPayslip === record.id}
+                        className="h-8 w-8 p-0"
+                      >
+                        {sendingPayslip === record.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
+                      </Button>
                     </div>
                   </div>
                 </div>

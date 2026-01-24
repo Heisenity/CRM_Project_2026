@@ -86,6 +86,9 @@ export const getAllEmployees = async (req: Request, res: Response) => {
         address: true,
         aadharCard: true,
         panCard: true,
+        uanNumber: true,
+        esiNumber: true,
+        bankAccountNumber: true,
         createdAt: true,
         updatedAt: true,
         assignedBy: true
@@ -135,7 +138,10 @@ export const createEmployee = async (req: Request, res: Response) => {
       salary,
       address,
       aadharCard,
-      panCard
+      panCard,
+      uanNumber,
+      esiNumber,
+      bankAccountNumber
     } = req.body
 
     // Validate required fields
@@ -218,7 +224,10 @@ export const createEmployee = async (req: Request, res: Response) => {
         salary: salary ? parseFloat(salary) : null,
         address: address || null,
         aadharCard: aadharCard || null,
-        panCard: panCard || null
+        panCard: panCard || null,
+        uanNumber: uanNumber || null,
+        esiNumber: esiNumber || null,
+        bankAccountNumber: bankAccountNumber || null
       },
       select: {
         id: true,
@@ -236,6 +245,9 @@ export const createEmployee = async (req: Request, res: Response) => {
         address: true,
         aadharCard: true,
         panCard: true,
+        uanNumber: true,
+        esiNumber: true,
+        bankAccountNumber: true,
         createdAt: true,
         updatedAt: true
       }
@@ -272,7 +284,10 @@ export const updateEmployee = async (req: Request, res: Response) => {
       salary,
       address,
       aadharCard,
-      panCard
+      panCard,
+      uanNumber,
+      esiNumber,
+      bankAccountNumber
     } = req.body
 
     if (!id) {
@@ -350,6 +365,9 @@ export const updateEmployee = async (req: Request, res: Response) => {
     if (address !== undefined) updateData.address = address
     if (aadharCard !== undefined) updateData.aadharCard = aadharCard
     if (panCard !== undefined) updateData.panCard = panCard
+    if (uanNumber !== undefined) updateData.uanNumber = uanNumber
+    if (esiNumber !== undefined) updateData.esiNumber = esiNumber
+    if (bankAccountNumber !== undefined) updateData.bankAccountNumber = bankAccountNumber
     if (password) {
       updateData.password = await bcrypt.hash(password, 12)
     }
@@ -380,6 +398,9 @@ export const updateEmployee = async (req: Request, res: Response) => {
         address: true,
         aadharCard: true,
         panCard: true,
+        uanNumber: true,
+        esiNumber: true,
+        bankAccountNumber: true,
         createdAt: true,
         updatedAt: true
       }
@@ -477,6 +498,9 @@ export const getEmployeeById = async (req: Request, res: Response) => {
         address: true,
         aadharCard: true,
         panCard: true,
+        uanNumber: true,
+        esiNumber: true,
+        bankAccountNumber: true,
         createdAt: true,
         updatedAt: true,
         assignedBy: true

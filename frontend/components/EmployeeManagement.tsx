@@ -15,12 +15,24 @@ import {
     DropdownMenuTrigger,
     DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu"
+import { 
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
     Users, 
     Search, 
     Eye,
+    EyeOff,
     Shield,
     Briefcase,
     Building,
@@ -1142,16 +1154,26 @@ function EditEmployeeForm({ employee, teams, onSave, onCancel }: EditEmployeeFor
         aadharCard: employee.aadharCard || '',
         panCard: employee.panCard || '',
         sickLeaveBalance: employee.sickLeaveBalance || 12,
-        casualLeaveBalance: employee.casualLeaveBalance || 12
+        casualLeaveBalance: employee.casualLeaveBalance || 12,
+        password: ''
     })
+
+    const [showPassword, setShowPassword] = useState(false)
+    const [passwordEditable, setPasswordEditable] = useState(false)
+    const [showPasswordDialog, setShowPasswordDialog] = useState(false)
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
         
-        const updateData = {
+        const updateData: any = {
             ...formData,
             salary: formData.salary ? parseFloat(formData.salary.toString()) : null,
             teamId: formData.teamId && formData.teamId !== "no-team" ? formData.teamId : null
+        }
+
+        // Only include password if it was changed
+        if (formData.password && passwordEditable) {
+            updateData.password = formData.password
         }
         
         onSave(updateData)
@@ -1162,6 +1184,12 @@ function EditEmployeeForm({ employee, teams, onSave, onCancel }: EditEmployeeFor
             ...prev,
             [field]: value
         }))
+    }
+
+    const handleShowPasswordConfirm = () => {
+        setPasswordEditable(true)
+        setShowPassword(true)
+        setShowPasswordDialog(false)
     }
 
     return (
@@ -1259,6 +1287,69 @@ function EditEmployeeForm({ employee, teams, onSave, onCancel }: EditEmployeeFor
                     />
                 </div>
             </div>
+            
+            {/* Password Section */}
+            <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="flex gap-2">
+                    <div className="flex-1 relative">
+                        <Input
+                            id="password"
+                            type={showPassword ? "text" : "password"}
+                            value={passwordEditable ? formData.password : "***********"}
+                            onChange={(e) => handleChange('password', e.target.value)}
+                            placeholder={passwordEditable ? "Enter new password" : "***********"}
+                            disabled={!passwordEditable}
+                            className={!passwordEditable ? "bg-muted cursor-not-allowed" : ""}
+                        />
+                        {passwordEditable && (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                onClick={() => setShowPassword(!showPassword)}
+                            >
+                                {showPassword ? (
+                                    <EyeOff className="h-4 w-4 text-gray-400" />
+                                ) : (
+                                    <Eye className="h-4 w-4 text-gray-400" />
+                                )}
+                            </Button>
+                        )}
+                    </div>
+                    {!passwordEditable && (
+                        <AlertDialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+                            <AlertDialogTrigger asChild>
+                                <Button type="button" variant="outline" size="sm">
+                                    Show
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Confirm Password Access</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Are you sure you want to view and edit the password for {employee.name}? 
+                                        This action will make the password field editable.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleShowPasswordConfirm}>
+                                        Yes, Show Password
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    )}
+                </div>
+                {passwordEditable && (
+                    <p className="text-xs text-muted-foreground">
+                        Leave empty to keep current password unchanged
+                    </p>
+                )}
+            </div>
+            
             <div className="space-y-2">
                 <Label htmlFor="address">Address</Label>
                 <Input
@@ -1292,12 +1383,25 @@ function EditAdminForm({ admin, onSave, onCancel }: EditAdminFormProps) {
         name: admin.name || '',
         email: admin.email || '',
         phone: admin.phone || '',
-        status: admin.status || 'ACTIVE'
+        status: admin.status || 'ACTIVE',
+        password: ''
     })
+
+    const [showPassword, setShowPassword] = useState(false)
+    const [passwordEditable, setPasswordEditable] = useState(false)
+    const [showPasswordDialog, setShowPasswordDialog] = useState(false)
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
-        onSave(formData)
+        
+        const updateData: any = { ...formData }
+        
+        // Only include password if it was changed
+        if (formData.password && passwordEditable) {
+            updateData.password = formData.password
+        }
+        
+        onSave(updateData)
     }
 
     const handleChange = (field: string, value: any) => {
@@ -1305,6 +1409,12 @@ function EditAdminForm({ admin, onSave, onCancel }: EditAdminFormProps) {
             ...prev,
             [field]: value
         }))
+    }
+
+    const handleShowPasswordConfirm = () => {
+        setPasswordEditable(true)
+        setShowPassword(true)
+        setShowPasswordDialog(false)
     }
 
     return (
@@ -1350,6 +1460,68 @@ function EditAdminForm({ admin, onSave, onCancel }: EditAdminFormProps) {
                         </SelectContent>
                     </Select>
                 </div>
+            </div>
+            
+            {/* Password Section */}
+            <div className="space-y-2">
+                <Label htmlFor="adminPassword">Password</Label>
+                <div className="flex gap-2">
+                    <div className="flex-1 relative">
+                        <Input
+                            id="adminPassword"
+                            type={showPassword ? "text" : "password"}
+                            value={passwordEditable ? formData.password : "***********"}
+                            onChange={(e) => handleChange('password', e.target.value)}
+                            placeholder={passwordEditable ? "Enter new password" : "***********"}
+                            disabled={!passwordEditable}
+                            className={!passwordEditable ? "bg-muted cursor-not-allowed" : ""}
+                        />
+                        {passwordEditable && (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                onClick={() => setShowPassword(!showPassword)}
+                            >
+                                {showPassword ? (
+                                    <EyeOff className="h-4 w-4 text-gray-400" />
+                                ) : (
+                                    <Eye className="h-4 w-4 text-gray-400" />
+                                )}
+                            </Button>
+                        )}
+                    </div>
+                    {!passwordEditable && (
+                        <AlertDialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+                            <AlertDialogTrigger asChild>
+                                <Button type="button" variant="outline" size="sm">
+                                    Show
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Confirm Password Access</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Are you sure you want to view and edit the password for administrator {admin.name}? 
+                                        This action will make the password field editable.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleShowPasswordConfirm}>
+                                        Yes, Show Password
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    )}
+                </div>
+                {passwordEditable && (
+                    <p className="text-xs text-muted-foreground">
+                        Leave empty to keep current password unchanged
+                    </p>
+                )}
             </div>
             <div className="flex justify-end space-x-3 pt-4">
                 <Button type="button" variant="outline" onClick={onCancel}>

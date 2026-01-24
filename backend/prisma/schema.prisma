@@ -52,6 +52,7 @@ model Employee {
   panCard                 String?                  @unique
   uanNumber               String?
   esiNumber               String?
+  bankAccountNumber       String?
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
   /// *
@@ -259,6 +260,27 @@ model PayrollRecord {
   status      PayrollStatus @default(DRAFT)
   processedBy String?
   processedAt DateTime?
+  
+  // Detailed breakdown fields
+  daysPaid              Int?              @default(30)
+  uanNumber             String?
+  esiNumber             String?
+  bankAccountNumber     String?
+  houseRentAllowance    Decimal?          @default(0) @db.Decimal(10, 2)
+  skillAllowance        Decimal?          @default(0) @db.Decimal(10, 2)
+  conveyanceAllowance   Decimal?          @default(0) @db.Decimal(10, 2)
+  medicalAllowance      Decimal?          @default(0) @db.Decimal(10, 2)
+  professionalTax       Decimal?          @default(0) @db.Decimal(10, 2)
+  providentFund         Decimal?          @default(0) @db.Decimal(10, 2)
+  esi                   Decimal?          @default(0) @db.Decimal(10, 2)
+  incomeTax             Decimal?          @default(0) @db.Decimal(10, 2)
+  personalLoan          Decimal?          @default(0) @db.Decimal(10, 2)
+  otherAdvance          Decimal?          @default(0) @db.Decimal(10, 2)
+  medicalExp            Decimal?          @default(0) @db.Decimal(10, 2)
+  lta                   Decimal?          @default(0) @db.Decimal(10, 2)
+  repairMaintenance     Decimal?          @default(0) @db.Decimal(10, 2)
+  fuelExp               Decimal?          @default(0) @db.Decimal(10, 2)
+  
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   employee    Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)

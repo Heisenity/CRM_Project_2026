@@ -36,10 +36,184 @@ export const getPayrollRecords = async (req: Request, res: Response) => {
   }
 }
 
+export const updatePayrollRecord = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params
+    const {
+      basicSalary,
+      allowances,
+      deductions,
+      overtime,
+      netSalary,
+      payslipDetails
+    } = req.body
+
+    console.log('=== PAYROLL UPDATE START ===')
+    console.log('Payroll ID:', id)
+
+    // Check if payroll record exists
+    const existingRecord = await prisma.payrollRecord.findUnique({
+      where: { id },
+      include: {
+        employee: {
+          include: {
+            team: true
+          }
+        }
+      }
+    })
+
+    if (!existingRecord) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payroll record not found'
+      })
+    }
+
+    // Update payroll record
+    const updatedRecord = await prisma.payrollRecord.update({
+      where: { id },
+      data: {
+        basicSalary: parseFloat(basicSalary.toString()),
+        allowances: parseFloat(allowances.toString()),
+        deductions: parseFloat(deductions.toString()),
+        overtime: parseFloat(overtime.toString()) || 0,
+        netSalary: parseFloat(netSalary.toString()),
+        updatedAt: new Date(),
+        // Update detailed breakdown if provided
+        ...(payslipDetails && {
+          daysPaid: payslipDetails.daysPaid || 30,
+          uanNumber: payslipDetails.uanNumber || existingRecord.employee.uanNumber || '',
+          esiNumber: payslipDetails.esiNumber || existingRecord.employee.esiNumber || '',
+          bankAccountNumber: payslipDetails.bankAccountNumber || existingRecord.employee.bankAccountNumber || '',
+          houseRentAllowance: parseFloat(payslipDetails.houseRentAllowance?.toString() || '0'),
+          skillAllowance: parseFloat(payslipDetails.skillAllowance?.toString() || '0'),
+          conveyanceAllowance: parseFloat(payslipDetails.conveyanceAllowance?.toString() || '0'),
+          medicalAllowance: parseFloat(payslipDetails.medicalAllowance?.toString() || '0'),
+          professionalTax: parseFloat(payslipDetails.professionalTax?.toString() || '0'),
+          providentFund: parseFloat(payslipDetails.providentFund?.toString() || '0'),
+          esi: parseFloat(payslipDetails.esi?.toString() || '0'),
+          incomeTax: parseFloat(payslipDetails.incomeTax?.toString() || '0'),
+          personalLoan: parseFloat(payslipDetails.personalLoan?.toString() || '0'),
+          otherAdvance: parseFloat(payslipDetails.otherAdvance?.toString() || '0'),
+          medicalExp: parseFloat(payslipDetails.medicalExp?.toString() || '0'),
+          lta: parseFloat(payslipDetails.lta?.toString() || '0'),
+          repairMaintenance: parseFloat(payslipDetails.repairMaintenance?.toString() || '0'),
+          fuelExp: parseFloat(payslipDetails.fuelExp?.toString() || '0')
+        })
+      },
+      include: {
+        employee: {
+          select: {
+            name: true,
+            employeeId: true
+          }
+        }
+      }
+    })
+
+    // If payslipDetails are provided, regenerate the PDF
+    if (payslipDetails) {
+      console.log('Regenerating PDF with updated details...')
+      const enhancedPayslipDetails = {
+        ...payslipDetails,
+        daysPaid: payslipDetails.daysPaid || 30,
+        uanNumber: payslipDetails.uanNumber || existingRecord.employee.uanNumber || 'N/A',
+        esiNumber: payslipDetails.esiNumber || existingRecord.employee.esiNumber || 'N/A',
+        bankAccountNumber: payslipDetails.bankAccountNumber || existingRecord.employee.bankAccountNumber || 'N/A'
+      }
+      
+      const pdfBuffer = await generatePayslipPDF(existingRecord.employee, updatedRecord, enhancedPayslipDetails)
+      
+      // Update the PDF file
+      const uploadsDir = path.join(process.cwd(), 'uploads', 'documents')
+      const fileName = `${existingRecord.employee.employeeId}_payslip_${updatedRecord.month}_${updatedRecord.year}.pdf`
+      const filePath = path.join(uploadsDir, fileName)
+      
+      fs.writeFileSync(filePath, pdfBuffer)
+      console.log('PDF updated at:', filePath)
+    }
+
+    console.log('=== PAYROLL UPDATE SUCCESS ===')
+
+    res.json({
+      success: true,
+      message: 'Payroll record updated successfully',
+      data: updatedRecord
+    })
+
+  } catch (error) {
+    console.error('=== PAYROLL UPDATE ERROR ===')
+    console.error('Error updating payroll record:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update payroll record'
+    })
+  }
+}
+
+export const sendPayslip = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params
+
+    console.log('=== SEND PAYSLIP START ===')
+    console.log('Payroll ID:', id)
+
+    // Get payroll record with employee details
+    const payrollRecord = await prisma.payrollRecord.findUnique({
+      where: { id },
+      include: {
+        employee: {
+          select: {
+            name: true,
+            employeeId: true,
+            email: true
+          }
+        }
+      }
+    })
+
+    if (!payrollRecord) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payroll record not found'
+      })
+    }
+
+    // Update status to PAID (indicating it has been sent)
+    await prisma.payrollRecord.update({
+      where: { id },
+      data: {
+        status: 'PAID',
+        updatedAt: new Date()
+      }
+    })
+
+    console.log(`Payslip sent to ${payrollRecord.employee.email}`)
+    console.log('=== SEND PAYSLIP SUCCESS ===')
+
+    res.json({
+      success: true,
+      message: `Payslip sent successfully to ${payrollRecord.employee.name}`,
+      data: {
+        employeeName: payrollRecord.employee.name,
+        employeeEmail: payrollRecord.employee.email
+      }
+    })
+
+  } catch (error) {
+    console.error('=== SEND PAYSLIP ERROR ===')
+    console.error('Error sending payslip:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send payslip'
+    })
+  }
+}
+
 export const generatePayslip = async (req: Request, res: Response) => {
   try {
     console.log('=== PAYSLIP GENERATION START ===')
-    console.log('Request body:', req.body)
     
     const {
       employeeId,
@@ -54,9 +228,6 @@ export const generatePayslip = async (req: Request, res: Response) => {
       payslipDetails
     } = req.body
 
-    console.log('Employee ID:', employeeId)
-    console.log('Month/Year:', month, year)
-
     // Check if payroll record already exists
     const existingRecord = await prisma.payrollRecord.findUnique({
       where: {
@@ -69,7 +240,6 @@ export const generatePayslip = async (req: Request, res: Response) => {
     })
 
     if (existingRecord) {
-      console.log('Payroll record already exists:', existingRecord.id)
       return res.status(400).json({
         success: false,
         message: 'Payroll record already exists for this employee and month'
@@ -85,14 +255,11 @@ export const generatePayslip = async (req: Request, res: Response) => {
     })
 
     if (!employee) {
-      console.log('Employee not found with ID:', employeeId)
       return res.status(404).json({
         success: false,
         message: 'Employee not found'
       })
     }
-
-    console.log('Found employee:', employee.name, employee.employeeId)
 
     // Create payroll record
     const payrollRecord = await prisma.payrollRecord.create({
@@ -107,22 +274,38 @@ export const generatePayslip = async (req: Request, res: Response) => {
         netSalary: parseFloat(netSalary.toString()),
         status: 'PROCESSED',
         processedBy,
-        processedAt: new Date()
+        processedAt: new Date(),
+        // Save detailed breakdown
+        daysPaid: payslipDetails.daysPaid || 30,
+        uanNumber: payslipDetails.uanNumber || employee.uanNumber || '',
+        esiNumber: payslipDetails.esiNumber || employee.esiNumber || '',
+        bankAccountNumber: payslipDetails.bankAccountNumber || employee.bankAccountNumber || '',
+        houseRentAllowance: parseFloat(payslipDetails.houseRentAllowance?.toString() || '0'),
+        skillAllowance: parseFloat(payslipDetails.skillAllowance?.toString() || '0'),
+        conveyanceAllowance: parseFloat(payslipDetails.conveyanceAllowance?.toString() || '0'),
+        medicalAllowance: parseFloat(payslipDetails.medicalAllowance?.toString() || '0'),
+        professionalTax: parseFloat(payslipDetails.professionalTax?.toString() || '0'),
+        providentFund: parseFloat(payslipDetails.providentFund?.toString() || '0'),
+        esi: parseFloat(payslipDetails.esi?.toString() || '0'),
+        incomeTax: parseFloat(payslipDetails.incomeTax?.toString() || '0'),
+        personalLoan: parseFloat(payslipDetails.personalLoan?.toString() || '0'),
+        otherAdvance: parseFloat(payslipDetails.otherAdvance?.toString() || '0'),
+        medicalExp: parseFloat(payslipDetails.medicalExp?.toString() || '0'),
+        lta: parseFloat(payslipDetails.lta?.toString() || '0'),
+        repairMaintenance: parseFloat(payslipDetails.repairMaintenance?.toString() || '0'),
+        fuelExp: parseFloat(payslipDetails.fuelExp?.toString() || '0')
       }
     })
 
-    console.log('Created payroll record:', payrollRecord.id)
-
     // Generate PDF payslip
-    console.log('Generating PDF...')
     const enhancedPayslipDetails = {
       ...payslipDetails,
       daysPaid: payslipDetails.daysPaid || 30,
       uanNumber: payslipDetails.uanNumber || employee.uanNumber || 'N/A',
-      esiNumber: payslipDetails.esiNumber || employee.esiNumber || 'N/A'
+      esiNumber: payslipDetails.esiNumber || employee.esiNumber || 'N/A',
+      bankAccountNumber: payslipDetails.bankAccountNumber || employee.bankAccountNumber || 'N/A'
     }
     const pdfBuffer = await generatePayslipPDF(employee, payrollRecord, enhancedPayslipDetails)
-    console.log('PDF generated, size:', pdfBuffer.length, 'bytes')
     
     // Save PDF to employee documents
     const uploadsDir = path.join(process.cwd(), 'uploads', 'documents')
@@ -134,25 +317,21 @@ export const generatePayslip = async (req: Request, res: Response) => {
     const filePath = path.join(uploadsDir, fileName)
     
     fs.writeFileSync(filePath, pdfBuffer)
-    console.log('PDF saved to:', filePath)
 
     // Create document record
-    const documentRecord = await prisma.employeeDocument.create({
+    await prisma.employeeDocument.create({
       data: {
-        employeeId, // This is the internal UUID
+        employeeId,
         title: `Payslip - ${getMonthName(month)} ${year}`,
         description: `Payslip for ${employee.name} for ${getMonthName(month)} ${year}`,
         fileName,
-        filePath: fileName, // Store relative path
+        filePath: fileName,
         fileSize: pdfBuffer.length,
         mimeType: 'application/pdf',
         uploadedBy: processedBy
       }
     })
 
-    console.log('Created document record:', documentRecord.id)
-    console.log('Document associated with employee UUID:', employeeId)
-    console.log('Employee string ID:', employee.employeeId)
     console.log('=== PAYSLIP GENERATION SUCCESS ===')
 
     res.json({
@@ -219,13 +398,15 @@ const generatePayslipPDF = async (employee: any, payrollRecord: any, payslipDeta
       const colWidth = tableWidth / 2
 
       // Employee info section
+      const employeeLocation = employee.address || 'Office Location'
       const employeeInfo = [
         ['Employee No.', employee.employeeId],
         ['Employee Name', employee.name],
         ['Designation', employee.role],
-        ['Location', employee.team?.name || 'N/A'],
+        ['Location', employeeLocation],
         ['UAN no.', payslipDetails.uanNumber || 'N/A'],
         ['ESI No.', payslipDetails.esiNumber || 'N/A'],
+        ['Bank A/c No.', payslipDetails.bankAccountNumber || 'N/A'],
         ['Days Paid', payslipDetails.daysPaid?.toString() || '30']
       ]
 
@@ -260,20 +441,21 @@ const generatePayslipPDF = async (employee: any, payrollRecord: any, payslipDeta
 
       // Income and deduction rows
       const incomeItems = [
-        ['Basic', payslipDetails.basicSalary],
-        ['House Rent Allowances', payslipDetails.houseRentAllowance],
-        ['Skill Allowances', payslipDetails.skillAllowance],
-        ['Conveyance Allowances', payslipDetails.conveyanceAllowance],
-        ['Medial Allowances', payslipDetails.medicalAllowance]
+        ['Basic', payslipDetails.basicSalary || 0],
+        ['House Rent Allowances', payslipDetails.houseRentAllowance || 0],
+        ['Skill Allowances', payslipDetails.skillAllowance || 0],
+        ['Conveyance Allowances', payslipDetails.conveyanceAllowance || 0],
+        ['Medical Allowances', payslipDetails.medicalAllowance || 0],
+        ['Reimbursements', (payslipDetails.medicalExp || 0) + (payslipDetails.lta || 0) + (payslipDetails.repairMaintenance || 0) + (payslipDetails.fuelExp || 0)]
       ]
 
       const deductionItems = [
-        ['Professional Tax', payslipDetails.professionalTax],
-        ['Provident Fund', payslipDetails.providentFund],
-        ['ESI', payslipDetails.esi],
-        ['Income Tax', payslipDetails.incomeTax],
-        ['Personal Loan', payslipDetails.personalLoan],
-        ['Other Advance', payslipDetails.otherAdvance]
+        ['Professional Tax', payslipDetails.professionalTax || 0],
+        ['Provident Fund', payslipDetails.providentFund || 0],
+        ['ESI', payslipDetails.esi || 0],
+        ['Income Tax', payslipDetails.incomeTax || 0],
+        ['Personal Loan', payslipDetails.personalLoan || 0],
+        ['Other Advance', payslipDetails.otherAdvance || 0]
       ]
 
       const maxRows = Math.max(incomeItems.length, deductionItems.length)
@@ -305,45 +487,22 @@ const generatePayslipPDF = async (employee: any, payrollRecord: any, payslipDeta
       doc.rect(50 + colWidth, yPos, colWidth / 2, 25).stroke()
       doc.rect(50 + colWidth + colWidth / 2, yPos, colWidth / 2, 25).stroke()
 
-      const totalIncome = payslipDetails.basicSalary + payslipDetails.houseRentAllowance + 
-                         payslipDetails.skillAllowance + payslipDetails.conveyanceAllowance + 
-                         payslipDetails.medicalAllowance
+      const totalIncome = (payslipDetails.basicSalary || 0) + (payslipDetails.houseRentAllowance || 0) + 
+                         (payslipDetails.skillAllowance || 0) + (payslipDetails.conveyanceAllowance || 0) + 
+                         (payslipDetails.medicalAllowance || 0) + (payslipDetails.medicalExp || 0) + 
+                         (payslipDetails.lta || 0) + (payslipDetails.repairMaintenance || 0) + (payslipDetails.fuelExp || 0)
 
-      const totalDeductions = payslipDetails.professionalTax + payslipDetails.providentFund + 
-                             payslipDetails.esi + payslipDetails.incomeTax + 
-                             payslipDetails.personalLoan + payslipDetails.otherAdvance
+      const totalDeductions = (payslipDetails.professionalTax || 0) + (payslipDetails.providentFund || 0) + 
+                             (payslipDetails.esi || 0) + (payslipDetails.incomeTax || 0) + 
+                             (payslipDetails.personalLoan || 0) + (payslipDetails.otherAdvance || 0)
 
       doc.fontSize(10).font('Helvetica-Bold')
-      doc.text('Total Erning', 55, yPos + 8)
+      doc.text('Total Earning', 55, yPos + 8)
       doc.text(totalIncome.toString(), 55 + colWidth / 2, yPos + 8)
       doc.text('Total Deduction:', 55 + colWidth, yPos + 8)
       doc.text(totalDeductions.toString(), 55 + colWidth + colWidth / 2, yPos + 8)
 
       yPos += 25
-
-      // Reimbursements section
-      yPos += 10
-      doc.fontSize(10).font('Helvetica-Bold')
-      doc.text('Reimbursements:', 50, yPos)
-      yPos += 20
-
-      const reimbursements = [
-        ['Medical Exp.', payslipDetails.medicalExp],
-        ['LTA', payslipDetails.lta],
-        ['Rep & Main. Of Car', payslipDetails.repairMaintenance],
-        ['Fuel exp. Of Car', payslipDetails.fuelExp]
-      ]
-
-      reimbursements.forEach(([label, value]) => {
-        doc.rect(50, yPos, colWidth, 25).stroke()
-        doc.rect(50 + colWidth, yPos, colWidth, 25).stroke()
-        
-        doc.fontSize(9).font('Helvetica')
-        doc.text(label, 55, yPos + 8)
-        doc.text(value.toString(), 55 + colWidth, yPos + 8)
-        
-        yPos += 25
-      })
 
       // Net Pay
       yPos += 10
@@ -353,14 +512,15 @@ const generatePayslipPDF = async (employee: any, payrollRecord: any, payslipDeta
 
       doc.fontSize(10).font('Helvetica-Bold')
       doc.text('Net Pay', 55, yPos + 8)
-      doc.text('-', 55 + colWidth / 2, yPos + 8)
-      doc.text('Transferred to Bank A/c No.', 55 + colWidth, yPos + 8)
+      doc.text(`₹${payrollRecord.netSalary.toFixed(2)}`, 55 + colWidth / 2, yPos + 8)
+      doc.text(`Bank A/c: ${payslipDetails.bankAccountNumber || 'N/A'}`, 55 + colWidth, yPos + 8)
 
       yPos += 25
       doc.rect(50, yPos, colWidth, 25).stroke()
       doc.rect(50 + colWidth, yPos, colWidth, 25).stroke()
 
-      doc.text(`₹${payrollRecord.netSalary.toFixed(2)}`, 55, yPos + 8)
+      doc.text('Amount Transferred to Bank Account', 55, yPos + 8)
+      doc.text('Signature', 55 + colWidth, yPos + 8)
 
       doc.end()
     } catch (error) {
