@@ -116,7 +116,6 @@ export function TeamManagementPage() {
                 <Users className="h-6 w-6 text-blue-600" />
                 Team Management
               </h1>
-              <p className="text-gray-600">Manage teams and their members</p>
             </div>
             <Button 
               onClick={() => setViewMode('create')}

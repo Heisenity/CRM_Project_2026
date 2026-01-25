@@ -507,7 +507,6 @@ export function TaskPage() {
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div className="space-y-1">
                 <h1 className="text-2xl font-bold text-gray-900">Task Management</h1>
-                <p className="text-gray-600">Monitor and manage employee everyday task records</p>
               </div>
               <div className="flex items-center gap-2">
                 <Button
@@ -825,7 +824,7 @@ export function TaskPage() {
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-                <span className="ml-2 text-gray-600">Loading attendance data...</span>
+                <span className="ml-2 text-gray-600">Loading task data...</span>
               </div>
             ) : error ? (
               <div className="flex items-center justify-center py-12">

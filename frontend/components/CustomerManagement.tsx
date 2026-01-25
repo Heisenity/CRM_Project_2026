@@ -363,7 +363,6 @@ export default function CustomerManagement() {
       <Card>
         <CardHeader>
           <CardTitle>Customer Management</CardTitle>
-          <CardDescription>Manage customer accounts and information</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex justify-between items-center mb-6">

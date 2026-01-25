@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,16 +14,24 @@ import {
   Plus, 
   Video,
   CheckCircle,
-  XCircle,
   AlertCircle,
   User,
-  ExternalLink
+  ExternalLink,
+  RefreshCw
 } from "lucide-react";
 import { format, isToday, isTomorrow, isThisWeek } from "date-fns";
 import CreateMeetingDialog from "@/components/CreateMeetingDialog";
 import MeetingDetailsDialog from "@/components/MeetingDetailsDialog";
 import CalendlyIntegrationStatus from "@/components/CalendlyIntegrationStatus";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Meeting {
   id: string;
@@ -92,27 +100,69 @@ export default function MeetingsPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [typeFilter, setTypeFilter] = useState("ALL");
 
   // Helper function to get organizer information
   const getOrganizer = (meeting: Meeting) => {
     return meeting.organizerAdmin || meeting.organizerEmployee;
   };
 
-  const fetchMeetings = async () => {
+  // Filter meetings based on search and filters
+  const filteredMeetings = meetings.filter(meeting => {
+    const matchesSearch = searchTerm === "" || 
+      meeting.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      meeting.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      getOrganizer(meeting)?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      meeting.customer?.name.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === "ALL" || meeting.status === statusFilter;
+    const matchesType = typeFilter === "ALL" || meeting.meetingType === typeFilter;
+    
+    return matchesSearch && matchesStatus && matchesType;
+  });
+
+  const fetchMeetings = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/meetings`);
       const result = await response.json();
       
       if (result.success && result.data && Array.isArray(result.data.meetings)) {
-        setMeetings(result.data.meetings);
+        const allMeetings = result.data.meetings;
+        setMeetings(allMeetings);
+        
+        // Filter today's meetings from all meetings
+        const today = new Date();
+        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+        
+        const todaysFiltered = allMeetings.filter((meeting: Meeting) => {
+          const meetingDate = new Date(meeting.startTime);
+          return meetingDate >= startOfDay && meetingDate < endOfDay;
+        });
+        
+        setTodaysMeetings(todaysFiltered);
+        
+        // Filter upcoming meetings (future meetings, not including today)
+        const upcomingFiltered = allMeetings.filter((meeting: Meeting) => {
+          const meetingDate = new Date(meeting.startTime);
+          return meetingDate > endOfDay && ['SCHEDULED', 'IN_PROGRESS'].includes(meeting.status);
+        });
+        
+        setUpcomingMeetings(upcomingFiltered);
       } else {
-        console.warn('Invalid meetings data received:', result);
+        console.warn("Invalid meetings data received:", result);
         setMeetings([]);
+        setTodaysMeetings([]);
+        setUpcomingMeetings([]);
       }
     } catch (error) {
       console.error('Error fetching meetings:', error);
       setMeetings([]);
+      setTodaysMeetings([]);
+      setUpcomingMeetings([]);
       toast({
         title: "Error",
         description: "Failed to fetch meetings",
@@ -121,55 +171,36 @@ export default function MeetingsPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const fetchTodaysMeetings = async () => {
-    if (!session?.user) return;
-    
-    try {
-      const employeeId = (session.user as any).id;
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/meetings/employee/${employeeId}/today`);
-      const result = await response.json();
-      
-      if (result.success && Array.isArray(result.data)) {
-        setTodaysMeetings(result.data);
-      } else {
-        console.warn('Invalid today\'s meetings data received:', result);
-        setTodaysMeetings([]);
-      }
-    } catch (error) {
-      console.error('Error fetching today\'s meetings:', error);
-      setTodaysMeetings([]);
-    }
-  };
-
-  const fetchUpcomingMeetings = async () => {
-    if (!session?.user) return;
-    
-    try {
-      const employeeId = (session.user as any).id;
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/meetings/employee/${employeeId}/upcoming`);
-      const result = await response.json();
-      
-      if (result.success && Array.isArray(result.data)) {
-        setUpcomingMeetings(result.data);
-      } else {
-        console.warn('Invalid upcoming meetings data received:', result);
-        setUpcomingMeetings([]);
-      }
-    } catch (error) {
-      console.error('Error fetching upcoming meetings:', error);
-      setUpcomingMeetings([]);
-    }
-  };
+  }, [toast]);
 
   useEffect(() => {
     if (session?.user) {
       fetchMeetings();
-      fetchTodaysMeetings();
-      fetchUpcomingMeetings();
     }
-  }, [session]);
+  }, [session, fetchMeetings]);
+
+  // Auto-refresh meetings every 5 minutes
+  useEffect(() => {
+    if (!session?.user) return;
+    
+    const interval = setInterval(() => {
+      fetchMeetings();
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(interval);
+  }, [session, fetchMeetings]);
+
+  const handleMeetingCreated = () => {
+    fetchMeetings();
+  };
+
+  const handleRefresh = () => {
+    fetchMeetings();
+    toast({
+      title: "Refreshed",
+      description: "Meeting data has been updated"
+    });
+  };
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -225,12 +256,6 @@ export default function MeetingsPage() {
     setDetailsDialogOpen(true);
   };
 
-  const handleMeetingCreated = () => {
-    fetchMeetings();
-    fetchTodaysMeetings();
-    fetchUpcomingMeetings();
-  };
-
   if (loading) {
     return (
       <div className="container mx-auto p-6">
@@ -250,9 +275,21 @@ export default function MeetingsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Meetings & Tasks</h1>
-          <p className="text-gray-600 mt-1">Manage your meetings and daily tasks</p>
+          <p className="text-gray-600 mt-1">
+            {meetings.length} total meetings • {todaysMeetings.length} today • {upcomingMeetings.length} upcoming
+          </p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleRefresh}
+            disabled={loading}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
           <Button 
             variant="outline" 
             onClick={() => {
@@ -273,120 +310,346 @@ export default function MeetingsPage() {
 
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="today">Today's Schedule</TabsTrigger>
+          <TabsTrigger value="overview">Overview & All Meetings</TabsTrigger>
+          <TabsTrigger value="today">Today&apos;s Schedule</TabsTrigger>
           <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-          <TabsTrigger value="all">All Meetings</TabsTrigger>
+          <TabsTrigger value="all">Detailed View</TabsTrigger>
           <TabsTrigger value="calendly">Calendly Sync</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Today's Meetings */}
+          {/* Quick Actions Bar */}
+          <Card className="bg-linear-to-r from-blue-50 to-purple-50 border-blue-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-6">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">{meetings.filter(m => m.status === 'SCHEDULED').length}</div>
+                    <div className="text-xs text-gray-600">Scheduled</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">{meetings.filter(m => m.status === 'IN_PROGRESS').length}</div>
+                    <div className="text-xs text-gray-600">In Progress</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-600">{meetings.filter(m => m.status === 'COMPLETED').length}</div>
+                    <div className="text-xs text-gray-600">Completed</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-purple-600">{meetings.filter(m => m.meetingType === 'CLIENT').length}</div>
+                    <div className="text-xs text-gray-600">Client Meetings</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => {
+                      setSearchTerm("");
+                      setStatusFilter("SCHEDULED");
+                      setTypeFilter("ALL");
+                    }}
+                  >
+                    View Scheduled
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => {
+                      setSearchTerm("");
+                      setStatusFilter("ALL");
+                      setTypeFilter("CLIENT");
+                    }}
+                  >
+                    Client Meetings
+                  </Button>
+                  <Button 
+                    size="sm"
+                    onClick={() => setCreateDialogOpen(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    New Meeting
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Calendar className="h-4 w-4 text-blue-600" />
+                  Today&apos;s Meetings
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">{todaysMeetings.length}</div>
+                <p className="text-xs text-gray-500">scheduled for today</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Clock className="h-4 w-4 text-green-600" />
+                  Upcoming
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{upcomingMeetings.length}</div>
+                <p className="text-xs text-gray-500">meetings scheduled</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Users className="h-4 w-4 text-purple-600" />
+                  Total Meetings
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-purple-600">{meetings.length}</div>
+                <p className="text-xs text-gray-500">all meetings</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <CheckCircle className="h-4 w-4 text-orange-600" />
+                  Active Tasks
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-600">
+                  {Array.isArray(meetings) ? meetings.flatMap(meeting => 
+                    Array.isArray(meeting.tasks) ? meeting.tasks.filter(task => task.status !== 'COMPLETED') : []
+                  ).length : 0}
+                </div>
+                <p className="text-xs text-gray-500">pending tasks</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* All Meetings Overview */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-blue-600" />
+                    All Meetings Overview
+                  </CardTitle>
+                  <CardDescription>
+                    Complete list of all meetings ({filteredMeetings.length} of {meetings.length} shown)
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="Search meetings..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-64"
+                  />
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">All Status</SelectItem>
+                      <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+                      <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                      <SelectItem value="COMPLETED">Completed</SelectItem>
+                      <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                      <SelectItem value="POSTPONED">Postponed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">All Types</SelectItem>
+                      <SelectItem value="INTERNAL">Internal</SelectItem>
+                      <SelectItem value="CLIENT">Client</SelectItem>
+                      <SelectItem value="VENDOR">Vendor</SelectItem>
+                      <SelectItem value="TRAINING">Training</SelectItem>
+                      <SelectItem value="REVIEW">Review</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {filteredMeetings.length === 0 ? (
+                <div className="text-center py-8">
+                  {meetings.length === 0 ? (
+                    <>
+                      <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">No meetings found</p>
+                      <Button 
+                        onClick={() => setCreateDialogOpen(true)} 
+                        className="mt-4"
+                        size="sm"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Schedule Your First Meeting
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">No meetings match your filters</p>
+                      <Button 
+                        onClick={() => {
+                          setSearchTerm("");
+                          setStatusFilter("ALL");
+                          setTypeFilter("ALL");
+                        }} 
+                        variant="outline"
+                        className="mt-4"
+                        size="sm"
+                      >
+                        Clear Filters
+                      </Button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {filteredMeetings.map((meeting) => (
+                    <div 
+                      key={meeting.id} 
+                      className="p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                      onClick={() => handleMeetingClick(meeting)}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            {getTypeIcon(meeting.meetingType)}
+                            <h3 className="font-semibold text-sm">{meeting.title}</h3>
+                            {getStatusBadge(meeting.status)}
+                            {getPriorityBadge(meeting.priority)}
+                          </div>
+                          
+                          <div className="flex items-center gap-4 text-xs text-gray-600 mb-2">
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {formatMeetingTime(meeting.startTime, meeting.endTime)}
+                            </div>
+                            {meeting.location && (
+                              <div className="flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />
+                                {meeting.location}
+                              </div>
+                            )}
+                            {meeting.meetingLink && (
+                              <div className="flex items-center gap-1">
+                                <Video className="h-3 w-3" />
+                                Virtual
+                              </div>
+                            )}
+                          </div>
+                          
+                          {meeting.description && (
+                            <p className="text-xs text-gray-600 mb-2 line-clamp-2">{meeting.description}</p>
+                          )}
+                          
+                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                            <span>Organizer: {getOrganizer(meeting)?.name}</span>
+                            {meeting.customer && (
+                              <span>Customer: {meeting.customer.name}</span>
+                            )}
+                            {meeting.attendees.length > 0 && (
+                              <span>Attendees: {meeting.attendees.length}</span>
+                            )}
+                            {meeting.tasks.length > 0 && (
+                              <span>Tasks: {meeting.tasks.length}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Quick Actions */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Today&apos;s Meetings Detail */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="h-5 w-5 text-blue-600" />
-                  Today's Meetings
+                  Today&apos;s Schedule
                 </CardTitle>
                 <CardDescription>
-                  {todaysMeetings.length} meeting{todaysMeetings.length !== 1 ? 's' : ''} scheduled
+                  {format(new Date(), 'EEEE, MMMM d, yyyy')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {todaysMeetings.length === 0 ? (
-                  <p className="text-gray-500 text-sm">No meetings today</p>
+                  <p className="text-gray-500 text-sm text-center py-4">No meetings today</p>
                 ) : (
                   <div className="space-y-3">
-                    {Array.isArray(todaysMeetings) && todaysMeetings.slice(0, 3).map((meeting) => (
+                    {Array.isArray(todaysMeetings) && todaysMeetings.slice(0, 5).map((meeting) => (
                       <div 
                         key={meeting.id} 
                         className="p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
                         onClick={() => handleMeetingClick(meeting)}
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between mb-1">
                           <h4 className="font-medium text-sm">{meeting.title}</h4>
                           {getStatusBadge(meeting.status)}
                         </div>
-                        <p className="text-xs text-gray-600 mt-1">
+                        <p className="text-xs text-gray-600">
                           {format(new Date(meeting.startTime), 'h:mm a')} - {format(new Date(meeting.endTime), 'h:mm a')}
                         </p>
+                        {meeting.customer && (
+                          <p className="text-xs text-gray-500">with {meeting.customer.name}</p>
+                        )}
                       </div>
                     ))}
-                    {todaysMeetings.length > 3 && (
-                      <p className="text-xs text-gray-500">+{todaysMeetings.length - 3} more</p>
+                    {todaysMeetings.length > 5 && (
+                      <p className="text-xs text-gray-500 text-center">+{todaysMeetings.length - 5} more meetings today</p>
                     )}
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Upcoming Meetings */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-green-600" />
-                  Upcoming Meetings
-                </CardTitle>
-                <CardDescription>
-                  Next {upcomingMeetings.length} meeting{upcomingMeetings.length !== 1 ? 's' : ''}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {upcomingMeetings.length === 0 ? (
-                  <p className="text-gray-500 text-sm">No upcoming meetings</p>
-                ) : (
-                  <div className="space-y-3">
-                    {Array.isArray(upcomingMeetings) && upcomingMeetings.slice(0, 3).map((meeting) => (
-                      <div 
-                        key={meeting.id} 
-                        className="p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
-                        onClick={() => handleMeetingClick(meeting)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium text-sm">{meeting.title}</h4>
-                          {getPriorityBadge(meeting.priority)}
-                        </div>
-                        <p className="text-xs text-gray-600 mt-1">
-                          {formatMeetingTime(meeting.startTime, meeting.endTime)}
-                        </p>
-                      </div>
-                    ))}
-                    {upcomingMeetings.length > 3 && (
-                      <p className="text-xs text-gray-500">+{upcomingMeetings.length - 3} more</p>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Today's Tasks */}
+            {/* Active Tasks */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <CheckCircle className="h-5 w-5 text-purple-600" />
-                  Today's Tasks
+                  Active Tasks
                 </CardTitle>
                 <CardDescription>
-                  Tasks from today's meetings
+                  Tasks from all meetings
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {Array.isArray(todaysMeetings) && todaysMeetings.flatMap(meeting => 
-                    Array.isArray(meeting.tasks) ? meeting.tasks : []
+                  {Array.isArray(meetings) && meetings.flatMap(meeting => 
+                    Array.isArray(meeting.tasks) ? meeting.tasks.filter(task => task.status !== 'COMPLETED') : []
                   ).length === 0 ? (
-                    <p className="text-gray-500 text-sm">No tasks for today</p>
+                    <p className="text-gray-500 text-sm text-center py-4">No active tasks</p>
                   ) : (
-                    Array.isArray(todaysMeetings) && todaysMeetings.flatMap(meeting => 
-                      Array.isArray(meeting.tasks) ? meeting.tasks : []
-                    ).slice(0, 3).map((task) => (
+                    Array.isArray(meetings) && meetings.flatMap(meeting => 
+                      Array.isArray(meeting.tasks) ? meeting.tasks.filter(task => task.status !== 'COMPLETED') : []
+                    ).slice(0, 5).map((task) => (
                       <div key={task.id} className="p-3 border rounded-lg">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between mb-1">
                           <h4 className="font-medium text-sm">{task.title}</h4>
                           <Badge className={
-                            task.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
                             task.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
                             'bg-gray-100 text-gray-800'
                           }>
@@ -394,12 +657,24 @@ export default function MeetingsPage() {
                           </Badge>
                         </div>
                         {task.assignee && (
-                          <p className="text-xs text-gray-600 mt-1">
+                          <p className="text-xs text-gray-600">
                             Assigned to: {task.assignee.name}
+                          </p>
+                        )}
+                        {task.dueDate && (
+                          <p className="text-xs text-gray-500">
+                            Due: {format(new Date(task.dueDate), 'MMM d, yyyy')}
                           </p>
                         )}
                       </div>
                     ))
+                  )}
+                  {Array.isArray(meetings) && meetings.flatMap(meeting => 
+                    Array.isArray(meeting.tasks) ? meeting.tasks.filter(task => task.status !== 'COMPLETED') : []
+                  ).length > 5 && (
+                    <p className="text-xs text-gray-500 text-center">+{meetings.flatMap(meeting => 
+                      Array.isArray(meeting.tasks) ? meeting.tasks.filter(task => task.status !== 'COMPLETED') : []
+                    ).length - 5} more active tasks</p>
                   )}
                 </div>
               </CardContent>
@@ -407,11 +682,11 @@ export default function MeetingsPage() {
           </div>
         </TabsContent>
 
-        {/* Today's Schedule Tab */}
+        {/* Today&apos;s Schedule Tab */}
         <TabsContent value="today" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Today's Schedule</CardTitle>
+              <CardTitle>Today&apos;s Schedule</CardTitle>
               <CardDescription>
                 {format(new Date(), 'EEEE, MMMM d, yyyy')}
               </CardDescription>
@@ -547,61 +822,174 @@ export default function MeetingsPage() {
           </Card>
         </TabsContent>
 
-        {/* All Meetings Tab */}
+        {/* All Meetings Tab - Detailed View */}
         <TabsContent value="all" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>All Meetings</CardTitle>
-              <CardDescription>
-                Complete list of meetings
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>All Meetings - Detailed View</CardTitle>
+                  <CardDescription>
+                    Complete list with full details ({filteredMeetings.length} of {meetings.length} shown)
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="Search meetings..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-64"
+                  />
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">All Status</SelectItem>
+                      <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+                      <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                      <SelectItem value="COMPLETED">Completed</SelectItem>
+                      <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                      <SelectItem value="POSTPONED">Postponed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">All Types</SelectItem>
+                      <SelectItem value="INTERNAL">Internal</SelectItem>
+                      <SelectItem value="CLIENT">Client</SelectItem>
+                      <SelectItem value="VENDOR">Vendor</SelectItem>
+                      <SelectItem value="TRAINING">Training</SelectItem>
+                      <SelectItem value="REVIEW">Review</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              {meetings.length === 0 ? (
+              {filteredMeetings.length === 0 ? (
                 <div className="text-center py-8">
-                  <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">No meetings found</p>
+                  {meetings.length === 0 ? (
+                    <>
+                      <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">No meetings found</p>
+                      <Button 
+                        onClick={() => setCreateDialogOpen(true)} 
+                        className="mt-4"
+                        size="sm"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Schedule Your First Meeting
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">No meetings match your filters</p>
+                      <Button 
+                        onClick={() => {
+                          setSearchTerm("");
+                          setStatusFilter("ALL");
+                          setTypeFilter("ALL");
+                        }} 
+                        variant="outline"
+                        className="mt-4"
+                        size="sm"
+                      >
+                        Clear Filters
+                      </Button>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {Array.isArray(meetings) && meetings.map((meeting) => (
+                  {filteredMeetings.map((meeting) => (
                     <div 
                       key={meeting.id} 
-                      className="p-4 border rounded-lg cursor-pointer hover:bg-gray-50"
+                      className="p-6 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
                       onClick={() => handleMeetingClick(meeting)}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center gap-2 mb-3">
                             {getTypeIcon(meeting.meetingType)}
-                            <h3 className="font-semibold">{meeting.title}</h3>
+                            <h3 className="font-semibold text-lg">{meeting.title}</h3>
                             {getStatusBadge(meeting.status)}
                             {getPriorityBadge(meeting.priority)}
                           </div>
                           
-                          <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-4 w-4" />
-                              {formatMeetingTime(meeting.startTime, meeting.endTime)}
-                            </div>
-                            {meeting.location && (
-                              <div className="flex items-center gap-1">
-                                <MapPin className="h-4 w-4" />
-                                {meeting.location}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <Clock className="h-4 w-4" />
+                                {formatMeetingTime(meeting.startTime, meeting.endTime)}
                               </div>
-                            )}
+                              {meeting.location && (
+                                <div className="flex items-center gap-2 text-sm text-gray-600">
+                                  <MapPin className="h-4 w-4" />
+                                  {meeting.location}
+                                </div>
+                              )}
+                              {meeting.meetingLink && (
+                                <div className="flex items-center gap-2 text-sm text-gray-600">
+                                  <Video className="h-4 w-4" />
+                                  <a 
+                                    href={meeting.meetingLink} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:underline"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    Join Meeting
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <User className="h-4 w-4" />
+                                Organizer: {getOrganizer(meeting)?.name}
+                              </div>
+                              {meeting.customer && (
+                                <div className="flex items-center gap-2 text-sm text-gray-600">
+                                  <Users className="h-4 w-4" />
+                                  Customer: {meeting.customer.name} ({meeting.customer.customerId})
+                                </div>
+                              )}
+                              {meeting.attendees.length > 0 && (
+                                <div className="flex items-center gap-2 text-sm text-gray-600">
+                                  <Users className="h-4 w-4" />
+                                  {meeting.attendees.length} attendee{meeting.attendees.length !== 1 ? 's' : ''}
+                                </div>
+                              )}
+                            </div>
                           </div>
                           
-                          <div className="flex items-center gap-2 text-sm">
-                            <span className="text-gray-500">Organizer:</span>
-                            <span>{getOrganizer(meeting)?.name}</span>
-                            {meeting.customer && (
-                              <>
-                                <span className="text-gray-500">• Customer:</span>
-                                <span>{meeting.customer.name}</span>
-                              </>
-                            )}
-                          </div>
+                          {meeting.description && (
+                            <div className="mb-3">
+                              <p className="text-sm text-gray-700 line-clamp-2">{meeting.description}</p>
+                            </div>
+                          )}
+                          
+                          {meeting.agenda && (
+                            <div className="mb-3">
+                              <p className="text-xs text-gray-500 font-medium mb-1">Agenda:</p>
+                              <p className="text-sm text-gray-600 line-clamp-2">{meeting.agenda}</p>
+                            </div>
+                          )}
+                          
+                          {meeting.tasks.length > 0 && (
+                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                              <CheckCircle className="h-4 w-4" />
+                              {meeting.tasks.length} task{meeting.tasks.length !== 1 ? 's' : ''} 
+                              ({meeting.tasks.filter(task => task.status !== 'COMPLETED').length} active)
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

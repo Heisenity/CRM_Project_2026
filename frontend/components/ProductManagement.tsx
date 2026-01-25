@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -21,22 +21,18 @@ import {
   Download, 
   Plus, 
   Package, 
-  TrendingUp,
-  TrendingDown,
-  AlertTriangle,
-  CheckCircle,
-  XCircle,
   MoreVertical,
-  Truck,
-  ShoppingCart,
-  BarChart3,
   Eye,
   Edit,
   Trash2,
   RefreshCw,
   ArrowLeft,
   Save,
-  X
+  X,
+  QrCode,
+  History,
+  User,
+  Calendar
 } from "lucide-react"
 
 interface Product {
@@ -46,15 +42,35 @@ interface Product {
   description?: string
   boxQty: number
   totalUnits: number
-  reorderThreshold: number
   isActive: boolean
   createdAt: string
   updatedAt: string
 }
 
-const getStockStatus = (totalUnits: number, reorderThreshold: number) => {
+interface BarcodeHistory {
+  id: string
+  barcodeValue: string
+  serialNumber: string
+  boxQty: number
+  status: string
+  createdAt: string
+  product: {
+    productName: string
+    sku: string
+  }
+  lastTransaction?: {
+    type: string
+    createdAt: string
+    employee?: {
+      name: string
+      employeeId: string
+    }
+  }
+}
+
+const getStockStatus = (totalUnits: number) => {
   if (totalUnits === 0) return "out_of_stock"
-  if (totalUnits <= reorderThreshold) return "low_stock"
+  if (totalUnits <= 10) return "low_stock" // Fixed threshold of 10 units
   return "in_stock"
 }
 
@@ -88,8 +104,22 @@ export function ProductManagement() {
   const [isLoadingProducts, setIsLoadingProducts] = React.useState(true)
   const [isLabelDialogOpen, setIsLabelDialogOpen] = React.useState(false)
   const [selectedProductForLabels, setSelectedProductForLabels] = React.useState<Product | null>(null)
+  
+  // Barcode history state
+  const [barcodeHistory, setBarcodeHistory] = React.useState<BarcodeHistory[]>([])
+  const [isLoadingBarcodes, setIsLoadingBarcodes] = React.useState(false)
+  const [selectedProductForHistory, setSelectedProductForHistory] = React.useState<Product | null>(null)
+  const [isBarcodeHistoryOpen, setIsBarcodeHistoryOpen] = React.useState(false)
+  const [barcodeSearchTerm, setBarcodeSearchTerm] = React.useState("")
+  const [barcodePagination, setBarcodePagination] = React.useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0
+  })
+  
   const { toast } = useToast()
-  const { authenticatedFetch, isAuthenticated } = useAuthenticatedFetch()
+  const { isAuthenticated } = useAuthenticatedFetch()
   const { data: session } = useSession()
 
   // Form state for adding/editing products
@@ -98,18 +128,10 @@ export function ProductManagement() {
     productName: "",
     description: "",
     boxQty: "",
-    totalUnits: "",
-    reorderThreshold: ""
+    totalUnits: ""
   })
 
-  // Fetch products on component mount
-  React.useEffect(() => {
-    if (isAuthenticated) {
-      fetchProducts()
-    }
-  }, [isAuthenticated])
-
-  const fetchProducts = async () => {
+  const fetchProducts = React.useCallback(async () => {
     try {
       setIsLoadingProducts(true)
       
@@ -119,11 +141,12 @@ export function ProductManagement() {
       
       // Call backend directly
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+      const sessionToken = (session as { user?: { sessionToken?: string } })?.user?.sessionToken
       const response = await fetch(`${backendUrl}/products`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(session as any)?.user?.sessionToken}`,
+          'Authorization': `Bearer ${sessionToken}`,
         },
       })
       
@@ -147,13 +170,67 @@ export function ProductManagement() {
     } finally {
       setIsLoadingProducts(false)
     }
+  }, [isAuthenticated, session, toast])
+
+  // Fetch products on component mount
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      fetchProducts()
+    }
+  }, [isAuthenticated, fetchProducts])
+
+  const fetchBarcodeHistory = async (productId: string, page: number = 1) => {
+    try {
+      setIsLoadingBarcodes(true)
+      
+      if (!isAuthenticated) {
+        throw new Error('Not authenticated')
+      }
+      
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+      const sessionToken = (session as { user?: { sessionToken?: string } })?.user?.sessionToken
+      const response = await fetch(`${backendUrl}/products/${productId}/barcode-history?page=${page}&limit=10`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`,
+        },
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setBarcodeHistory(data.data.barcodes)
+          setBarcodePagination(data.data.pagination)
+        } else {
+          throw new Error(data.error || 'Failed to fetch barcode history')
+        }
+      } else {
+        throw new Error('Failed to fetch barcode history')
+      }
+    } catch (error) {
+      console.error('Error fetching barcode history:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load barcode history",
+        variant: "destructive"
+      })
+    } finally {
+      setIsLoadingBarcodes(false)
+    }
+  }
+
+  const handleViewBarcodeHistory = (product: Product) => {
+    setSelectedProductForHistory(product)
+    setIsBarcodeHistoryOpen(true)
+    fetchBarcodeHistory(product.id)
   }
 
   // Calculate summary statistics
   const totalProducts = products.length
   const activeProducts = products.filter(p => p.isActive).length
-  const lowStockProducts = products.filter(p => getStockStatus(p.totalUnits, p.reorderThreshold) === "low_stock").length
-  const outOfStockProducts = products.filter(p => getStockStatus(p.totalUnits, p.reorderThreshold) === "out_of_stock").length
+  const lowStockProducts = products.filter(p => getStockStatus(p.totalUnits) === "low_stock").length
+  const outOfStockProducts = products.filter(p => getStockStatus(p.totalUnits) === "out_of_stock").length
 
   // Filter products based on search and filters
   const filteredProducts = products.filter(product => {
@@ -161,7 +238,7 @@ export function ProductManagement() {
                          product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()))
     
-    const status = getStockStatus(product.totalUnits, product.reorderThreshold)
+    const status = getStockStatus(product.totalUnits)
     const matchesStatus = selectedStatus === "all" || status === selectedStatus
     
     return matchesSearch && matchesStatus && product.isActive
@@ -173,8 +250,7 @@ export function ProductManagement() {
       productName: "",
       description: "",
       boxQty: "",
-      totalUnits: "",
-      reorderThreshold: ""
+      totalUnits: ""
     })
     setEditingProduct(null)
   }
@@ -204,11 +280,11 @@ export function ProductManagement() {
         productName: formData.productName,
         description: formData.description || undefined,
         boxQty: parseInt(formData.boxQty),
-        totalUnits: parseInt(formData.totalUnits),
-        reorderThreshold: parseInt(formData.reorderThreshold) || 0
+        totalUnits: parseInt(formData.totalUnits)
       }
 
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+      const sessionToken = (session as { user?: { sessionToken?: string } })?.user?.sessionToken
       let response
 
       if (editingProduct) {
@@ -217,7 +293,7 @@ export function ProductManagement() {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${(session as any)?.user?.sessionToken}`,
+            'Authorization': `Bearer ${sessionToken}`,
           },
           body: JSON.stringify(productData)
         })
@@ -227,7 +303,7 @@ export function ProductManagement() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${(session as any)?.user?.sessionToken}`,
+            'Authorization': `Bearer ${sessionToken}`,
           },
           body: JSON.stringify(productData)
         })
@@ -259,11 +335,12 @@ export function ProductManagement() {
           throw new Error(errorData.error || 'Failed to save product')
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving product:', error)
+      const errorMessage = error instanceof Error ? error.message : "Failed to save product"
       toast({
         title: "Error",
-        description: error.message || "Failed to save product",
+        description: errorMessage,
         variant: "destructive"
       })
     } finally {
@@ -278,8 +355,7 @@ export function ProductManagement() {
       productName: product.productName,
       description: product.description || "",
       boxQty: product.boxQty.toString(),
-      totalUnits: product.totalUnits.toString(),
-      reorderThreshold: product.reorderThreshold.toString()
+      totalUnits: product.totalUnits.toString()
     })
     setIsAddProductOpen(true)
   }
@@ -291,11 +367,12 @@ export function ProductManagement() {
       }
 
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
+      const sessionToken = (session as { user?: { sessionToken?: string } })?.user?.sessionToken
       const response = await fetch(`${backendUrl}/products/${productId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(session as any)?.user?.sessionToken}`,
+          'Authorization': `Bearer ${sessionToken}`,
         },
       })
 
@@ -314,11 +391,12 @@ export function ProductManagement() {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Failed to delete product')
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting product:', error)
+      const errorMessage = error instanceof Error ? error.message : "Failed to delete product"
       toast({
         title: "Error",
-        description: error.message || "Failed to delete product",
+        description: errorMessage,
         variant: "destructive"
       })
     }
@@ -358,7 +436,6 @@ export function ProductManagement() {
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <h1 className="text-3xl font-bold text-gray-900">Product Management</h1>
-              <p className="text-gray-600">Manage your product catalog and inventory items</p>
             </div>
             <div className="flex items-center gap-3">
               <Button 
@@ -453,7 +530,7 @@ export function ProductManagement() {
                       </p>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="boxQty">Box Quantity *</Label>
                         <Input
@@ -475,17 +552,6 @@ export function ProductManagement() {
                           onChange={(e) => setFormData(prev => ({ ...prev, totalUnits: e.target.value }))}
                           placeholder="Current stock"
                           required
-                          min="0"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="reorderThreshold">Reorder Threshold</Label>
-                        <Input
-                          id="reorderThreshold"
-                          type="number"
-                          value={formData.reorderThreshold}
-                          onChange={(e) => setFormData(prev => ({ ...prev, reorderThreshold: e.target.value }))}
-                          placeholder="Minimum stock level"
                           min="0"
                         />
                       </div>
@@ -579,7 +645,6 @@ export function ProductManagement() {
                 <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Status</TableHead>
                 <TableHead className="w-[100px] py-4 px-6 font-semibold text-gray-700">Box Qty</TableHead>
                 <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Total Units</TableHead>
-                <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Reorder Level</TableHead>
                 <TableHead className="w-[150px] py-4 px-6 font-semibold text-gray-700">Created</TableHead>
                 <TableHead className="w-[60px] py-4 px-6"></TableHead>
               </TableRow>
@@ -587,13 +652,13 @@ export function ProductManagement() {
             <TableBody>
               {filteredProducts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                     {searchTerm || selectedStatus !== "all" ? "No products found matching your criteria" : "No products available"}
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredProducts.map((product, index) => {
-                  const status = getStockStatus(product.totalUnits, product.reorderThreshold)
+                  const status = getStockStatus(product.totalUnits)
                   return (
                     <TableRow 
                       key={product.id} 
@@ -636,19 +701,16 @@ export function ProductManagement() {
                               className={`h-2 rounded-full ${
                                 product.totalUnits === 0
                                   ? 'bg-red-500' 
-                                  : product.totalUnits <= product.reorderThreshold 
+                                  : product.totalUnits <= 10 
                                     ? 'bg-amber-500' 
                                     : 'bg-green-500'
                               }`}
                               style={{ 
-                                width: `${Math.min((product.totalUnits / Math.max(product.reorderThreshold * 2, 100)) * 100, 100)}%` 
+                                width: `${Math.min((product.totalUnits / 100) * 100, 100)}%` 
                               }}
                             ></div>
                           </div>
                         </div>
-                      </TableCell>
-                      <TableCell className="py-4 px-6">
-                        <span className="text-gray-600">{product.reorderThreshold}</span>
                       </TableCell>
                       <TableCell className="py-4 px-6">
                         <div className="text-sm text-gray-600">
@@ -677,6 +739,10 @@ export function ProductManagement() {
                             <DropdownMenuItem onClick={() => handleGenerateLabels(product)}>
                               <Package className="h-4 w-4 mr-2" />
                               Generate Labels
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleViewBarcodeHistory(product)}>
+                              <QrCode className="h-4 w-4 mr-2" />
+                              Barcode History
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               className="text-red-600"
@@ -726,6 +792,162 @@ export function ProductManagement() {
           setSelectedProductForLabels(null)
         }}
       />
+
+      {/* Barcode History Dialog */}
+      <Dialog open={isBarcodeHistoryOpen} onOpenChange={setIsBarcodeHistoryOpen}>
+        <DialogContent className="max-w-6xl max-h-[80vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5" />
+              Barcode Generation History
+              {selectedProductForHistory && (
+                <span className="text-sm font-normal text-gray-500">
+                  - {selectedProductForHistory.productName} ({selectedProductForHistory.sku})
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Search Bar */}
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search by barcode value or serial number..."
+                  value={barcodeSearchTerm}
+                  onChange={(e) => setBarcodeSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => selectedProductForHistory && fetchBarcodeHistory(selectedProductForHistory.id)}
+                disabled={isLoadingBarcodes}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingBarcodes ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+
+            {/* Barcode History Table */}
+            <div className="border rounded-lg overflow-hidden">
+              <div className="max-h-96 overflow-y-auto">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-gray-50 z-10">
+                    <TableRow>
+                      <TableHead className="w-[200px]">Barcode Value</TableHead>
+                      <TableHead className="w-[150px]">Serial Number</TableHead>
+                      <TableHead className="w-[150px]">Created Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoadingBarcodes ? (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center py-8">
+                          <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
+                          Loading barcode history...
+                        </TableCell>
+                      </TableRow>
+                    ) : barcodeHistory.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center py-8 text-gray-500">
+                          <QrCode className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                          No barcodes generated for this product yet
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      barcodeHistory
+                        .filter(barcode => 
+                          barcodeSearchTerm === "" || 
+                          barcode.barcodeValue.toLowerCase().includes(barcodeSearchTerm.toLowerCase()) ||
+                          barcode.serialNumber.toLowerCase().includes(barcodeSearchTerm.toLowerCase())
+                        )
+                        .map((barcode) => (
+                          <TableRow key={barcode.id} className="hover:bg-gray-50">
+                            <TableCell className="font-mono text-sm">
+                              {barcode.barcodeValue}
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">
+                              {barcode.serialNumber}
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">
+                                <div>{new Date(barcode.createdAt).toLocaleDateString()}</div>
+                                <div className="text-xs text-gray-500">
+                                  {new Date(barcode.createdAt).toLocaleTimeString()}
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+
+            {/* Pagination */}
+            {barcodePagination.totalPages > 1 && (
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-500">
+                  Showing {((barcodePagination.page - 1) * barcodePagination.limit) + 1} to{' '}
+                  {Math.min(barcodePagination.page * barcodePagination.limit, barcodePagination.total)} of{' '}
+                  {barcodePagination.total} barcodes
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={barcodePagination.page === 1 || isLoadingBarcodes}
+                    onClick={() => {
+                      const newPage = barcodePagination.page - 1
+                      setBarcodePagination(prev => ({ ...prev, page: newPage }))
+                      if (selectedProductForHistory) {
+                        fetchBarcodeHistory(selectedProductForHistory.id, newPage)
+                      }
+                    }}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-sm text-gray-500">
+                    Page {barcodePagination.page} of {barcodePagination.totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={barcodePagination.page === barcodePagination.totalPages || isLoadingBarcodes}
+                    onClick={() => {
+                      const newPage = barcodePagination.page + 1
+                      setBarcodePagination(prev => ({ ...prev, page: newPage }))
+                      if (selectedProductForHistory) {
+                        fetchBarcodeHistory(selectedProductForHistory.id, newPage)
+                      }
+                    }}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end pt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsBarcodeHistoryOpen(false)
+                setSelectedProductForHistory(null)
+                setBarcodeHistory([])
+                setBarcodeSearchTerm("")
+                setBarcodePagination({ page: 1, limit: 10, total: 0, totalPages: 0 })
+              }}
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

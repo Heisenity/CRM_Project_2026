@@ -172,12 +172,6 @@ const calculateWorkHours = (clockIn?: string, clockOut?: string) => {
 
 export function AttendanceManagementPage() {
   const [showAddForm, setShowAddForm] = React.useState(false)
-  const [currentDate, setCurrentDate] = React.useState(new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  }))
   const [combinedData, setCombinedData] = React.useState<AttendanceSessionRow[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -225,9 +219,6 @@ export function AttendanceManagementPage() {
         page: pagination.page,
         limit: pagination.limit
       }
-
-      // Use today's date for filtering
-      params.date = new Date().toISOString().split('T')[0]
 
       if (filters.status) {
         params.status = filters.status
@@ -319,32 +310,6 @@ export function AttendanceManagementPage() {
               updatedAt: attendanceRecord.updatedAt,
               hasAttendance: true
             })
-          } else {
-            // Create a placeholder record for employees without attendance
-            combined.push({
-              id: `placeholder-${employee.id}`,
-              employeeId: employee.employeeId,
-              employeeName: employee.name,
-              email: employee.email,
-              phone: employee.phone,
-              teamId: employee.teamId,
-              isTeamLeader: employee.isTeamLeader,
-              date: new Date().toISOString().split('T')[0],
-              status: 'ABSENT' as const,
-              source: 'ADMIN' as const,
-              location: undefined,
-              latitude: undefined,
-              longitude: undefined,
-              ipAddress: undefined,
-              deviceInfo: undefined,
-              photo: undefined,
-              locked: false,
-              lockedReason: undefined,
-              attemptCount: 'ZERO' as const,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-              hasAttendance: false
-            })
           }
         })
 
@@ -414,8 +379,7 @@ export function AttendanceManagementPage() {
 
       // Only use custom date range if no quick range is specified
       if (!quickRange) {
-        // Use today's date
-        exportParams.date = new Date().toISOString().split('T')[0]
+        // No date filter - export all data
       }
 
       if (filters.status) {
@@ -556,8 +520,7 @@ export function AttendanceManagementPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="space-y-1">
-              <h1 className="text-2xl font-bold text-gray-900">In-Office Attendance</h1>
-              <p className="text-gray-600">Monitor in-office employee clock-in, clock-out, and overtime records</p>
+              <h1 className="text-2xl font-bold text-gray-900">Office Attendance</h1>
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -816,17 +779,10 @@ export function AttendanceManagementPage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      const today = new Date()
                       setFilters({
                         search: '',
                         status: ''
                       })
-                      setCurrentDate(today.toLocaleDateString('en-US', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      }))
                       setPagination(prev => ({ ...prev, page: 1 }))
                     }}
                     className="text-gray-500 hover:text-gray-700 h-7"

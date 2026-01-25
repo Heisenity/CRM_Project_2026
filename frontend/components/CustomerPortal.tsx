@@ -319,7 +319,7 @@ export default function CustomerPortal() {
           {/* Welcome Card */}
           <Card className="border-0 shadow-lg bg-gradient-to-r from-blue-50 to-indigo-50">
             <CardHeader>
-              <CardTitle className="text-2xl text-gray-900">Welcome, {customer.name}!</CardTitle>
+              <CardTitle className="text-2xl text-gray-900">Welcome, {customer.name}</CardTitle>
               <CardDescription className="text-gray-600">
                 Your customer portal dashboard
               </CardDescription>
@@ -412,21 +412,6 @@ export default function CustomerPortal() {
                     <span className="text-lg">Write Support Ticket</span>
                   </div>
                 </Button>
-              </div>
-              <div className="text-center">
-                <p className="text-blue-100 text-sm">
-                  Describe your issue in writing and our team will respond within 24 hours
-                </p>
-                <div className="flex items-center justify-center mt-4 space-x-6 text-xs text-blue-200">
-                  <div className="flex items-center space-x-1">
-                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                    <span>Text Support</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
-                    <span>Quick Response</span>
-                  </div>
-                </div>
               </div>
             </CardContent>
           </Card>

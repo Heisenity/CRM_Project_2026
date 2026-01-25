@@ -41,7 +41,8 @@ import {
   Image,
   Save,
   X,
-  ChevronDown
+  ChevronDown,
+  ArrowLeft
 } from "lucide-react"
 import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch"
 import { showToast } from "@/lib/toast-utils"
@@ -699,11 +700,10 @@ export function TicketTable() {
     <div className="min-h-screen bg-background">
       <div className="p-8 space-y-8">
         {/* Header Section */}
-        <div className="bg-card rounded-xl shadow-sm border border-border p-6">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
+        <div className="bg-card rounded-xl shadow-sm border border-border p-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="space-y-2">
               <h1 className="text-3xl font-bold text-foreground">Support Tickets</h1>
-              <p className="text-muted-foreground">Manage and track customer support requests and issues</p>
             </div>
             <div className="flex items-center gap-3">
               <Button 
@@ -713,7 +713,7 @@ export function TicketTable() {
                   fetchCategories()
                 }}
                 disabled={loading}
-                className="border-border hover:bg-accent"
+                className="border-border hover:bg-accent px-4"
               >
                 {loading ? (
                   <>
@@ -731,7 +731,7 @@ export function TicketTable() {
                 <DropdownMenuTrigger asChild>
                   <Button 
                     variant="outline" 
-                    className="border-border hover:bg-accent"
+                    className="border-border hover:bg-accent px-4"
                     disabled={exporting}
                   >
                     {exporting ? (
@@ -769,7 +769,7 @@ export function TicketTable() {
               </DropdownMenu>
               <Button 
                 onClick={() => router.push('/tickets/new')}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 New Ticket
@@ -781,17 +781,17 @@ export function TicketTable() {
           
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4 bg-muted">
-              <TabsTrigger value="all" className="data-[state=active]:bg-background">
+            <TabsList className="grid w-full grid-cols-4 bg-muted h-12">
+              <TabsTrigger value="all" className="data-[state=active]:bg-background font-medium">
                 All Tickets ({totalTickets})
               </TabsTrigger>
-              <TabsTrigger value="open" className="data-[state=active]:bg-background">
+              <TabsTrigger value="open" className="data-[state=active]:bg-background font-medium">
                 Open ({openTickets})
               </TabsTrigger>
-              <TabsTrigger value="resolved" className="data-[state=active]:bg-background">
+              <TabsTrigger value="resolved" className="data-[state=active]:bg-background font-medium">
                 Resolved ({resolvedTickets})
               </TabsTrigger>
-              <TabsTrigger value="closed" className="data-[state=active]:bg-background">
+              <TabsTrigger value="closed" className="data-[state=active]:bg-background font-medium">
                 Closed ({closedTickets})
               </TabsTrigger>
             </TabsList>
@@ -880,7 +880,7 @@ export function TicketTable() {
         {/* Filters and Actions */}
         <Card className="bg-card shadow-sm border-border">
           <CardContent className="p-6">
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-6">
               <div className="flex items-center gap-4 flex-1">
                 <div className="relative flex-1 max-w-md">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -888,44 +888,63 @@ export function TicketTable() {
                     placeholder="Search tickets, assignees, or reporters..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 border-border focus:border-blue-500 focus:ring-blue-500"
+                    className="pl-10 border-border focus:border-blue-500 focus:ring-blue-500 h-10"
                   />
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="border-border hover:bg-accent">
-                      <Filter className="h-4 w-4 mr-2" />
-                      Problem
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-48">
-                    <DropdownMenuItem onClick={() => setSelectedCategory("all")}>All Problems</DropdownMenuItem>
-                    {categories.map((category) => (
-                      <DropdownMenuItem 
-                        key={category.id} 
-                        onClick={() => setSelectedCategory(category.name)}
-                      >
-                        {category.name}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="border-border hover:bg-accent">
-                      <Filter className="h-4 w-4 mr-2" />
-                      Priority
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-48">
-                    <DropdownMenuItem onClick={() => setSelectedPriority("all")}>All Priorities</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSelectedPriority("CRITICAL")}>Critical Priority</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSelectedPriority("HIGH")}>High Priority</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSelectedPriority("MEDIUM")}>Medium Priority</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSelectedPriority("LOW")}>Low Priority</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <div className="flex items-center gap-3">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="border-border hover:bg-accent px-4 h-10">
+                        <Filter className="h-4 w-4 mr-2" />
+                        Problem
+                        <ChevronDown className="h-4 w-4 ml-2" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-48">
+                      <DropdownMenuItem onClick={() => setSelectedCategory("all")}>All Problems</DropdownMenuItem>
+                      {categories.map((category) => (
+                        <DropdownMenuItem 
+                          key={category.id} 
+                          onClick={() => setSelectedCategory(category.name)}
+                        >
+                          {category.name}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="border-border hover:bg-accent px-4 h-10">
+                        <Filter className="h-4 w-4 mr-2" />
+                        Priority
+                        <ChevronDown className="h-4 w-4 ml-2" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-48">
+                      <DropdownMenuItem onClick={() => setSelectedPriority("all")}>All Priorities</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setSelectedPriority("CRITICAL")}>Critical Priority</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setSelectedPriority("HIGH")}>High Priority</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setSelectedPriority("MEDIUM")}>Medium Priority</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setSelectedPriority("LOW")}>Low Priority</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
+              {(searchTerm || selectedCategory !== "all" || selectedPriority !== "all") && (
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => {
+                    setSearchTerm("")
+                    setSelectedCategory("all")
+                    setSelectedPriority("all")
+                  }}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Clear Filters
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -933,32 +952,32 @@ export function TicketTable() {
         {/* Tickets Table */}
         <Card className="bg-card shadow-sm border-border overflow-hidden">
           <div className="overflow-x-auto">
-            <Table className="table-fixed min-w-[1400px]">
+            <Table className="table-fixed min-w-[1500px]">
               <TableHeader>
                 <TableRow className="bg-muted/50 border-b border-border">
-                  <TableHead className="w-[320px] py-4 px-4 font-semibold text-foreground text-left">Ticket Details</TableHead>
-                  <TableHead className="w-[200px] py-4 px-4 font-semibold text-foreground text-left">Customer Info</TableHead>
-                  <TableHead className="w-[100px] py-4 px-4 font-semibold text-foreground text-center">Status</TableHead>
-                  <TableHead className="w-[100px] py-4 px-4 font-semibold text-foreground text-center">Priority</TableHead>
-                  <TableHead className="w-[180px] py-4 px-4 font-semibold text-foreground text-left">Created By</TableHead>
-                  <TableHead className="w-[120px] py-4 px-4 font-semibold text-foreground text-center">Attachments</TableHead>
-                  <TableHead className="w-[140px] py-4 px-4 font-semibold text-foreground text-left">Expected Date</TableHead>
-                  <TableHead className="w-[60px] py-4 px-4 font-semibold text-foreground text-center">Actions</TableHead>
+                  <TableHead className="w-[350px] py-4 px-6 font-semibold text-foreground text-left">Ticket Details</TableHead>
+                  <TableHead className="w-[220px] py-4 px-4 font-semibold text-foreground text-left">Customer Info</TableHead>
+                  <TableHead className="w-[110px] py-4 px-4 font-semibold text-foreground text-center">Status</TableHead>
+                  <TableHead className="w-[110px] py-4 px-4 font-semibold text-foreground text-center">Priority</TableHead>
+                  <TableHead className="w-[200px] py-4 px-4 font-semibold text-foreground text-left">Created By</TableHead>
+                  <TableHead className="w-[130px] py-4 px-4 font-semibold text-foreground text-center">Attachments</TableHead>
+                  <TableHead className="w-[150px] py-4 px-4 font-semibold text-foreground text-left">Expected Date</TableHead>
+                  <TableHead className="w-[80px] py-4 px-4 font-semibold text-foreground text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12">
+                  <TableCell colSpan={8} className="text-center py-16">
                     <div className="flex items-center justify-center">
                       <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mr-3"></div>
-                      Loading tickets...
+                      <span className="text-muted-foreground">Loading tickets...</span>
                     </div>
                   </TableCell>
                 </TableRow>
               ) : filteredData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12">
+                  <TableCell colSpan={8} className="text-center py-16">
                     <div className="flex flex-col items-center">
                       <Ticket className="h-12 w-12 text-gray-400 mb-4" />
                       <h3 className="text-lg font-medium text-gray-900 mb-2">No Tickets Found</h3>
@@ -988,7 +1007,7 @@ export function TicketTable() {
                       index % 2 === 0 ? 'bg-background' : 'bg-muted/20'
                     }`}
                   >
-                    <TableCell className="py-3 px-4 align-top">
+                    <TableCell className="py-4 px-6 align-top">
                       <div className="flex items-start gap-3">
                         <div className="relative flex-shrink-0">
                           <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white font-semibold text-sm shadow-sm">
@@ -1000,17 +1019,17 @@ export function TicketTable() {
                             </div>
                           )}
                         </div>
-                        <div className="min-w-0 flex-1 space-y-1">
+                        <div className="min-w-0 flex-1 space-y-1.5">
                           <p className="font-semibold text-foreground text-sm truncate">{ticket.ticketId}</p>
                           <p className="text-xs text-muted-foreground truncate">{ticket.category?.name || 'Unknown Problem'}</p>
                           <p 
-                            className="text-xs text-muted-foreground safe-text-clamp line-clamp-2 cursor-help leading-relaxed" 
+                            className="text-xs text-muted-foreground line-clamp-2 cursor-help leading-relaxed" 
                             title={ticket.description}
                           >
-                            {truncateText(ticket.description, 80)}
+                            {truncateText(ticket.description, 100)}
                           </p>
                           {ticket._count && ticket._count.comments > 0 && (
-                            <div className="flex items-center gap-1 mt-1">
+                            <div className="flex items-center gap-1 mt-2">
                               <MessageSquare className="h-3 w-3 text-blue-600" />
                               <span className="text-xs text-blue-600">{ticket._count.comments} comments</span>
                             </div>
@@ -1018,9 +1037,9 @@ export function TicketTable() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="py-3 px-4 align-top">
+                    <TableCell className="py-4 px-4 align-top">
                       {ticket.customerName ? (
-                        <div className="space-y-1">
+                        <div className="space-y-1.5">
                           <p className="font-medium text-foreground text-sm truncate">{ticket.customerName}</p>
                           <p className="text-xs text-muted-foreground truncate">{ticket.customerId}</p>
                           <div className="flex items-center gap-1">
@@ -1029,95 +1048,101 @@ export function TicketTable() {
                           </div>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-center h-full">
+                        <div className="flex items-center justify-center h-full min-h-[60px]">
                           <span className="text-sm text-muted-foreground">-</span>
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="py-3 px-4 align-middle text-center">
-                      {getStatusBadge(ticket.status)}
+                    <TableCell className="py-4 px-4 align-middle text-center">
+                      <div className="flex justify-center">
+                        {getStatusBadge(ticket.status)}
+                      </div>
                     </TableCell>
-                    <TableCell className="py-3 px-4 align-middle text-center">
-                      {getPriorityBadge(ticket.priority)}
+                    <TableCell className="py-4 px-4 align-middle text-center">
+                      <div className="flex justify-center">
+                        {getPriorityBadge(ticket.priority)}
+                      </div>
                     </TableCell>
-                    <TableCell className="py-3 px-4 align-top">
+                    <TableCell className="py-4 px-4 align-top">
                       {ticket.reporter ? (
                         <div className="flex items-start gap-2">
                           <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
                             {ticket.reporter.name.split(' ').map((n: string) => n[0]).join('')}
                           </div>
-                          <div className="min-w-0 flex-1 space-y-0.5">
+                          <div className="min-w-0 flex-1 space-y-1">
                             <p className="font-medium text-foreground text-sm truncate">{ticket.reporter.name}</p>
                             <p className="text-xs text-muted-foreground truncate">{ticket.reporter.employeeId}</p>
                           </div>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-center h-full">
+                        <div className="flex items-center justify-center h-full min-h-[60px]">
                           <span className="text-sm text-muted-foreground">Unknown</span>
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="py-3 px-4 align-middle text-center">
+                    <TableCell className="py-4 px-4 align-middle text-center">
                       {ticket.attachments && ticket.attachments.length > 0 ? (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 px-2 hover:bg-blue-50 mx-auto">
-                              <div className="flex items-center gap-1.5">
-                                <Paperclip className="h-4 w-4 text-blue-600" />
-                                <span className="text-sm font-medium text-blue-600">{ticket.attachments.length}</span>
+                        <div className="flex justify-center">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 px-3 hover:bg-blue-50">
+                                <div className="flex items-center gap-1.5">
+                                  <Paperclip className="h-4 w-4 text-blue-600" />
+                                  <span className="text-sm font-medium text-blue-600">{ticket.attachments.length}</span>
+                                </div>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="center" className="w-64">
+                              <div className="px-2 py-1.5 text-sm font-semibold text-foreground border-b">
+                                Attachments ({ticket.attachments.length})
                               </div>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="center" className="w-64">
-                            <div className="px-2 py-1.5 text-sm font-semibold text-foreground border-b">
-                              Attachments ({ticket.attachments.length})
-                            </div>
-                            {ticket.attachments.map((attachment, index) => {
-                              const isImage = attachment.mimeType?.startsWith('image/') || 
-                                            attachment.fileName?.match(/\.(jpg|jpeg|png|gif|webp)$/i)
-                              const fileSize = attachment.fileSize ? `${(attachment.fileSize / 1024).toFixed(1)} KB` : 'Unknown size'
-                              
-                              return (
-                                <DropdownMenuItem key={index} className="flex items-center gap-3 py-2">
-                                  <div className="w-8 h-8 bg-blue-50 rounded flex items-center justify-center flex-shrink-0">
-                                    {isImage ? (
-                                      <Image className="h-4 w-4 text-blue-600" />
-                                    ) : (
-                                      <FileText className="h-4 w-4 text-blue-600" />
-                                    )}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-foreground truncate" title={attachment.fileName}>
-                                      {attachment.fileName}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {fileSize} • {attachment.mimeType || 'Unknown type'}
-                                    </p>
-                                  </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0 flex-shrink-0"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      downloadFile(attachment.filePath, attachment.fileName)
-                                    }}
-                                  >
-                                    <Download className="h-3 w-3" />
-                                  </Button>
-                                </DropdownMenuItem>
-                              )
-                            })}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                              {ticket.attachments.map((attachment, index) => {
+                                const isImage = attachment.mimeType?.startsWith('image/') || 
+                                              attachment.fileName?.match(/\.(jpg|jpeg|png|gif|webp)$/i)
+                                const fileSize = attachment.fileSize ? `${(attachment.fileSize / 1024).toFixed(1)} KB` : 'Unknown size'
+                                
+                                return (
+                                  <DropdownMenuItem key={index} className="flex items-center gap-3 py-2">
+                                    <div className="w-8 h-8 bg-blue-50 rounded flex items-center justify-center flex-shrink-0">
+                                      {isImage ? (
+                                        <Image className="h-4 w-4 text-blue-600" />
+                                      ) : (
+                                        <FileText className="h-4 w-4 text-blue-600" />
+                                      )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium text-foreground truncate" title={attachment.fileName}>
+                                        {attachment.fileName}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {fileSize} • {attachment.mimeType || 'Unknown type'}
+                                      </p>
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 w-6 p-0 flex-shrink-0"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        downloadFile(attachment.filePath, attachment.fileName)
+                                      }}
+                                    >
+                                      <Download className="h-3 w-3" />
+                                    </Button>
+                                  </DropdownMenuItem>
+                                )
+                              })}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       ) : (
-                        <div className="flex items-center justify-center h-full">
+                        <div className="flex items-center justify-center h-full min-h-[60px]">
                           <span className="text-sm text-muted-foreground">-</span>
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="py-3 px-4 align-top">
-                      <div className="space-y-0.5">
+                    <TableCell className="py-4 px-4 align-top">
+                      <div className="space-y-1">
                         <p className="font-medium text-foreground text-sm">
                           {ticket.dueDate ? new Date(ticket.dueDate).toLocaleDateString() : 'No due date'}
                         </p>
@@ -1126,35 +1151,37 @@ export function TicketTable() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="py-3 px-4 align-middle text-center">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewDetails(ticket)}>
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEditTicket(ticket)}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit Ticket
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleAssignAgent(ticket)}>
-                            <UserCheck className="h-4 w-4 mr-2" />
-                            Assign Agent
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            className="text-red-600 focus:text-red-600"
-                            onClick={() => handleDeleteTicket(ticket)}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                    <TableCell className="py-4 px-4 align-middle text-center">
+                      <div className="flex justify-center">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleViewDetails(ticket)}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEditTicket(ticket)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit Ticket
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleAssignAgent(ticket)}>
+                              <UserCheck className="h-4 w-4 mr-2" />
+                              Assign Agent
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="text-red-600 focus:text-red-600"
+                              onClick={() => handleDeleteTicket(ticket)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -1165,27 +1192,32 @@ export function TicketTable() {
         </Card>
 
         {/* Footer */}
-        <div className="flex items-center justify-between text-sm text-muted-foreground bg-card rounded-lg p-4 border border-border">
-          <div>
-            Showing {filteredData.length} of {totalTickets} tickets
-          </div>
+        <div className="flex items-center justify-between text-sm text-muted-foreground bg-card rounded-lg p-6 border border-border shadow-sm">
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" disabled>
+            <span className="font-medium">Showing {filteredData.length} of {totalTickets} tickets</span>
+            {filteredData.length !== totalTickets && (
+              <span className="text-xs bg-muted px-2 py-1 rounded">Filtered</span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" disabled className="px-4">
+              <ArrowLeft className="h-4 w-4 mr-1" />
               Previous
             </Button>
             <div className="flex items-center gap-1">
-              <Button variant="outline" size="sm" className="bg-blue-50 text-blue-600 border-blue-200">
+              <Button variant="outline" size="sm" className="bg-blue-50 text-blue-600 border-blue-200 px-3">
                 1
               </Button>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="px-3">
                 2
               </Button>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="px-3">
                 3
               </Button>
             </div>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="px-4">
               Next
+              <ArrowLeft className="h-4 w-4 ml-1 rotate-180" />
             </Button>
           </div>
         </div>

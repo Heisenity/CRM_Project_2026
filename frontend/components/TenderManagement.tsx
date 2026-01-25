@@ -383,7 +383,6 @@ export default function TenderManagement() {
             <Gavel className="h-8 w-8 text-blue-600" />
             Tender Management
           </h1>
-          <p className="text-gray-600 mt-2">Manage tenders, documents, and EMD tracking</p>
         </div>
         {(session?.user as any)?.userType !== 'ADMIN' && (
           <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>

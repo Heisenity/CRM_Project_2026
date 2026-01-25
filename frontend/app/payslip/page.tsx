@@ -58,7 +58,6 @@ export default function PayslipPage() {
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <h1 className="text-3xl font-bold text-gray-900">Payslip Management</h1>
-              <p className="text-gray-600">Generate and manage employee payslips</p>
             </div>
             <div className="flex gap-3">
               <button 

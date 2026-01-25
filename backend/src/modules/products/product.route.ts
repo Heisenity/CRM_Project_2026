@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { generateLabels, createProduct, getProducts, getProduct, updateProduct, deleteProduct } from './product.controller';
+import { generateLabels, createProduct, getProducts, getProduct, updateProduct, deleteProduct, getBarcodeHistory, getBarcodePrefixes, addBarcodePrefix } from './product.controller';
 
 const router = Router();
 
@@ -9,6 +9,13 @@ router.get('/', getProducts);
 router.get('/:id', getProduct);
 router.put('/:id', updateProduct);
 router.delete('/:id', deleteProduct);
+
+// Barcode prefix management routes
+router.get('/barcode-prefixes/list', getBarcodePrefixes);
+router.post('/barcode-prefixes/add', addBarcodePrefix);
+
+// Barcode history route
+router.get('/:productId/barcode-history', getBarcodeHistory);
 
 // Label generation route
 router.post('/:productId/generate-labels', generateLabels);

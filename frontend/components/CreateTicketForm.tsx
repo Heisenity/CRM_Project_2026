@@ -359,7 +359,6 @@ export function CreateTicketForm() {
               </Button>
               <div className="space-y-1">
                 <h1 className="text-3xl font-bold text-foreground">Create New Ticket</h1>
-                <p className="text-muted-foreground">Submit a new support request or issue report</p>
               </div>
             </div>
           </div>

@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Bell, CheckCircle, User, Phone, Mail, FileText, Calendar, Clock } from "lucide-react";
+import { Bell, CheckCircle, User, Phone, Mail, FileText, Calendar, Clock, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 interface SupportRequest {
@@ -36,30 +36,59 @@ interface SupportRequest {
   };
 }
 
+interface TicketCategory {
+  id: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
+}
+
 export default function CustomerSupportRequests() {
   const { data: session } = useSession();
   const { authenticatedFetch, isAuthenticated } = useAuthenticatedFetch();
   const router = useRouter();
   const [pendingRequests, setPendingRequests] = useState<SupportRequest[]>([]);
   const [acceptedRequests, setAcceptedRequests] = useState<SupportRequest[]>([]);
+  const [categories, setCategories] = useState<TicketCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateTicketDialogOpen, setIsCreateTicketDialogOpen] = useState(false);
+  const [isCreateCategoryDialogOpen, setIsCreateCategoryDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<SupportRequest | null>(null);
   const [ticketForm, setTicketForm] = useState({
-    category: "OTHER",
+    category: "",
     priority: "MEDIUM",
-    dueDate: "",
+    expectedDate: "",
     estimatedHours: ""
+  });
+  const [newCategoryForm, setNewCategoryForm] = useState({
+    name: "",
+    description: ""
   });
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchRequests();
+      fetchCategories();
       // Poll for new requests every 30 seconds
       const interval = setInterval(fetchRequests, 30000);
       return () => clearInterval(interval);
     }
   }, [isAuthenticated]);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/ticket-categories`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setCategories(data.data || []);
+      } else {
+        console.error('Failed to fetch categories:', response.status, response.statusText);
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    }
+  };
 
   const fetchRequests = async () => {
     try {
@@ -131,23 +160,65 @@ export default function CustomerSupportRequests() {
   const openCreateTicketDialog = (request: SupportRequest) => {
     setSelectedRequest(request);
     setTicketForm({
-      category: "OTHER",
+      category: categories.length > 0 ? categories[0].id : "",
       priority: "MEDIUM",
-      dueDate: "",
+      expectedDate: "",
       estimatedHours: ""
     });
     setIsCreateTicketDialogOpen(true);
   };
 
+  const handleCreateCategory = async () => {
+    if (!newCategoryForm.name.trim()) {
+      toast.error("Problem name is required");
+      return;
+    }
+
+    try {
+      const response = await authenticatedFetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/ticket-categories`,
+        {
+          method: "POST",
+          body: JSON.stringify(newCategoryForm),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create problem");
+      }
+
+      const data = await response.json();
+      toast.success("Problem created successfully!");
+      setIsCreateCategoryDialogOpen(false);
+      setNewCategoryForm({ name: "", description: "" });
+      fetchCategories();
+      
+      // Set the newly created category as selected
+      setTicketForm({ ...ticketForm, category: data.data.id });
+    } catch (error: any) {
+      console.error("Error creating category:", error);
+      toast.error(error.message || "Failed to create problem");
+    }
+  };
+
   const handleCreateTicket = async () => {
     if (!selectedRequest) return;
+
+    if (!ticketForm.category) {
+      toast.error("Please select a problem type");
+      return;
+    }
 
     try {
       const response = await authenticatedFetch(
         `${process.env.NEXT_PUBLIC_BACKEND_URL}/customer-support/${selectedRequest.id}/create-ticket`,
         {
           method: "POST",
-          body: JSON.stringify(ticketForm),
+          body: JSON.stringify({
+            ...ticketForm,
+            dueDate: ticketForm.expectedDate // Map expectedDate back to dueDate for backend compatibility
+          }),
         }
       );
 
@@ -346,24 +417,32 @@ export default function CustomerSupportRequests() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="category">Problem Type</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsCreateCategoryDialogOpen(true)}
+                    className="h-6 px-2 text-xs"
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    Add
+                  </Button>
+                </div>
                 <Select
                   value={ticketForm.category}
                   onValueChange={(value) => setTicketForm({ ...ticketForm, category: value })}
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Select problem type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="AUTHENTICATION">Authentication</SelectItem>
-                    <SelectItem value="HARDWARE">Hardware</SelectItem>
-                    <SelectItem value="SOFTWARE">Software</SelectItem>
-                    <SelectItem value="NETWORK">Network</SelectItem>
-                    <SelectItem value="SECURITY">Security</SelectItem>
-                    <SelectItem value="DATABASE">Database</SelectItem>
-                    <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
-                    <SelectItem value="SETUP">Setup</SelectItem>
-                    <SelectItem value="OTHER">Other</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -389,12 +468,12 @@ export default function CustomerSupportRequests() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="dueDate">Due Date</Label>
+                <Label htmlFor="expectedDate">Expected Date</Label>
                 <Input
-                  id="dueDate"
+                  id="expectedDate"
                   type="date"
-                  value={ticketForm.dueDate}
-                  onChange={(e) => setTicketForm({ ...ticketForm, dueDate: e.target.value })}
+                  value={ticketForm.expectedDate}
+                  onChange={(e) => setTicketForm({ ...ticketForm, expectedDate: e.target.value })}
                 />
               </div>
 
@@ -415,6 +494,45 @@ export default function CustomerSupportRequests() {
               Cancel
             </Button>
             <Button onClick={handleCreateTicket}>Create Ticket</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Category Dialog */}
+      <Dialog open={isCreateCategoryDialogOpen} onOpenChange={setIsCreateCategoryDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Create New Problem Type</DialogTitle>
+            <DialogDescription>
+              Add a new problem type for categorizing support tickets
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="categoryName">Problem Name *</Label>
+              <Input
+                id="categoryName"
+                value={newCategoryForm.name}
+                onChange={(e) => setNewCategoryForm({ ...newCategoryForm, name: e.target.value })}
+                placeholder="e.g., Software Issue, Hardware Problem"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="categoryDescription">Description (Optional)</Label>
+              <Textarea
+                id="categoryDescription"
+                value={newCategoryForm.description}
+                onChange={(e) => setNewCategoryForm({ ...newCategoryForm, description: e.target.value })}
+                placeholder="Brief description of this problem type"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateCategoryDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateCategory}>Create Problem Type</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -62,7 +62,6 @@ export default function LeaveManagementPage() {
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <h1 className="text-3xl font-bold text-gray-900">HR Center</h1>
-              <p className="text-gray-600">Manage employee leave applications, documents, and payslips</p>
             </div>
             <div className="flex gap-3">
               <ReEnableClockInDialog adminId={adminId} />

@@ -346,6 +346,207 @@ export const deleteProduct = async (req: Request, res: Response) => {
   }
 };
 
+export const getBarcodeHistory = async (req: Request, res: Response) => {
+  try {
+    const { productId } = req.params;
+    const { page = 1, limit = 10 } = req.query;
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    // Get barcode generation history for the product
+    const [barcodes, total] = await Promise.all([
+      prisma.barcode.findMany({
+        where: {
+          productId: BigInt(productId)
+        },
+        include: {
+          product: {
+            select: {
+              productName: true,
+              sku: true
+            }
+          },
+          transactions: {
+            include: {
+              employee: {
+                select: {
+                  name: true,
+                  employeeId: true
+                }
+              }
+            },
+            orderBy: {
+              createdAt: 'desc'
+            },
+            take: 1
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        skip,
+        take: Number(limit)
+      }),
+      prisma.barcode.count({
+        where: {
+          productId: BigInt(productId)
+        }
+      })
+    ]);
+
+    // Convert BigInt to string for JSON serialization
+    const serializedBarcodes = barcodes.map(barcode => ({
+      id: barcode.id.toString(),
+      barcodeValue: barcode.barcodeValue,
+      serialNumber: barcode.serialNumber,
+      boxQty: barcode.boxQty,
+      status: barcode.status,
+      createdAt: barcode.createdAt,
+      product: barcode.product,
+      lastTransaction: barcode.transactions.length > 0 ? {
+        type: barcode.transactions[0].transactionType,
+        createdAt: barcode.transactions[0].createdAt,
+        employee: barcode.transactions[0].employee
+      } : null
+    }));
+
+    return res.json({
+      success: true,
+      data: {
+        barcodes: serializedBarcodes,
+        pagination: {
+          total,
+          page: Number(page),
+          limit: Number(limit),
+          totalPages: Math.ceil(total / Number(limit))
+        }
+      }
+    });
+
+  } catch (error: any) {
+    console.error('Error fetching barcode history:', error);
+    return res.status(500).json({
+      error: 'Failed to fetch barcode history',
+      message: error.message
+    });
+  }
+};
+
+export const getBarcodePrefixes = async (req: Request, res: Response) => {
+  try {
+    // Get saved barcode prefixes from system configuration
+    const config = await prisma.systemConfiguration.findUnique({
+      where: { key: 'barcode_prefixes' }
+    });
+
+    const defaultPrefixes = ['BX', 'PKG', 'ITM', 'PRD', 'BOX'];
+    let customPrefixes: string[] = [];
+
+    if (config && config.value) {
+      try {
+        customPrefixes = JSON.parse(config.value);
+      } catch (error) {
+        console.error('Error parsing barcode prefixes:', error);
+      }
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        defaultPrefixes,
+        customPrefixes,
+        allPrefixes: [...defaultPrefixes, ...customPrefixes]
+      }
+    });
+
+  } catch (error: any) {
+    console.error('Error fetching barcode prefixes:', error);
+    return res.status(500).json({
+      error: 'Failed to fetch barcode prefixes',
+      message: error.message
+    });
+  }
+};
+
+export const addBarcodePrefix = async (req: Request, res: Response) => {
+  try {
+    const { prefix } = req.body;
+
+    if (!prefix || typeof prefix !== 'string') {
+      return res.status(400).json({
+        error: 'Prefix is required and must be a string'
+      });
+    }
+
+    const normalizedPrefix = prefix.trim().toUpperCase();
+
+    // Validate prefix format
+    if (!/^[A-Z]{2,4}$/.test(normalizedPrefix)) {
+      return res.status(400).json({
+        error: 'Prefix must be 2-4 uppercase letters only'
+      });
+    }
+
+    // Check if prefix already exists in defaults
+    const defaultPrefixes = ['BX', 'PKG', 'ITM', 'PRD', 'BOX'];
+    if (defaultPrefixes.includes(normalizedPrefix)) {
+      return res.status(400).json({
+        error: 'This prefix already exists as a default prefix'
+      });
+    }
+
+    // Get existing custom prefixes
+    const config = await prisma.systemConfiguration.findUnique({
+      where: { key: 'barcode_prefixes' }
+    });
+
+    let customPrefixes: string[] = [];
+    if (config && config.value) {
+      try {
+        customPrefixes = JSON.parse(config.value);
+      } catch (error) {
+        console.error('Error parsing existing prefixes:', error);
+      }
+    }
+
+    // Check if prefix already exists in custom prefixes
+    if (customPrefixes.includes(normalizedPrefix)) {
+      return res.status(400).json({
+        error: 'This prefix already exists'
+      });
+    }
+
+    // Add new prefix
+    customPrefixes.push(normalizedPrefix);
+
+    // Save to database
+    await prisma.systemConfiguration.upsert({
+      where: { key: 'barcode_prefixes' },
+      update: { value: JSON.stringify(customPrefixes) },
+      create: {
+        key: 'barcode_prefixes',
+        value: JSON.stringify(customPrefixes)
+      }
+    });
+
+    return res.json({
+      success: true,
+      message: `Barcode prefix "${normalizedPrefix}" added successfully`,
+      data: {
+        prefix: normalizedPrefix,
+        customPrefixes
+      }
+    });
+
+  } catch (error: any) {
+    console.error('Error adding barcode prefix:', error);
+    return res.status(500).json({
+      error: 'Failed to add barcode prefix',
+      message: error.message
+    });
+  }
+};
+
 export const generateLabels = async (req: Request, res: Response) => {
   try {
     const { productId } = req.params;

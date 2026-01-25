@@ -444,7 +444,6 @@ export function ProjectManagement() {
               <Building2 className="h-7 w-7 text-slate-700" />
               Project Management
             </h1>
-            <p className="text-sm text-slate-600">Comprehensive project oversight and client management</p>
           </div>
 
           <div className="flex items-center gap-3">

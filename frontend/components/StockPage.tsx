@@ -257,7 +257,6 @@ export function StockPage() {
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <h1 className="text-3xl font-bold text-gray-900">Stock Management</h1>
-              <p className="text-gray-600">Monitor and manage inventory levels and supplies</p>
             </div>
             <div className="flex items-center gap-3">
               <Button 

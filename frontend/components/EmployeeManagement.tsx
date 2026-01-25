@@ -437,7 +437,6 @@ export default function EmployeeManagement() {
             <div className="flex items-center justify-between">
                 <div className="space-y-1">
                     <h1 className="text-3xl font-bold text-foreground">Employee Management</h1>
-                    <p className="text-muted-foreground">Manage all employees, field engineers, and administrators</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <Button 
@@ -1321,22 +1320,22 @@ function EditEmployeeForm({ employee, teams, onSave, onCancel }: EditEmployeeFor
                     {!passwordEditable && (
                         <AlertDialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
                             <AlertDialogTrigger asChild>
-                                <Button type="button" variant="outline" size="sm">
-                                    Show
+                                <Button type="button" variant="destructive" size="sm">
+                                    Reset
                                 </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                                 <AlertDialogHeader>
-                                    <AlertDialogTitle>Confirm Password Access</AlertDialogTitle>
+                                    <AlertDialogTitle>Confirm Password Reset</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                        Are you sure you want to view and edit the password for {employee.name}? 
-                                        This action will make the password field editable.
+                                        Are you sure you want to reset the password for {employee.name}? 
+                                        This action will make the password field editable so you can set a new password.
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                                     <AlertDialogAction onClick={handleShowPasswordConfirm}>
-                                        Yes, Show Password
+                                        Yes, Reset Password
                                     </AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
@@ -1495,22 +1494,22 @@ function EditAdminForm({ admin, onSave, onCancel }: EditAdminFormProps) {
                     {!passwordEditable && (
                         <AlertDialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
                             <AlertDialogTrigger asChild>
-                                <Button type="button" variant="outline" size="sm">
-                                    Show
+                                <Button type="button" variant="destructive" size="sm">
+                                    Reset
                                 </Button>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                                 <AlertDialogHeader>
-                                    <AlertDialogTitle>Confirm Password Access</AlertDialogTitle>
+                                    <AlertDialogTitle>Confirm Password Reset</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                        Are you sure you want to view and edit the password for administrator {admin.name}? 
-                                        This action will make the password field editable.
+                                        Are you sure you want to reset the password for administrator {admin.name}? 
+                                        This action will make the password field editable so you can set a new password.
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                                     <AlertDialogAction onClick={handleShowPasswordConfirm}>
-                                        Yes, Show Password
+                                        Yes, Reset Password
                                     </AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>

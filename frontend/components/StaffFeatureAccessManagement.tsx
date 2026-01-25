@@ -232,9 +232,6 @@ export function StaffFeatureAccessManagement() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Staff Feature Access</h2>
-        <p className="text-gray-600 mt-1">
-          Control which features IN_OFFICE staff can access
-        </p>
       </div>
 
       {staffList.length === 0 ? (

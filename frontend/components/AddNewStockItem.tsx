@@ -18,14 +18,6 @@ const StockItemSchema = z
     description: z.string().optional(),
     boxQty: z.coerce.number().int().min(0, "Units per box cannot be negative"),
     totalUnits: z.coerce.number().int().min(0, "Total units cannot be negative"),
-    reorderThreshold: z.coerce
-      .number()
-      .int()
-      .min(0, "Reorder threshold cannot be negative"),
-  })
-  .refine((data) => data.reorderThreshold <= data.totalUnits, {
-    message: "Reorder threshold cannot exceed total units",
-    path: ["reorderThreshold"],
   })
 
 
@@ -35,7 +27,6 @@ type StockItemFormState = {
   description: string
   boxQty: string
   totalUnits: string
-  reorderThreshold: string
 }
 
 type FormErrors = Partial<Record<keyof StockItemFormState, string>>
@@ -51,7 +42,6 @@ export default function AddStockItem({ onSuccess }: AddNewStockItemProps): React
     description: "",
     boxQty: "0",
     totalUnits: "0",
-    reorderThreshold: "0",
   })
 
   const [errors, setErrors] = React.useState<FormErrors>({})
@@ -111,7 +101,6 @@ export default function AddStockItem({ onSuccess }: AddNewStockItemProps): React
         description: "",
         boxQty: "0",
         totalUnits: "0",
-        reorderThreshold: "0",
       })
 
       // Call success callback
@@ -129,9 +118,7 @@ export default function AddStockItem({ onSuccess }: AddNewStockItemProps): React
     }
   }
 
-  const lowStockRisk: boolean =
-    Number(form.totalUnits) > 0 &&
-    Number(form.totalUnits) <= Number(form.reorderThreshold)
+  const lowStockRisk: boolean = false // Removed reorder threshold logic
 
   return (
     <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -190,7 +177,7 @@ export default function AddStockItem({ onSuccess }: AddNewStockItemProps): React
         {/* Stock Configuration */}
         <section className="space-y-4">
           <h3 className="font-semibold">Stock Configuration</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Units per Box</Label>
               <Input
@@ -217,20 +204,6 @@ export default function AddStockItem({ onSuccess }: AddNewStockItemProps): React
               />
               {errors.totalUnits && (
                 <p className="text-xs text-red-600">{errors.totalUnits}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Reorder Threshold</Label>
-              <Input
-                type="number"
-                min={0}
-                name="reorderThreshold"
-                placeholder="e.g. 50"
-                value={form.reorderThreshold}
-                onChange={onChange}
-              />
-              {errors.reorderThreshold && (
-                <p className="text-xs text-red-600">{errors.reorderThreshold}</p>
               )}
             </div>
           </div>
@@ -269,37 +242,31 @@ export default function AddStockItem({ onSuccess }: AddNewStockItemProps): React
               <span className="font-medium">{form.totalUnits}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Reorder Level</span>
-              <span className="font-medium">{form.reorderThreshold}</span>
+              <span className="text-gray-500">Units per Box</span>
+              <span className="font-medium">{form.boxQty}</span>
             </div>
-            {lowStockRisk && (
-              <div className="flex items-center gap-2 text-amber-600 text-sm pt-2">
-                <AlertTriangle className="h-4 w-4" />
-                Low stock risk at creation
-              </div>
-            )}
           </CardContent>
         </Card>
 
         <Card className="shadow-sm border-gray-200">
           <CardHeader>
             <CardTitle className="text-sm uppercase tracking-wide text-gray-600">
-              Reorder Guidance
+              Stock Management Tips
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 space-y-3 text-sm text-gray-600">
             <ul className="list-disc pl-4 space-y-2">
               <li>
-                Set <strong>Reorder Threshold</strong> based on average weekly usage
-                and supplier lead time.
+                Set appropriate <strong>Units per Box</strong> based on your packaging standards.
               </li>
               <li>
-                A common rule is to keep <strong>2–3 weeks of buffer stock</strong>
-                for critical items.
+                <strong>Total Units</strong> represents the current stock level in your inventory.
               </li>
               <li>
-                Stock levels can be adjusted later using inventory transactions
-                without modifying this master record.
+                Stock levels can be adjusted later using inventory transactions without modifying this master record.
+              </li>
+              <li>
+                Use the stock management system to track inventory movements and maintain accurate counts.
               </li>
             </ul>
           </CardContent>
