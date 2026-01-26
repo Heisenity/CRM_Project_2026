@@ -3,18 +3,31 @@
  * This ensures consistent date handling across the application
  * and prevents timezone-related date shifting issues
  */
+const TIMEZONE = process.env.APP_TIMEZONE || 'Asia/Kolkata';
+
 export function getTodayDate(): Date {
-  const now = new Date()
-  // Create a new date with year, month, day in local timezone
-  // This prevents UTC conversion issues
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+  const now = new Date();
+  return getDateAtMidnight(now);
 }
 
 /**
  * Get a date at midnight in local timezone
  */
 export function getDateAtMidnight(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0)
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: TIMEZONE,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  });
+
+  const parts = formatter.formatToParts(date);
+  const year = parseInt(parts.find(p => p.type === 'year')?.value || '0');
+  const month = parseInt(parts.find(p => p.type === 'month')?.value || '0') - 1; // JS months are 0-indexed
+  const day = parseInt(parts.find(p => p.type === 'day')?.value || '0');
+
+  // Return date at 00:00:00 server time (UTC) which maps to the date part
+  return new Date(year, month, day, 0, 0, 0, 0);
 }
 
 /**
@@ -35,4 +48,3 @@ export function getUtcRangeForLocalDate(localMidnightDate: Date): { startUtc: Da
   const endUtc = new Date(startUtc.getTime() + 24 * 60 * 60 * 1000);
   return { startUtc, endUtc };
 }
-
