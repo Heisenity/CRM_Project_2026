@@ -48,3 +48,39 @@ export function getUtcRangeForLocalDate(localMidnightDate: Date): { startUtc: Da
   const endUtc = new Date(startUtc.getTime() + 24 * 60 * 60 * 1000);
   return { startUtc, endUtc };
 }
+
+/**
+ * Get current timestamp in local timezone format
+ * Returns current IST time but as a Date object that will be stored as UTC
+ * This makes the database show IST time directly
+ */
+export function getNowInTimezone(): Date {
+  const now = new Date();
+
+  // Use Intl.DateTimeFormat to get the parts in the target timezone
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: TIMEZONE,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric',
+    fractionalSecondDigits: 3,
+    hour12: false
+  });
+
+  const parts = formatter.formatToParts(now);
+
+  const year = parseInt(parts.find(p => p.type === 'year')?.value || '0');
+  const month = parseInt(parts.find(p => p.type === 'month')?.value || '0') - 1;
+  const day = parseInt(parts.find(p => p.type === 'day')?.value || '0');
+  const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
+  const minute = parseInt(parts.find(p => p.type === 'minute')?.value || '0');
+  const second = parseInt(parts.find(p => p.type === 'second')?.value || '0');
+  const millisecond = parseInt(parts.find(p => p.type === 'fractionalSecond')?.value || '0');
+
+  // Create a Date object treating these local components as UTC components
+  // This effectively "shifts" the time so that .toISOString() displays the local time
+  return new Date(Date.UTC(year, month, day, hour, minute, second, millisecond));
+}
