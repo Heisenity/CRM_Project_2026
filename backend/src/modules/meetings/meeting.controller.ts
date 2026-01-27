@@ -149,7 +149,6 @@ export const getMeetingsController = async (req: Request, res: Response) => {
     if (req.query.status) filters.status = req.query.status as MeetingStatus;
     if (req.query.meetingType) filters.meetingType = req.query.meetingType as MeetingType;
     if (req.query.startDate) filters.startDate = new Date(req.query.startDate as string);
-    if (req.query.endDate) filters.endDate = new Date(req.query.endDate as string);
 
     const result = await getMeetings(page, limit, filters);
 

@@ -746,7 +746,7 @@ export const createInventoryTransaction = async (req: Request, res: Response) =>
         await prisma.allocation.update({
           where: { id: existingAllocation.id },
           data: {
-            allocatedUnits: existingAllocation.allocatedUnits + (checkoutQty || barcode.boxQty)
+            allocatedUnits: existingAllocation.allocatedUnits + (checkoutQty || 1) // Default to 1 if not specified
           }
         });
       } else {
@@ -754,7 +754,7 @@ export const createInventoryTransaction = async (req: Request, res: Response) =>
           data: {
             employeeId: employeeId,
             productId: barcode.productId,
-            allocatedUnits: checkoutQty || barcode.boxQty
+            allocatedUnits: checkoutQty || 1 // Default to 1 if not specified
           }
         });
       }
@@ -791,7 +791,7 @@ export const createInventoryTransaction = async (req: Request, res: Response) =>
       });
 
       if (existingAllocation) {
-        const newAllocatedUnits = Math.max(0, existingAllocation.allocatedUnits - (returnedQty || barcode.boxQty));
+        const newAllocatedUnits = Math.max(0, existingAllocation.allocatedUnits - (returnedQty || 1)); // Default to 1 if returnedQty not specified
         if (newAllocatedUnits === 0) {
           await prisma.allocation.delete({
             where: { id: existingAllocation.id }

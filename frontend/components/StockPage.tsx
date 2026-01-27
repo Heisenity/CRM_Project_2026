@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -108,6 +109,7 @@ const formatDateTime = (dateString: string) => {
 }
 
 export function StockPage() {
+  const { data: session } = useSession()
   const [searchTerm, setSearchTerm] = React.useState("")
   const [selectedTransactionType, setSelectedTransactionType] = React.useState("all")
   const [selectedEmployee, setSelectedEmployee] = React.useState("all")
@@ -134,10 +136,18 @@ export function StockPage() {
         throw new Error('Backend URL not configured')
       }
 
+      // Get session token from NextAuth session
+      const sessionToken = (session as { user?: { sessionToken?: string } })?.user?.sessionToken
+
+      if (!sessionToken) {
+        throw new Error('Authentication required - please log in')
+      }
+
       const response = await fetch(`${backendUrl}/products/transactions?limit=100`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`,
         },
       })
 
@@ -171,20 +181,22 @@ export function StockPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [session])
 
-  // Load transactions on component mount
+  // Load transactions on component mount and when session changes
   React.useEffect(() => {
-    fetchTransactions()
-  }, [fetchTransactions])
+    if (session) {
+      fetchTransactions()
+    }
+  }, [fetchTransactions, session])
 
   // Handle barcode scan
   const handleBarcodeScan = React.useCallback((barcodeValue: string) => {
     console.log('Barcode scanned:', barcodeValue)
-    // Refresh transactions to show the new one
+    // Refresh transactions to show the new one - increased delay to ensure transaction is processed
     setTimeout(() => {
       fetchTransactions()
-    }, 1000)
+    }, 2000) // Increased from 1000ms to 2000ms
   }, [fetchTransactions])
 
   // Filter transactions based on search and filters

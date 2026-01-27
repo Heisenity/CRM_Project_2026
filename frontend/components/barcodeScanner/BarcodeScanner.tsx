@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -39,6 +40,7 @@ const CONSENSUS_REQUIRED = 3; // number of identical detections required
 const CONSENSUS_WINDOW_MS = 1500; // time window (ms) within which CONSENSUS_REQUIRED must occur
 
 export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
+  const { data: session } = useSession()
   const [isOpen, setIsOpen] = useState(false);
   const [result, setResult] = useState<ProductResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -222,6 +224,13 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
               throw new Error('Backend URL not configured');
             }
 
+            // Get session token for authentication
+            const sessionToken = (session as { user?: { sessionToken?: string } })?.user?.sessionToken
+            
+            if (!sessionToken) {
+              throw new Error('Authentication required - please log in');
+            }
+
             const fullUrl = `${backendUrl}/products/barcode/${encodeURIComponent(code)}`;
             console.log('📡 MAKING REQUEST TO:', fullUrl);
 
@@ -229,6 +238,7 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
               method: 'GET',
               headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionToken}`,
               },
             });
 
@@ -251,13 +261,13 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
               
               // Create inventory transaction for the scanned barcode
               try {
-                // Get current user from session storage or context
-                const userSession = sessionStorage.getItem('userSession');
-                let employeeId = null;
+                // Get current user from NextAuth session
+                const sessionToken = (session as { user?: { sessionToken?: string } })?.user?.sessionToken
+                const employeeId = (session as { user?: { id?: string } })?.user?.id
                 
-                if (userSession) {
-                  const session = JSON.parse(userSession);
-                  employeeId = session.employeeId || session.id;
+                if (!sessionToken) {
+                  console.warn('⚠️ No session token found, skipping transaction creation');
+                  return;
                 }
                 
                 if (employeeId) {
@@ -265,11 +275,12 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
                     method: 'POST',
                     headers: {
                       'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${sessionToken}`,
                     },
                     body: JSON.stringify({
                       barcodeValue: code,
                       transactionType: 'CHECKOUT',
-                      checkoutQty: json.data.product.boxQty,
+                      checkoutQty: 1, // Always 1 because scanning 1 barcode = checking out 1 box
                       employeeId: employeeId,
                       remarks: 'Barcode scanned via mobile scanner'
                     })
@@ -278,8 +289,16 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
                   if (transactionResponse.ok) {
                     const transactionData = await transactionResponse.json();
                     console.log('✅ Transaction created:', transactionData);
+                    
+                    // Verify transaction was actually created
+                    if (transactionData.success) {
+                      console.log('✅ Transaction confirmed in database');
+                    } else {
+                      console.warn('⚠️ Transaction creation failed:', transactionData.error);
+                    }
                   } else {
-                    console.warn('⚠️ Failed to create transaction:', transactionResponse.status);
+                    const errorData = await transactionResponse.json().catch(() => ({}));
+                    console.warn('⚠️ Failed to create transaction:', transactionResponse.status, errorData);
                   }
                 } else {
                   console.warn('⚠️ No employee ID found in session, skipping transaction creation');
