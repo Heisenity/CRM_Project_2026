@@ -243,9 +243,11 @@ export default function AdminLoginPage({ onGetStarted, isLoggedIn = false, userP
           <div className="grid lg:grid-cols-3 gap-8 mb-12">
             <div className="text-center p-8 bg-gray-800/50 rounded-2xl border border-gray-700">
               <Phone className="h-12 w-12 text-blue-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold mb-2">Phone Support</h3>
+               <h3 className="text-xl font-bold mb-2">Phone</h3>
+              <p className="text-gray-300 mb-4">General communications, new installations, and other official matters</p>
+              <p className="text-blue-400 font-semibold"> 6290867573</p>
               <p className="text-gray-300 mb-4">Speak with our support team</p>
-              <p className="text-blue-400 font-semibold">0000000000</p>
+              <p className="text-blue-400 font-semibold"> 7003896006</p>
             </div>
             
             <div className="text-center p-8 bg-gray-800/50 rounded-2xl border border-gray-700">

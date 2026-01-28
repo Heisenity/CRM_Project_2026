@@ -36,7 +36,8 @@ const AVAILABLE_FEATURES: StaffPortalFeature[] = [
   'FIELD_ENGINEER_ATTENDANCE', 
   'INOFFICE_ATTENDANCE', 
   'CUSTOMER_SUPPORT_REQUESTS', 
-  'STAFF_FEATURE_ACCESS'
+  'STAFF_FEATURE_ACCESS',
+  'TICKETS'
 ]
 
 const FEATURE_LABELS: Record<StaffPortalFeature, string> = {
@@ -51,7 +52,8 @@ const FEATURE_LABELS: Record<StaffPortalFeature, string> = {
   FIELD_ENGINEER_ATTENDANCE: 'Field Engineer Attendance',
   INOFFICE_ATTENDANCE: 'In-Office Attendance',
   CUSTOMER_SUPPORT_REQUESTS: 'Customer Support Requests',
-  STAFF_FEATURE_ACCESS: 'Staff Feature Access'
+  STAFF_FEATURE_ACCESS: 'Staff Feature Access',
+  TICKETS: 'Tickets Table Access'
 }
 
 const FEATURE_DESCRIPTIONS: Record<StaffPortalFeature, string> = {
@@ -66,7 +68,8 @@ const FEATURE_DESCRIPTIONS: Record<StaffPortalFeature, string> = {
   FIELD_ENGINEER_ATTENDANCE: 'Field engineer attendance tracking',
   INOFFICE_ATTENDANCE: 'In-office staff attendance management',
   CUSTOMER_SUPPORT_REQUESTS: 'Customer support ticket handling',
-  STAFF_FEATURE_ACCESS: 'Staff permission and feature access control'
+  STAFF_FEATURE_ACCESS: 'Staff permission and feature access control',
+  TICKETS: 'Tickets page access'
 }
 
 export function StaffFeatureAccessManagement() {
@@ -87,7 +90,8 @@ export function StaffFeatureAccessManagement() {
     FIELD_ENGINEER_ATTENDANCE: false,
     INOFFICE_ATTENDANCE: false,
     CUSTOMER_SUPPORT_REQUESTS: false,
-    STAFF_FEATURE_ACCESS: false
+    STAFF_FEATURE_ACCESS: false,
+    TICKETS: false
   })
   const [hasChanges, setHasChanges] = useState(false)
 
@@ -112,7 +116,8 @@ export function StaffFeatureAccessManagement() {
           FIELD_ENGINEER_ATTENDANCE: staff.features.FIELD_ENGINEER_ATTENDANCE || false,
           INOFFICE_ATTENDANCE: staff.features.INOFFICE_ATTENDANCE || false,
           CUSTOMER_SUPPORT_REQUESTS: staff.features.CUSTOMER_SUPPORT_REQUESTS || false,
-          STAFF_FEATURE_ACCESS: staff.features.STAFF_FEATURE_ACCESS || false
+          STAFF_FEATURE_ACCESS: staff.features.STAFF_FEATURE_ACCESS || false,
+          TICKETS: staff.features.TICKETS || false
         })
         setHasChanges(false)
       }
@@ -130,7 +135,8 @@ export function StaffFeatureAccessManagement() {
         FIELD_ENGINEER_ATTENDANCE: false,
         INOFFICE_ATTENDANCE: false,
         CUSTOMER_SUPPORT_REQUESTS: false,
-        STAFF_FEATURE_ACCESS: false
+        STAFF_FEATURE_ACCESS: false,
+        TICKETS: false
       })
       setHasChanges(false)
     }
@@ -140,6 +146,7 @@ export function StaffFeatureAccessManagement() {
     try {
       setLoading(true)
       const response = await getAllStaffFeatureAccess()
+      console.log('raw staff api response', response);
 
       if (response.success && response.data) {
         setStaffList(response.data)
@@ -214,7 +221,8 @@ export function StaffFeatureAccessManagement() {
         FIELD_ENGINEER_ATTENDANCE: selectedStaff.features.FIELD_ENGINEER_ATTENDANCE || false,
         INOFFICE_ATTENDANCE: selectedStaff.features.INOFFICE_ATTENDANCE || false,
         CUSTOMER_SUPPORT_REQUESTS: selectedStaff.features.CUSTOMER_SUPPORT_REQUESTS || false,
-        STAFF_FEATURE_ACCESS: selectedStaff.features.STAFF_FEATURE_ACCESS || false
+        STAFF_FEATURE_ACCESS: selectedStaff.features.STAFF_FEATURE_ACCESS || false,
+        TICKETS: selectedStaff.features.TICKETS || false
       })
       setHasChanges(false)
     }

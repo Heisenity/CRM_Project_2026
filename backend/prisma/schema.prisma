@@ -939,6 +939,7 @@ enum StaffPortalFeature {
   INOFFICE_ATTENDANCE
   CUSTOMER_SUPPORT_REQUESTS
   STAFF_FEATURE_ACCESS
+  TICKETS
 }
 
 enum CustomerSupportStatus {
