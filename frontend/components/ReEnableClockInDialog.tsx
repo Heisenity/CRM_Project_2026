@@ -37,7 +37,7 @@ export function ReEnableClockInDialog({ adminId }: { adminId: string }) {
         if (!open) return
 
         const API_BASE =
-            process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1"
+            process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001/api/v1"
 
         fetch(`${API_BASE}/attendance/admin/rejected`, { credentials: "include" })
             .then(res => res.json())
