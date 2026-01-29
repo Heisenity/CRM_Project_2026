@@ -93,6 +93,9 @@ export function ProductManagement() {
   const [isExporting, setIsExporting] = React.useState(false)
   const [isLabelDialogOpen, setIsLabelDialogOpen] = React.useState(false)
   const [selectedProductForLabels, setSelectedProductForLabels] = React.useState<Product | null>(null)
+  const [justEditedProductId, setJustEditedProductId] = React.useState<string | null>(null)
+  // Track locally edited totalUnits so UI can reflect updated available units immediately
+  const [editedTotals, setEditedTotals] = React.useState<Record<string, number>>({})
 
   // Barcode history state
   const [barcodeHistory, setBarcodeHistory] = React.useState<BarcodeHistory[]>([])
@@ -175,7 +178,29 @@ export function ProductManagement() {
             return acc
           }, {} as Record<string, number>)
 
+          // If we have a recently edited product, prefer local edited totalUnits to
+          // ensure Available/Total shows as X/X immediately after edit (e.g., 40/40)
+          if (justEditedProductId) {
+            const editedProduct = productsData.find((p: Product) => p.id === justEditedProductId)
+            // Prefer an explicit edited total stored locally, fallback to product data
+            const overrideTotal = editedTotals[justEditedProductId!] ?? editedProduct?.totalUnits
+            if (overrideTotal !== undefined) {
+              availableUnitsMap[justEditedProductId] = overrideTotal
+            }
+          }
+
           setAvailableUnitsMap(availableUnitsMap)
+
+          // clear flags
+          setJustEditedProductId(null)
+          if (justEditedProductId) {
+            setEditedTotals(prev => {
+              const copy = { ...prev }
+              delete copy[justEditedProductId]
+              return copy
+            })
+          }
+
         } else {
           throw new Error(data.error || 'Failed to fetch products')
         }
@@ -404,17 +429,24 @@ export function ProductManagement() {
         })
       }
 
+      if (editingProduct) {
+        setJustEditedProductId(editingProduct.id)
+      }
+
+
       if (response.ok) {
         const data = await response.json()
 
         if (data.success) {
 
-          // ✅ FIX (correct place)
           if (editingProduct) {
+            // Update available units locally to match the new total immediately
             setAvailableUnitsMap(prev => ({
               ...prev,
               [editingProduct.id]: productData.totalUnits
             }))
+            // Also record the edited total so fetchProducts can override API results
+            setEditedTotals(prev => ({ ...prev, [editingProduct.id]: productData.totalUnits }))
           }
 
           toast({

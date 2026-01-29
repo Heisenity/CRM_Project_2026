@@ -3,7 +3,7 @@ import { generateLabelsForProduct } from '../../barcode/labelgenerator';
 import { prisma } from '../../lib/prisma';
 import * as path from 'path';
 import * as fs from 'fs-extra';
-import { updateProductInventory } from '../Inventory/inventory.service';
+import { updateProductInventory, calculateAvailableUnits, auditInventoryChange, checkLowStockThreshold } from '../Inventory/inventory.service';
 
 // New imports for duplicate-scan detection
 import Redis from 'ioredis';
@@ -392,10 +392,39 @@ export const updateProduct = async (req: Request, res: Response) => {
       ...(status && { status })
     };
 
+    // If client explicitly provided totalUnits, treat it as a manual inventory adjustment
+    // and set currentUnits to match the provided totalUnits so available reflects change immediately.
+    let prevAvailable: number | null = null;
+    const isManualTotalUpdate = parsedTotalUnitsUpdate !== undefined;
+    if (isManualTotalUpdate) {
+      try {
+        prevAvailable = await calculateAvailableUnits(id);
+        updateData.currentUnits = parsedTotalUnitsUpdate;
+      } catch (err) {
+        console.warn('Failed to read previous available units during product update:', err);
+      }
+    }
+
     const product = await prisma.product.update({
       where: { id: BigInt(id) },
       data: updateData
     });
+
+    // If we performed a manual adjustment, record an audit entry and run low-stock checks (best-effort)
+    if (isManualTotalUpdate) {
+      try {
+        const newAvailable = parsedTotalUnitsUpdate as number;
+        await auditInventoryChange({ id: `manual-adjust-${Date.now()}`, transactionType: 'ADJUST', checkoutQty: 0, returnedQty: 0, usedQty: 0 }, id, prevAvailable ?? 0, newAvailable, { performedBy: (req as any).user?.id ?? 'system', notes: 'Manual totalUnits update via product API' });
+      } catch (err) {
+        console.warn('Failed to audit inventory adjustment:', err);
+      }
+
+      try {
+        await checkLowStockThreshold(id);
+      } catch (err) {
+        console.warn('Low stock check after manual product update failed:', err);
+      }
+    }
 
     // Convert BigInt to string for JSON serialization
     const serializedProduct = {
