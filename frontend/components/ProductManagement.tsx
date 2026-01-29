@@ -406,17 +406,31 @@ export function ProductManagement() {
 
       if (response.ok) {
         const data = await response.json()
+
         if (data.success) {
+
+          // ✅ FIX (correct place)
+          if (editingProduct) {
+            setAvailableUnitsMap(prev => ({
+              ...prev,
+              [editingProduct.id]: productData.totalUnits
+            }))
+          }
+
           toast({
             title: "Success",
-            description: editingProduct ? "Product updated successfully" : "Product created successfully"
+            description: editingProduct
+              ? "Product updated successfully"
+              : "Product created successfully"
           })
+
           resetForm()
           setIsAddProductOpen(false)
-          fetchProducts() // Refresh the products list
+          fetchProducts()
         } else {
-          throw new Error(data.error || 'Failed to save product')
+          throw new Error(data.error || "Failed to save product")
         }
+
       } else {
         const errorData = await response.json()
         if (response.status === 409) {
