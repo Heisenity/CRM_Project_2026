@@ -36,6 +36,7 @@ export default function CreateEmployeeForm({ onEmployeeCreated }: CreateEmployee
         phone: '',
         password: '',
         role: 'IN_OFFICE' as 'FIELD_ENGINEER' | 'IN_OFFICE',
+        designation: '',
         teamId: 'none',
         isTeamLeader: false,
         salary: '',
@@ -52,7 +53,7 @@ export default function CreateEmployeeForm({ onEmployeeCreated }: CreateEmployee
             try {
                 const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/teams`)
                 const result = await response.json()
-                
+
                 if (result.success) {
                     setTeams(result.data || [])
                 }
@@ -72,7 +73,7 @@ export default function CreateEmployeeForm({ onEmployeeCreated }: CreateEmployee
         try {
             const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees/next-id?role=${formData.role}`)
             const result = await response.json()
-            
+
             if (result.success) {
                 setNextEmployeeId(result.data.nextEmployeeId)
             }
@@ -141,12 +142,22 @@ export default function CreateEmployeeForm({ onEmployeeCreated }: CreateEmployee
             return false
         }
 
+        if (!formData.designation.trim()) {
+            toast({
+                title: "Validation Error",
+                description: "Designation is required",
+                variant: "destructive"
+            })
+            return false
+        }
+
+
         return true
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        
+
         if (!validateForm()) return
 
         setLoading(true)
@@ -172,7 +183,7 @@ export default function CreateEmployeeForm({ onEmployeeCreated }: CreateEmployee
                     title: "Success",
                     description: "Employee created successfully"
                 })
-                
+
                 // Reset form
                 setFormData({
                     name: '',
@@ -180,6 +191,7 @@ export default function CreateEmployeeForm({ onEmployeeCreated }: CreateEmployee
                     phone: '',
                     password: '',
                     role: 'IN_OFFICE',
+                    designation: '',
                     teamId: 'none',
                     isTeamLeader: false,
                     salary: '',
@@ -189,7 +201,7 @@ export default function CreateEmployeeForm({ onEmployeeCreated }: CreateEmployee
                     sickLeaveBalance: '12',
                     casualLeaveBalance: '12'
                 })
-                
+
                 setIsOpen(false)
                 onEmployeeCreated()
             } else {
@@ -310,6 +322,7 @@ export default function CreateEmployeeForm({ onEmployeeCreated }: CreateEmployee
                                         </div>
                                     )}
                                 </div>
+                                
                                 <div className="space-y-2">
                                     <Label htmlFor="team">Team</Label>
                                     <Select value={formData.teamId} onValueChange={(value) => handleInputChange('teamId', value)}>
@@ -326,6 +339,17 @@ export default function CreateEmployeeForm({ onEmployeeCreated }: CreateEmployee
                                         </SelectContent>
                                     </Select>
                                 </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="designation">Designation *</Label>
+                                    <Input
+                                        id="designation"
+                                        value={formData.designation}
+                                        onChange={(e) => handleInputChange('designation', e.target.value)}
+                                        placeholder="e.g. Senior Engineer, HR Executive"
+                                        required
+                                    />
+                                </div>
+
                             </div>
                         </CardContent>
                     </Card>

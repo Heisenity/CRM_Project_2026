@@ -446,6 +446,7 @@ export type FieldEngineer = {
   employeeId: string
   email: string
   phone?: string
+  designation?: string 
   teamId?: string
   isTeamLeader: boolean
   status: string
@@ -476,6 +477,7 @@ export type CreateFieldEngineerRequest = {
   email: string
   password: string
   phone?: string
+  designation?: string
   teamId?: string
   isTeamLeader?: boolean
   salary?: number
@@ -2928,7 +2930,7 @@ export async function getEmployeeCheckouts(employeeId: string, sessionToken?: st
         id: string;
         barcodeValue: string;
         serialNumber: string;
-        boxQty: number;
+        unitsPerBox: number;
         status: string;
         product: {
           id: string;

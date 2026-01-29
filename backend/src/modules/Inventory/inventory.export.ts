@@ -80,7 +80,7 @@ export async function exportTransactionsToExcel(
     ]
 
     transactions.forEach(t => {
-      const boxQty = t.barcode?.boxQty || 1
+      const boxQty = t.barcode?.unitsPerBox || 1
 
       worksheet.addRow({
         date: t.createdAt, // REAL DATE

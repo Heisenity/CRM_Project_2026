@@ -10,10 +10,10 @@ import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { getEmployeeCheckouts, createInventoryTransaction } from "@/lib/server-api"
-import { 
-  Package, 
-  RefreshCw, 
-  ArrowLeft, 
+import {
+  Package,
+  RefreshCw,
+  ArrowLeft,
   CheckCircle,
   Clock,
   User,
@@ -28,7 +28,7 @@ interface CheckoutItem {
     id: string;
     barcodeValue: string;
     serialNumber: string;
-    boxQty: number;
+    unitsPerBox: number;
     status: string;
     product: {
       id: string;
@@ -36,7 +36,8 @@ interface CheckoutItem {
       productName: string;
       description?: string;
     } | null;
-  };
+  }
+
 }
 
 interface ReturnQuantity {
@@ -57,7 +58,7 @@ interface ReturnFormProps {
 export function ReturnForm({ employeeId, onReturnComplete, isOpen: externalIsOpen, onOpenChange }: ReturnFormProps) {
   const { data: session } = useSession();
   const { toast } = useToast();
-  
+
   const [checkouts, setCheckouts] = React.useState<CheckoutItem[]>([]);
   // don't prefill with zeros — treat a key being present as "selected for return"
   const [returnQuantities, setReturnQuantities] = React.useState<Record<string, number>>({});
@@ -69,8 +70,9 @@ export function ReturnForm({ employeeId, onReturnComplete, isOpen: externalIsOpe
   const dialogOpen = externalIsOpen !== undefined ? externalIsOpen : isOpen;
   const setDialogOpen = onOpenChange || setIsOpen;
 
-  // Get employee ID from session if not provided
+  // Get employee ID and name from session if not provided
   const currentEmployeeId = employeeId || (session as { user?: { id?: string } })?.user?.id;
+  const currentEmployeeName = (session as { user?: { name?: string } })?.user?.name || currentEmployeeId;
 
   const fetchCheckouts = React.useCallback(async () => {
     if (!currentEmployeeId) return;
@@ -79,7 +81,7 @@ export function ReturnForm({ employeeId, onReturnComplete, isOpen: externalIsOpe
       setIsLoading(true);
       const sessionToken = (session as { user?: { sessionToken?: string } })?.user?.sessionToken;
       const response = await getEmployeeCheckouts(currentEmployeeId, sessionToken);
-      
+
       if (response.success && response.data) {
         setCheckouts(response.data.checkouts);
         // DO NOT initialize returnQuantities to 0 here.
@@ -111,8 +113,8 @@ export function ReturnForm({ employeeId, onReturnComplete, isOpen: externalIsOpe
     if (!checkout) return;
 
     // Ensure quantity is within valid range (0 to boxQty)
-    const clampedQuantity = Math.max(0, Math.min(newQuantity, checkout.barcode.boxQty));
-    
+    const clampedQuantity = Math.max(0, Math.min(newQuantity, checkout.barcode.unitsPerBox));
+
     setReturnQuantities(prev => ({
       ...prev,
       [checkoutId]: clampedQuantity
@@ -159,15 +161,15 @@ export function ReturnForm({ employeeId, onReturnComplete, isOpen: externalIsOpe
       // Process returns for items with quantities (can be 0)
       const returnPromises = itemsToReturn.map(async (checkout) => {
         const usedQuantity = returnQuantities[checkout.id] ?? 0;
-        const returnToInventory = Math.max(0, checkout.barcode.boxQty - usedQuantity);
-        
+        const returnToInventory = Math.max(0, checkout.barcode.unitsPerBox - usedQuantity);
+
         return createInventoryTransaction({
           productId: checkout.barcode.product?.id || '',
           barcodeId: checkout.barcode.id,
           employeeId: currentEmployeeId,
           transactionType: 'RETURN',
           usedQty: usedQuantity, // What employee actually used (can be 0)
-          remarks: `Used: ${usedQuantity}, Returned to inventory: ${returnToInventory} out of ${checkout.barcode.boxQty} total`
+          remarks: `Used: ${usedQuantity}, Returned to inventory: ${returnToInventory} out of ${checkout.barcode.unitsPerBox} total`
         }, sessionToken);
       });
 
@@ -187,11 +189,11 @@ export function ReturnForm({ employeeId, onReturnComplete, isOpen: externalIsOpe
       }
 
       if (successCount > 0) {
-        const totalUsed = itemsToReturn.reduce((sum, checkout) => 
+        const totalUsed = itemsToReturn.reduce((sum, checkout) =>
           sum + (returnQuantities[checkout.id] ?? 0), 0
         );
-        const totalReturned = itemsToReturn.reduce((sum, checkout) => 
-          sum + Math.max(0, checkout.barcode.boxQty - (returnQuantities[checkout.id] ?? 0)), 0
+        const totalReturned = itemsToReturn.reduce((sum, checkout) =>
+          sum + Math.max(0, checkout.barcode.unitsPerBox - (returnQuantities[checkout.id] ?? 0)), 0
         );
 
         toast({
@@ -256,7 +258,7 @@ export function ReturnForm({ employeeId, onReturnComplete, isOpen: externalIsOpe
           Return Items
         </Button>
       </DialogTrigger>
-      
+
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -271,10 +273,10 @@ export function ReturnForm({ employeeId, onReturnComplete, isOpen: externalIsOpe
             <div className="flex items-center gap-2">
               <User className="h-4 w-4 text-gray-500" />
               <span className="text-sm text-gray-600">
-                Employee: {currentEmployeeId}
+                Employee: {currentEmployeeName}
               </span>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -285,7 +287,7 @@ export function ReturnForm({ employeeId, onReturnComplete, isOpen: externalIsOpe
                 <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
-              
+
               {getSelectedCount() > 0 && (
                 <Button
                   onClick={handleReturn}
@@ -342,7 +344,7 @@ export function ReturnForm({ employeeId, onReturnComplete, isOpen: externalIsOpe
                               Checked out: {formatDate(checkout.checkoutTime)}
                             </div>
                           </div>
-                          
+
                           {/* Used Quantity Input */}
                           <div className="flex items-center gap-2">
                             <Label htmlFor={`qty-${checkout.id}`} className="text-xs whitespace-nowrap">
@@ -358,33 +360,33 @@ export function ReturnForm({ employeeId, onReturnComplete, isOpen: externalIsOpe
                               >
                                 <Minus className="h-3 w-3" />
                               </Button>
-                              
+
                               <Input
                                 id={`qty-${checkout.id}`}
                                 type="number"
                                 min={0}
-                                max={checkout.barcode.boxQty}
+                                max={checkout.barcode.unitsPerBox}
                                 value={currentQty}
                                 onChange={(e) => {
                                   const parsed = parseInt(e.target.value, 10);
                                   updateQuantity(checkout.id, Number.isNaN(parsed) ? 0 : parsed);
                                 }}
                                 className="w-16 h-8 text-center text-sm"
-                                placeholder="0"
+                                placeholder=""
                               />
-                              
+
                               <Button
                                 variant="outline"
                                 size="sm"
                                 className="h-8 w-8 p-0"
                                 onClick={() => updateQuantity(checkout.id, (returnQuantities[checkout.id] ?? 0) + 1)}
-                                disabled={(returnQuantities[checkout.id] ?? 0) >= checkout.barcode.boxQty}
+                                disabled={(returnQuantities[checkout.id] ?? 0) >= checkout.barcode.unitsPerBox}
                               >
                                 <Plus className="h-3 w-3" />
                               </Button>
                             </div>
                             <div className="text-xs text-gray-500">
-                              Return: {checkout.barcode.boxQty - (currentQty)}
+                              Return: {checkout.barcode.unitsPerBox - (currentQty)}
                             </div>
                           </div>
                         </div>

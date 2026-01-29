@@ -77,6 +77,7 @@ export const getAllEmployees = async (req: Request, res: Response) => {
             name: true
           }
         },
+        designation: true,
         isTeamLeader: true,
         role: true,
         status: true,
@@ -129,6 +130,7 @@ export const createEmployee = async (req: Request, res: Response) => {
       email, 
       phone, 
       teamId, 
+      designation,
       isTeamLeader = false, 
       assignedBy, 
       password, 
@@ -215,6 +217,7 @@ export const createEmployee = async (req: Request, res: Response) => {
         password: hashedPassword,
         phone: phone || null,
         teamId: teamId || null,
+        designation: designation || null, 
         isTeamLeader: Boolean(isTeamLeader),
         assignedBy: assignedBy || null,
         role: role,
@@ -236,6 +239,7 @@ export const createEmployee = async (req: Request, res: Response) => {
         email: true,
         phone: true,
         teamId: true,
+        designation: true,
         isTeamLeader: true,
         role: true,
         status: true,
@@ -276,6 +280,7 @@ export const updateEmployee = async (req: Request, res: Response) => {
       email, 
       phone, 
       teamId, 
+      designation,
       isTeamLeader, 
       status, 
       password, 
@@ -357,6 +362,7 @@ export const updateEmployee = async (req: Request, res: Response) => {
     if (email) updateData.email = email
     if (phone !== undefined) updateData.phone = phone
     if (teamId !== undefined) updateData.teamId = teamId
+    if (designation !== undefined) {updateData.designation = designation}
     if (isTeamLeader !== undefined) updateData.isTeamLeader = Boolean(isTeamLeader)
     if (status) updateData.status = status
     if (sickLeaveBalance !== undefined) updateData.sickLeaveBalance = parseInt(sickLeaveBalance)

@@ -209,7 +209,9 @@ export const getInventoryTransactions = async (req: Request, res: Response) => {
               id: true,
               sku: true,
               productName: true,
-              boxQty: true
+              boxQty: true,
+              unitsPerBox: true,
+              currentUnits: true
             }
           },
           employee: {
@@ -245,7 +247,9 @@ export const getInventoryTransactions = async (req: Request, res: Response) => {
         id: tx.product.id.toString(),
         sku: tx.product.sku,
         productName: tx.product.productName,
-        boxQty: tx.product.boxQty
+        boxQty: tx.product.boxQty,
+        unitsPerBox: tx.product.unitsPerBox,
+        currentUnits: tx.product.currentUnits
       } : null,
       employee: tx.employee,
       barcode: tx.barcode ? {
@@ -652,7 +656,7 @@ export const getEmployeeCheckouts = async (req: Request, res: Response) => {
         id: checkout.barcode.id.toString(),
         barcodeValue: checkout.barcode.barcodeValue,
         serialNumber: checkout.barcode.serialNumber,
-        boxQty: checkout.barcode.boxQty,
+        unitsPerBox: checkout.barcode.unitsPerBox,
         status: checkout.barcode.status,
         product: checkout.barcode.product ? {
           id: checkout.barcode.product.id.toString(),

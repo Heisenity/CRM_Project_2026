@@ -381,10 +381,7 @@ export function StockPage() {
               <div className="space-y-2">
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-bold text-gray-900">{summary.totalItemsCheckedOut}</span>
-                  <div className="flex items-center gap-1 text-blue-600">
-                    <TrendingUp className="h-3 w-3" />
-                    <span className="text-sm font-medium">Total</span>
-                  </div>
+                
                 </div>
                 <p className="text-sm text-gray-500">units checked out</p>
               </div>
@@ -404,10 +401,6 @@ export function StockPage() {
               <div className="space-y-2">
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-bold text-gray-900">{summary.totalItemsReturned}</span>
-                  <div className="flex items-center gap-1 text-green-600">
-                    <TrendingUp className="h-3 w-3" />
-                    <span className="text-sm font-medium">Total</span>
-                  </div>
                 </div>
                 <p className="text-sm text-gray-500">units returned</p>
               </div>
@@ -427,10 +420,6 @@ export function StockPage() {
               <div className="space-y-2">
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-bold text-gray-900">{summary.totalItemsCheckedOut - summary.totalItemsReturned}</span>
-                  <div className="flex items-center gap-1 text-amber-600">
-                    <Clock className="h-3 w-3" />
-                    <span className="text-sm font-medium">Net</span>
-                  </div>
                 </div>
                 <p className="text-sm text-gray-500">items currently out</p>
               </div>
@@ -450,10 +439,6 @@ export function StockPage() {
               <div className="space-y-2">
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-bold text-gray-900">{transactions.filter(t => new Date(t.createdAt) > new Date(Date.now() - 24 * 60 * 60 * 1000)).length}</span>
-                  <div className="flex items-center gap-1 text-purple-600">
-                    <TrendingUp className="h-3 w-3" />
-                    <span className="text-sm font-medium">24h</span>
-                  </div>
                 </div>
                 <p className="text-sm text-gray-500">transactions today</p>
               </div>

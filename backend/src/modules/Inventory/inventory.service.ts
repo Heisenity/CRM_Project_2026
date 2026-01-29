@@ -2,9 +2,13 @@
 import { prisma } from '../../lib/prisma';
 import { InventoryTransaction, Prisma } from '@prisma/client';
 import crypto from 'crypto';
+import { NotificationService } from '../notifications/notification.service';
+
+const notificationService = new NotificationService();
 
 // Configurable behaviour
 const LOW_STOCK_ALERT_DEBOUNCE_SECONDS = 60 * 60 * 24; // 24 hours debounce for low-stock alerts
+const FIXED_LOW_STOCK_THRESHOLD = 20; // Simple fixed threshold for low stock notifications (<= 20 units)
 
 type TxType = 'CHECKOUT' | 'RETURN' | 'ADJUST';
 
@@ -51,7 +55,7 @@ export async function checkLowStockThreshold(productId: string | number | bigint
 
     const product = await prisma.product.findUnique({
         where: { id: pid },
-        select: { currentUnits: true, reorderThreshold: true }
+        select: { currentUnits: true, reorderThreshold: true, productName: true }
     });
 
     if (!product) {
@@ -60,8 +64,8 @@ export async function checkLowStockThreshold(productId: string | number | bigint
 
     const available = await calculateAvailableUnits(pid);
 
-    // Only trigger if available <= reorderThreshold
-    if (available <= (product.reorderThreshold ?? 0)) {
+    // Trigger when available <= fixed threshold (simple rule)
+    if (available <= FIXED_LOW_STOCK_THRESHOLD) {
         // see last alert time
         const lastAlert = await prisma.lowStockAlert.findFirst({
             where: { productId: pid },
@@ -78,7 +82,7 @@ export async function checkLowStockThreshold(productId: string | number | bigint
             }
         }
 
-        // Create low stock alert
+        // Create low stock alert record
         const alert = await prisma.lowStockAlert.create({
             data: {
                 stockAtTrigger: available,
@@ -86,7 +90,18 @@ export async function checkLowStockThreshold(productId: string | number | bigint
             }
         });
 
-        // Optionally: notify admins here (email/notification queue) — left as integration point
+        // Create admin notification so it appears in dashboard bell
+        try {
+            await notificationService.createLowStockNotification(
+                pid.toString(),
+                product.productName || 'Unknown Product',
+                available,
+                product.reorderThreshold ?? FIXED_LOW_STOCK_THRESHOLD
+            );
+        } catch (err) {
+            console.warn('Failed to create low stock admin notification:', err);
+        }
+
         console.info(`LowStockAlert created for product ${pid} at ${available} units`);
 
         return { triggered: true, alert, available, reorderThreshold: product.reorderThreshold };
@@ -189,7 +204,7 @@ export async function updateProductInventory(payload: UpdateInventoryPayload) {
             // Get the barcode to access its boxQty
             const barcode = await tx.barcode.findUnique({
                 where: { id: barcodeId },
-                select: { boxQty: true }
+                select: { unitsPerBox: true }
             });
 
             // update barcode status
@@ -218,7 +233,7 @@ export async function updateProductInventory(payload: UpdateInventoryPayload) {
             // Get the barcode to access its boxQty
             const barcode = await tx.barcode.findUnique({
                 where: { id: barcodeId },
-                select: { boxQty: true, productId: true }
+                select: { unitsPerBox: true, productId: true }
             });
 
             if (!barcode) {
@@ -228,7 +243,7 @@ export async function updateProductInventory(payload: UpdateInventoryPayload) {
             // Calculate units to decrement from inventory
             // usedQty = what employee actually used
             // We decrement currentUnits by the actual used quantity
-            const actualUsedQty = Math.min(usedQty, barcode.boxQty);
+            const actualUsedQty = Math.min(usedQty, barcode.unitsPerBox);
 
             // mark barcode AVAILABLE
             await tx.barcode.update({
@@ -305,8 +320,10 @@ export async function updateProductInventory(payload: UpdateInventoryPayload) {
             id: result.product.id.toString(),
             sku: result.product.sku,
             productName: result.product.productName,
-            boxQty: result.product.boxQty
+            boxQty: result.product.boxQty,        
+            unitsPerBox: result.product.unitsPerBox
         } : null,
+
         employee: result.employee
     };
 

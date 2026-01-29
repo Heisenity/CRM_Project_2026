@@ -43,6 +43,7 @@ model Employee {
   email                   String                   @unique
   password                String
   phone                   String?
+  designation             String? 
   role                    EmployeeRole             @default(FIELD_ENGINEER)
   status                  String                   @default("ACTIVE")
   sickLeaveBalance        Int                      @default(12)
@@ -977,9 +978,13 @@ model Product {
   sku              String   @unique
   productName      String   @map("product_name")
   description      String?
-  boxQty           Int      @map("box_qty")
-  totalUnits       Int      @map("total_units")
+
+  boxQty           Int      @map("box_qty")           // number of boxes
+  unitsPerBox      Int      @map("units_per_box")     // units inside ONE box
+
+  totalUnits       Int      @map("total_units")       // boxQty * unitsPerBox
   currentUnits     Int      @map("current_units")
+
   reorderThreshold Int      @default(0) @map("reorder_threshold")
   unitPrice        Decimal? @db.Decimal(10, 2) @map("unit_price")
   supplier         String?
@@ -1004,7 +1009,9 @@ model Barcode {
   id           BigInt        @id @default(autoincrement())
   barcodeValue String        @unique @map("barcode_value")
   serialNumber String        @unique @map("serial_number")
-  boxQty       Int           @map("box_qty")
+
+  unitsPerBox  Int           @map("units_per_box")   // units in this box
+
   status       BarcodeStatus @default(AVAILABLE)
   createdAt    DateTime      @default(now()) @map("created_at")
 
@@ -1017,6 +1024,7 @@ model Barcode {
   @@index([barcodeValue])
   @@map("barcodes")
 }
+
 
 //////////////////////////
 // INVENTORY TRANSACTIONS (IMMUTABLE)

@@ -21,14 +21,75 @@ const MIN_RETURN_WAIT_SECONDS = parseInt(process.env.MIN_RETURN_WAIT_SECONDS || 
 // After a RETURN, block further actions for this many seconds (defaults to duplicate window)
 const POST_RETURN_BLOCK_SECONDS = parseInt(process.env.POST_RETURN_BLOCK_SECONDS || String(DUPLICATE_WINDOW_SECONDS), 10);
 
+// -------------------- helpers --------------------
+const toNumber = (v: any): number | null => {
+  if (v === null || v === undefined) return null;
+  if (typeof v === 'bigint') return Number(v);
+  if (typeof v === 'number') return v;
+  const n = Number(v);
+  return Number.isNaN(n) ? null : n;
+};
+
+const safeParseInt = (v: any): number => {
+  if (v === undefined || v === null) return NaN;
+  const n = parseInt(String(v), 10);
+  return Number.isNaN(n) ? NaN : n;
+};
+
+const safeParseFloat = (v: any): number => {
+  if (v === undefined || v === null) return NaN;
+  const n = parseFloat(String(v));
+  return Number.isNaN(n) ? NaN : n;
+};
+
+// -------------------- controllers --------------------
 export const createProduct = async (req: Request, res: Response) => {
   try {
-    const { sku, productName, description, boxQty, totalUnits, reorderThreshold, unitPrice, supplier, status } = req.body;
+    const { sku, productName, description, boxQty, unitsPerBox, totalUnits, reorderThreshold, unitPrice, supplier, status } = req.body;
 
-    // Validate required fields
-    if (!productName || boxQty === undefined || totalUnits === undefined) {
+    // Validate and compute totals:
+    // Accept either (boxQty + unitsPerBox) OR totalUnits for backward compatibility.
+    if (!productName) {
+      return res.status(400).json({ error: 'Missing required field: productName' });
+    }
+
+    const parsedBoxQty = boxQty !== undefined ? safeParseInt(boxQty) : NaN;
+    const parsedUnitsPerBox = unitsPerBox !== undefined ? safeParseInt(unitsPerBox) : NaN;
+    const parsedTotalUnitsFromBody = totalUnits !== undefined ? safeParseInt(totalUnits) : NaN;
+
+    let totalUnitsInt: number;
+    let finalBoxQty: number | null = null;
+    let finalUnitsPerBox: number | null = null;
+
+    if (!Number.isNaN(parsedBoxQty) && !Number.isNaN(parsedUnitsPerBox)) {
+      if (parsedBoxQty < 0 || parsedUnitsPerBox < 0) {
+        return res.status(400).json({ error: 'boxQty and unitsPerBox must be non-negative integers' });
+      }
+      finalBoxQty = parsedBoxQty;
+      finalUnitsPerBox = parsedUnitsPerBox;
+      totalUnitsInt = parsedBoxQty * parsedUnitsPerBox;
+    } else if (!Number.isNaN(parsedTotalUnitsFromBody)) {
+      if (parsedTotalUnitsFromBody < 0) {
+        return res.status(400).json({ error: 'totalUnits must be non-negative' });
+      }
+      totalUnitsInt = parsedTotalUnitsFromBody;
+
+      // Try to infer the missing values if one is present
+      if (!Number.isNaN(parsedBoxQty)) {
+        finalBoxQty = parsedBoxQty;
+        // avoid divide by zero; if boxQty > 0, infer unitsPerBox by floor division (at least 1)
+        finalUnitsPerBox = parsedBoxQty > 0 ? Math.max(1, Math.floor(parsedTotalUnitsFromBody / parsedBoxQty)) : 1;
+      } else if (!Number.isNaN(parsedUnitsPerBox)) {
+        finalUnitsPerBox = parsedUnitsPerBox > 0 ? parsedUnitsPerBox : 1;
+        finalBoxQty = Math.floor(parsedTotalUnitsFromBody / finalUnitsPerBox);
+      } else {
+        // No box/unit info: leave boxQty = 0 and unitsPerBox = 1 (safe default)
+        finalUnitsPerBox = 1;
+        finalBoxQty = 0;
+      }
+    } else {
       return res.status(400).json({
-        error: 'Missing required fields: productName, boxQty, totalUnits'
+        error: 'Missing required quantity fields. Provide either (boxQty and unitsPerBox) or totalUnits'
       });
     }
 
@@ -79,18 +140,25 @@ export const createProduct = async (req: Request, res: Response) => {
       }
     }
 
+    const parsedReorderThreshold =
+      reorderThreshold !== undefined && reorderThreshold !== null
+        ? parseInt(String(reorderThreshold), 10)
+        : null;
+
+    const finalReorderThreshold = parsedReorderThreshold ?? 20;
+
     // Create the product
-    const totalUnitsInt = parseInt(totalUnits);
     const product = await prisma.product.create({
       data: {
         sku: finalSku,
         productName,
         description: description || null,
-        boxQty: parseInt(boxQty),
-        totalUnits: totalUnitsInt,
-        currentUnits: totalUnitsInt,  // Initialize to totalUnits
-        reorderThreshold: reorderThreshold ? parseInt(reorderThreshold) : 0,
-        unitPrice: unitPrice ? parseFloat(unitPrice) : null,
+        boxQty: finalBoxQty ?? 0,
+        unitsPerBox: finalUnitsPerBox ?? 0,
+        totalUnits: totalUnitsInt ?? 0,
+        currentUnits: totalUnitsInt ?? 0,  // Initialize to totalUnits
+        reorderThreshold: finalReorderThreshold,
+        unitPrice: unitPrice ? parseFloat(String(unitPrice)) : null,
         supplier: supplier || null,
         status: status || 'ACTIVE',
       }
@@ -102,9 +170,10 @@ export const createProduct = async (req: Request, res: Response) => {
       sku: product.sku,
       productName: product.productName,
       description: product.description,
-      boxQty: product.boxQty,
-      totalUnits: product.totalUnits,
-      reorderThreshold: product.reorderThreshold,
+      boxQty: toNumber(product.boxQty) ?? 0,
+      unitsPerBox: toNumber((product as any).unitsPerBox) ?? 0,
+      totalUnits: toNumber(product.totalUnits) ?? 0,
+      reorderThreshold: toNumber(product.reorderThreshold) ?? 0,
       unitPrice: product.unitPrice ? parseFloat(product.unitPrice.toString()) : null,
       supplier: product.supplier,
       status: product.status,
@@ -154,9 +223,10 @@ export const getProducts = async (req: Request, res: Response) => {
       sku: product.sku,
       productName: product.productName,
       description: product.description,
-      boxQty: product.boxQty,
-      totalUnits: product.totalUnits,
-      reorderThreshold: product.reorderThreshold,
+      boxQty: toNumber(product.boxQty) ?? 0,
+      unitsPerBox: toNumber((product as any).unitsPerBox) ?? 0,
+      totalUnits: toNumber(product.totalUnits) ?? 0,
+      reorderThreshold: toNumber(product.reorderThreshold) ?? 0,
       unitPrice: product.unitPrice ? parseFloat(product.unitPrice.toString()) : null,
       supplier: product.supplier,
       status: product.status,
@@ -216,9 +286,10 @@ export const getProduct = async (req: Request, res: Response) => {
       sku: product.sku,
       productName: product.productName,
       description: product.description,
-      boxQty: product.boxQty,
-      totalUnits: product.totalUnits,
-      reorderThreshold: product.reorderThreshold,
+      boxQty: toNumber(product.boxQty) ?? 0,
+      unitsPerBox: toNumber((product as any).unitsPerBox) ?? 0,
+      totalUnits: toNumber(product.totalUnits) ?? 0,
+      reorderThreshold: toNumber(product.reorderThreshold) ?? 0,
       isActive: product.isActive,
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
@@ -265,7 +336,7 @@ export const getProduct = async (req: Request, res: Response) => {
 export const updateProduct = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { sku, productName, description, boxQty, totalUnits, reorderThreshold, unitPrice, supplier, status } = req.body;
+    const { sku, productName, description, boxQty, unitsPerBox, totalUnits, reorderThreshold, unitPrice, supplier, status } = req.body;
 
     // Check if product exists
     const existingProduct = await prisma.product.findUnique({
@@ -280,22 +351,50 @@ export const updateProduct = async (req: Request, res: Response) => {
       });
     }
 
-    // Update the product
+    // Parse incoming values (if provided)
+    const parsedBoxQtyUpdate = boxQty !== undefined ? safeParseInt(boxQty) : undefined;
+    const parsedUnitsPerBoxUpdate = unitsPerBox !== undefined ? safeParseInt(unitsPerBox) : undefined;
+    const parsedTotalUnitsUpdate = totalUnits !== undefined ? safeParseInt(totalUnits) : undefined;
+
+    // Validate non-negatives if provided
+    if (parsedBoxQtyUpdate !== undefined && Number.isNaN(parsedBoxQtyUpdate)) {
+      return res.status(400).json({ error: 'Invalid boxQty' });
+    }
+    if (parsedUnitsPerBoxUpdate !== undefined && Number.isNaN(parsedUnitsPerBoxUpdate)) {
+      return res.status(400).json({ error: 'Invalid unitsPerBox' });
+    }
+    if (parsedTotalUnitsUpdate !== undefined && Number.isNaN(parsedTotalUnitsUpdate)) {
+      return res.status(400).json({ error: 'Invalid totalUnits' });
+    }
+
+    // Compute final values for update
+    const newBoxQty = parsedBoxQtyUpdate !== undefined ? parsedBoxQtyUpdate : (toNumber(existingProduct.boxQty) ?? 0);
+    const newUnitsPerBox = parsedUnitsPerBoxUpdate !== undefined
+      ? parsedUnitsPerBoxUpdate
+      : (toNumber((existingProduct as any).unitsPerBox) ?? 1);
+
+    // If client explicitly provided totalUnits, use it; otherwise compute from boxQty*unitsPerBox
+    const computedTotalUnits = (parsedTotalUnitsUpdate !== undefined)
+      ? parsedTotalUnitsUpdate
+      : Math.max(0, Math.floor(newBoxQty * newUnitsPerBox));
+
+    // Build update data
+    const updateData: any = {
+      ...(sku && { sku }),
+      ...(productName && { productName }),
+      ...(description !== undefined && { description }),
+      ...(parsedBoxQtyUpdate !== undefined && { boxQty: newBoxQty }),
+      ...(parsedUnitsPerBoxUpdate !== undefined && { unitsPerBox: newUnitsPerBox }),
+      ...(parsedTotalUnitsUpdate !== undefined ? { totalUnits: parsedTotalUnitsUpdate } : { totalUnits: computedTotalUnits }),
+      ...(reorderThreshold !== undefined && { reorderThreshold: parseInt(String(reorderThreshold), 10) }),
+      ...(unitPrice !== undefined && { unitPrice: unitPrice ? parseFloat(String(unitPrice)) : null }),
+      ...(supplier !== undefined && { supplier }),
+      ...(status && { status })
+    };
+
     const product = await prisma.product.update({
-      where: {
-        id: BigInt(id)
-      },
-      data: {
-        ...(sku && { sku }),
-        ...(productName && { productName }),
-        ...(description !== undefined && { description }),
-        ...(boxQty !== undefined && { boxQty: parseInt(boxQty) }),
-        ...(totalUnits !== undefined && { totalUnits: parseInt(totalUnits) }),
-        ...(reorderThreshold !== undefined && { reorderThreshold: parseInt(reorderThreshold) }),
-        ...(unitPrice !== undefined && { unitPrice: unitPrice ? parseFloat(unitPrice) : null }),
-        ...(supplier !== undefined && { supplier }),
-        ...(status && { status })
-      }
+      where: { id: BigInt(id) },
+      data: updateData
     });
 
     // Convert BigInt to string for JSON serialization
@@ -304,9 +403,10 @@ export const updateProduct = async (req: Request, res: Response) => {
       sku: product.sku,
       productName: product.productName,
       description: product.description,
-      boxQty: product.boxQty,
-      totalUnits: product.totalUnits,
-      reorderThreshold: product.reorderThreshold,
+      boxQty: toNumber(product.boxQty) ?? 0,
+      unitsPerBox: toNumber((product as any).unitsPerBox) ?? 0,
+      totalUnits: toNumber(product.totalUnits) ?? 0,
+      reorderThreshold: toNumber(product.reorderThreshold) ?? 0,
       unitPrice: product.unitPrice ? parseFloat(product.unitPrice.toString()) : null,
       supplier: product.supplier,
       status: product.status,
@@ -433,7 +533,7 @@ export const getBarcodeHistory = async (req: Request, res: Response) => {
       id: barcode.id.toString(),
       barcodeValue: barcode.barcodeValue,
       serialNumber: barcode.serialNumber,
-      boxQty: barcode.boxQty,
+      boxQty: toNumber(barcode.unitsPerBox) ?? 0,
       status: barcode.status,
       createdAt: barcode.createdAt,
       product: barcode.product,
@@ -593,8 +693,8 @@ export const generateLabels = async (req: Request, res: Response) => {
     }
 
     // Validate count
-    const labelCount = parseInt(count);
-    if (isNaN(labelCount) || labelCount < 1 || labelCount > 100) {
+    const labelCount = safeParseInt(count);
+    if (Number.isNaN(labelCount) || labelCount < 1 || labelCount > 100) {
       return res.status(400).json({
         error: 'Count must be a number between 1 and 100'
       });
@@ -846,14 +946,14 @@ export const createInventoryTransaction = async (req: Request, res: Response) =>
         // Re-fetch barcode inside transaction (fresh)
         const barcodeRec = await tx.barcode.findUnique({
           where: { id: barcode.id },
-          select: { boxQty: true, productId: true, barcodeValue: true, serialNumber: true }
+          select: { unitsPerBox: true, productId: true, barcodeValue: true, serialNumber: true }
         });
 
         if (!barcodeRec) {
           throw new Error('Barcode not found during return transaction');
         }
 
-        const boxQtyValue = barcodeRec.boxQty ?? 0;
+        const boxQtyValue = barcodeRec.unitsPerBox ?? 0;
 
         // Clamp usedQty to [0, boxQty]
         const actualUsedQty = Math.min(usedQtyClamped, boxQtyValue);
@@ -941,13 +1041,13 @@ export const createInventoryTransaction = async (req: Request, res: Response) =>
           id: returnTx.barcode.id.toString(),
           barcodeValue: returnTx.barcode.barcodeValue,
           serialNumber: returnTx.barcode.serialNumber,
-          status: 'AVAILABLE'
+          status: 'AVAILABLE',
+          boxQty: toNumber(returnTx.barcode.unitsPerBox) ?? 0
         },
         product: {
           id: returnTx.product.id.toString(),
           sku: returnTx.product.sku,
-          productName: returnTx.product.productName,
-          boxQty: returnTx.barcode.boxQty
+          productName: returnTx.product.productName
         },
         employee: returnTx.employee
       };
@@ -1003,7 +1103,6 @@ export const createInventoryTransaction = async (req: Request, res: Response) =>
   }
 };
 
-
 // Get all inventory transactions
 export const getInventoryTransactions = async (req: Request, res: Response) => {
   try {
@@ -1047,7 +1146,7 @@ export const getInventoryTransactions = async (req: Request, res: Response) => {
               barcodeValue: true,
               serialNumber: true,
               status: true,
-              boxQty: true
+              unitsPerBox: true
             }
           },
           product: {
@@ -1091,7 +1190,7 @@ export const getInventoryTransactions = async (req: Request, res: Response) => {
         barcodeValue: transaction.barcode.barcodeValue,
         serialNumber: transaction.barcode.serialNumber,
         status: transaction.barcode.status,
-        boxQty: transaction.barcode.boxQty
+        boxQty: toNumber(transaction.barcode.unitsPerBox) ?? 0
       },
       product: {
         id: transaction.product.id.toString(),
@@ -1267,14 +1366,14 @@ export const lookupBarcode = async (req: Request, res: Response) => {
     // Convert BigInt to string for JSON serialization
     const responseData = {
       id: barcode.id.toString(), // Add barcode ID for inventory transactions
+      barcodeBoxQty: toNumber(barcode.unitsPerBox) ?? 0, // This comes from the barcode, not the product
       product: {
         id: barcode.product.id.toString(),
         sku: barcode.product.sku,
         productName: barcode.product.productName,
-        boxQty: barcode.boxQty, // This comes from the barcode, not the product
         description: barcode.product.description,
-        totalUnits: barcode.product.totalUnits,
-        reorderThreshold: barcode.product.reorderThreshold,
+        totalUnits: toNumber(barcode.product.totalUnits) ?? 0,
+        reorderThreshold: toNumber(barcode.product.reorderThreshold) ?? 0,
         isActive: barcode.product.isActive
       },
       serialNumber: barcode.serialNumber,

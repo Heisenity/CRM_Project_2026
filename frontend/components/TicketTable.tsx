@@ -952,23 +952,23 @@ export function TicketTable() {
         {/* Tickets Table */}
         <Card className="bg-card shadow-sm border-border overflow-hidden">
           <div className="overflow-x-auto">
-            <Table className="table-fixed min-w-[1500px]">
+            <Table className="table-fixed min-w-[1200px]">
               <TableHeader>
                 <TableRow className="bg-muted/50 border-b border-border">
-                  <TableHead className="w-[350px] py-4 px-6 font-semibold text-foreground text-left">Ticket Details</TableHead>
-                  <TableHead className="w-[220px] py-4 px-4 font-semibold text-foreground text-left">Customer Info</TableHead>
-                  <TableHead className="w-[110px] py-4 px-4 font-semibold text-foreground text-center">Status</TableHead>
-                  <TableHead className="w-[110px] py-4 px-4 font-semibold text-foreground text-center">Priority</TableHead>
-                  <TableHead className="w-[200px] py-4 px-4 font-semibold text-foreground text-left">Created By</TableHead>
-                  <TableHead className="w-[130px] py-4 px-4 font-semibold text-foreground text-center">Attachments</TableHead>
-                  <TableHead className="w-[150px] py-4 px-4 font-semibold text-foreground text-left">Expected Date</TableHead>
-                  <TableHead className="w-[80px] py-4 px-4 font-semibold text-foreground text-center">Actions</TableHead>
+                  <TableHead className="w-[350px] py-3 px-4 font-semibold text-foreground text-left">Ticket Details</TableHead>
+                  <TableHead className="w-[200px] py-3 px-4 font-semibold text-foreground text-left">Customer Info</TableHead>
+                  <TableHead className="w-[100px] py-3 px-4 font-semibold text-foreground text-center">Status</TableHead>
+                  <TableHead className="w-[100px] py-3 px-4 font-semibold text-foreground text-center">Priority</TableHead>
+                  <TableHead className="w-[180px] py-3 px-4 font-semibold text-foreground text-left">Created By</TableHead>
+                  <TableHead className="w-[120px] py-3 px-4 font-semibold text-foreground text-center">Attachments</TableHead>
+                  <TableHead className="w-[140px] py-3 px-4 font-semibold text-foreground text-left">Expected Date</TableHead>
+                  <TableHead className="w-[80px] py-3 px-4 font-semibold text-foreground text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-16">
+                  <TableCell colSpan={8} className="text-center py-12">
                     <div className="flex items-center justify-center">
                       <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mr-3"></div>
                       <span className="text-muted-foreground">Loading tickets...</span>
@@ -977,7 +977,7 @@ export function TicketTable() {
                 </TableRow>
               ) : filteredData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-16">
+                  <TableCell colSpan={8} className="text-center py-12">
                     <div className="flex flex-col items-center">
                       <Ticket className="h-12 w-12 text-gray-400 mb-4" />
                       <h3 className="text-lg font-medium text-gray-900 mb-2">No Tickets Found</h3>
@@ -1007,11 +1007,11 @@ export function TicketTable() {
                       index % 2 === 0 ? 'bg-background' : 'bg-muted/20'
                     }`}
                   >
-                    <TableCell className="py-4 px-6 align-top">
-                      <div className="flex items-start gap-3">
+                    <TableCell className="py-3 px-4 align-top">
+                      <div className="flex items-start gap-2">
                         <div className="relative flex-shrink-0">
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white font-semibold text-sm shadow-sm">
-                            <Ticket className="h-5 w-5" />
+                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white font-semibold text-sm shadow-sm">
+                            <Ticket className="h-6 w-6" />
                           </div>
                           {getStatusIcon(ticket.status) && (
                             <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-0.5 shadow-sm">
@@ -1019,11 +1019,11 @@ export function TicketTable() {
                             </div>
                           )}
                         </div>
-                        <div className="min-w-0 flex-1 space-y-1.5">
+                        <div className="min-w-0 flex-1 space-y-1">
                           <p className="font-semibold text-foreground text-sm truncate">{ticket.ticketId}</p>
                           <p className="text-xs text-muted-foreground truncate">{ticket.category?.name || 'Unknown Problem'}</p>
                           <p 
-                            className="text-xs text-muted-foreground line-clamp-2 cursor-help leading-relaxed" 
+                            className="text-xs text-muted-foreground line-clamp-2 cursor-help leading-snug" 
                             title={ticket.description}
                           >
                             {truncateText(ticket.description, 100)}
@@ -1037,9 +1037,9 @@ export function TicketTable() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="py-4 px-4 align-top">
+                    <TableCell className="py-3 px-4 align-top">
                       {ticket.customerName ? (
-                        <div className="space-y-1.5">
+                        <div className="space-y-1">
                           <p className="font-medium text-foreground text-sm truncate">{ticket.customerName}</p>
                           <p className="text-xs text-muted-foreground truncate">{ticket.customerId}</p>
                           <div className="flex items-center gap-1">
@@ -1048,22 +1048,22 @@ export function TicketTable() {
                           </div>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-center h-full min-h-[60px]">
+                        <div className="flex items-center justify-center h-full min-h-[48px]">
                           <span className="text-sm text-muted-foreground">-</span>
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="py-4 px-4 align-middle text-center">
-                      <div className="flex justify-center">
+                    <TableCell className="py-3 px-4 align-top text-center">
+                      <div className="flex justify-center items-start">
                         {getStatusBadge(ticket.status)}
                       </div>
                     </TableCell>
-                    <TableCell className="py-4 px-4 align-middle text-center">
-                      <div className="flex justify-center">
+                    <TableCell className="py-3 px-4 align-top text-center">
+                      <div className="flex justify-center items-start">
                         {getPriorityBadge(ticket.priority)}
                       </div>
                     </TableCell>
-                    <TableCell className="py-4 px-4 align-top">
+                    <TableCell className="py-3 px-4 align-top">
                       {ticket.reporter ? (
                         <div className="flex items-start gap-2">
                           <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
@@ -1075,25 +1075,25 @@ export function TicketTable() {
                           </div>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-center h-full min-h-[60px]">
+                        <div className="flex items-center justify-center h-full min-h-[48px]">
                           <span className="text-sm text-muted-foreground">Unknown</span>
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="py-4 px-4 align-middle text-center">
+                    <TableCell className="py-3 px-4 align-top text-center">
                       {ticket.attachments && ticket.attachments.length > 0 ? (
                         <div className="flex justify-center">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 px-3 hover:bg-blue-50">
-                                <div className="flex items-center gap-1.5">
+                              <Button variant="ghost" size="sm" className="h-7 px-2 hover:bg-blue-50">
+                                <div className="flex items-center gap-1">
                                   <Paperclip className="h-4 w-4 text-blue-600" />
                                   <span className="text-sm font-medium text-blue-600">{ticket.attachments.length}</span>
                                 </div>
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="center" className="w-64">
-                              <div className="px-2 py-1.5 text-sm font-semibold text-foreground border-b">
+                              <div className="px-2 py-1 text-sm font-semibold text-foreground border-b">
                                 Attachments ({ticket.attachments.length})
                               </div>
                               {ticket.attachments.map((attachment, index) => {

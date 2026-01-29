@@ -31,6 +31,7 @@ export default function CreateEmployeePage() {
         email: '',
         password: '',
         phone: '',
+        designation: '',
         role: 'IN_OFFICE' as 'FIELD_ENGINEER' | 'IN_OFFICE', // Default to office employee
         sickLeaveBalance: 12,
         casualLeaveBalance: 12,
@@ -49,7 +50,7 @@ export default function CreateEmployeePage() {
                 try {
                     const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees/next-id?role=${formData.role}`)
                     const result = await response.json()
-                    
+
                     if (result.success) {
                         setFormData(prev => ({ ...prev, employeeId: result.data.nextEmployeeId }))
                     }
@@ -115,6 +116,7 @@ export default function CreateEmployeePage() {
                     email: formData.email.trim(),
                     password: formData.password.trim(),
                     phone: formData.phone.trim() || undefined,
+                    designation: formData.designation.trim(),
                     role: formData.role,
                     isTeamLeader: false,
                     sickLeaveBalance: formData.sickLeaveBalance,
@@ -130,7 +132,7 @@ export default function CreateEmployeePage() {
 
             if (result.success) {
                 setShowSuccess(true)
-                
+
                 // Reset form and redirect after success
                 setTimeout(() => {
                     router.push('/employee-management')
@@ -379,6 +381,21 @@ export default function CreateEmployeePage() {
                                             </div>
                                         </div>
 
+                                        {/* Designation */}
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-medium text-green-800">
+                                                Designation <span className="text-red-500">*</span>
+                                            </Label>
+                                            <Input
+                                                value={formData.designation}
+                                                onChange={(e) =>
+                                                    setFormData(prev => ({ ...prev, designation: e.target.value }))
+                                                }
+                                                placeholder="e.g. Senior Engineer, HR Executive"
+                                                className="border-green-300 focus:border-green-500 focus:ring-green-500"
+                                            />
+                                        </div>
+
                                         {/* Leave Balances and Salary - Fourth Row */}
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                             <div className="space-y-2">
@@ -393,9 +410,9 @@ export default function CreateEmployeePage() {
                                                     onChange={(e) => {
                                                         const value = e.target.value
                                                         if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
-                                                            setFormData(prev => ({ 
-                                                                ...prev, 
-                                                                sickLeaveBalance: value === '' ? 0 : parseInt(value) || 0 
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                sickLeaveBalance: value === '' ? 0 : parseInt(value) || 0
                                                             }))
                                                         }
                                                     }}
@@ -420,9 +437,9 @@ export default function CreateEmployeePage() {
                                                     onChange={(e) => {
                                                         const value = e.target.value
                                                         if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
-                                                            setFormData(prev => ({ 
-                                                                ...prev, 
-                                                                casualLeaveBalance: value === '' ? 0 : parseInt(value) || 0 
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                casualLeaveBalance: value === '' ? 0 : parseInt(value) || 0
                                                             }))
                                                         }
                                                     }}
@@ -498,7 +515,7 @@ export default function CreateEmployeePage() {
                                                 </div>
                                             </div>
                                         </div>
-                                        
+
                                     </CardContent>
                                 </Card>
 
@@ -570,6 +587,12 @@ export default function CreateEmployeePage() {
                                                 </span>
                                             </div>
                                             <div className="flex justify-between">
+                                                <span className="text-gray-500">Designation:</span>
+                                                <span className="font-medium text-gray-900">
+                                                    {formData.designation || 'Not specified'}
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between">
                                                 <span className="text-gray-500">Role:</span>
                                                 <Badge className={`${formData.role === 'FIELD_ENGINEER' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
                                                     {formData.role === 'FIELD_ENGINEER' ? 'Field Engineer' : 'Office Employee'}
@@ -621,8 +644,8 @@ export default function CreateEmployeePage() {
                                                 <div>
                                                     <p className="text-sm font-medium text-blue-900">Role-Based Access</p>
                                                     <p className="text-xs text-blue-700 mt-1">
-                                                        {formData.role === 'FIELD_ENGINEER' 
-                                                            ? 'Field engineers can mark attendance from field locations' 
+                                                        {formData.role === 'FIELD_ENGINEER'
+                                                            ? 'Field engineers can mark attendance from field locations'
                                                             : 'Office employees mark attendance from office premises'
                                                         }
                                                     </p>

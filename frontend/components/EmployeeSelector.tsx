@@ -6,24 +6,24 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { 
-  User, 
-  Plus, 
-  Loader2, 
+import {
+  User,
+  Plus,
+  Loader2,
   CheckCircle
 } from "lucide-react"
-import { 
-  getAllFieldEngineers, 
+import {
+  getAllFieldEngineers,
   getFieldEngineerByEmployeeId,
   createFieldEngineer,
-  FieldEngineer 
+  FieldEngineer
 } from "@/lib/server-api"
 import { EmployeeIdGenerator } from "@/components/EmployeeIdGenerator"
 
@@ -33,22 +33,23 @@ interface EmployeeSelectorProps {
   disabled?: boolean
 }
 
-export function EmployeeSelector({ 
-  selectedEmployeeId, 
-  onEmployeeChange, 
-  disabled 
+export function EmployeeSelector({
+  selectedEmployeeId,
+  onEmployeeChange,
+  disabled
 }: EmployeeSelectorProps) {
   const [fieldEngineers, setFieldEngineers] = React.useState<FieldEngineer[]>([])
   const [loading, setLoading] = React.useState(false)
   const [showAddForm, setShowAddForm] = React.useState(false)
   const [addingEmployee, setAddingEmployee] = React.useState(false)
-  
+
   const [newEmployee, setNewEmployee] = React.useState({
     name: '',
     employeeId: '',
     email: '',
     password: '',
     phone: '',
+    designation: '',
     isTeamLeader: false,
     salary: '',
     address: '',
@@ -104,6 +105,7 @@ export function EmployeeSelector({
         email: newEmployee.email,
         password: newEmployee.password,
         phone: newEmployee.phone || undefined,
+        designation: newEmployee.designation,
         isTeamLeader: newEmployee.isTeamLeader,
         salary: newEmployee.salary ? parseFloat(newEmployee.salary) : undefined,
         address: newEmployee.address || undefined,
@@ -114,10 +116,10 @@ export function EmployeeSelector({
       if (response.success && response.data) {
         // Add to local list
         setFieldEngineers(prev => [...prev, response.data!])
-        
+
         // Select the new employee
         onEmployeeChange(response.data.employeeId)
-        
+
         // Reset form
         setNewEmployee({
           name: '',
@@ -125,6 +127,7 @@ export function EmployeeSelector({
           email: '',
           password: '',
           phone: '',
+          designation: '',
           isTeamLeader: false,
           salary: '',
           address: '',
@@ -257,8 +260,8 @@ export function EmployeeSelector({
                 <Label className="text-sm font-medium text-green-800">
                   Role
                 </Label>
-                <Select 
-                  value={newEmployee.isTeamLeader ? 'leader' : 'engineer'} 
+                <Select
+                  value={newEmployee.isTeamLeader ? 'leader' : 'engineer'}
                   onValueChange={(value) => setNewEmployee(prev => ({ ...prev, isTeamLeader: value === 'leader' }))}
                 >
                   <SelectTrigger className="border-green-300 focus:border-green-500 focus:ring-green-500">
@@ -270,6 +273,21 @@ export function EmployeeSelector({
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-green-800">
+                  Designation <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  value={newEmployee.designation}
+                  onChange={(e) =>
+                    setNewEmployee(prev => ({ ...prev, designation: e.target.value }))
+                  }
+                  placeholder="e.g. Senior Field Engineer"
+                  className="border-green-300 focus:border-green-500 focus:ring-green-500"
+                />
+              </div>
+
 
               <div className="space-y-2">
                 <Label className="text-sm font-medium text-green-800">

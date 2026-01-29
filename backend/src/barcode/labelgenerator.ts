@@ -152,7 +152,7 @@ export async function generateLabelsForProduct(params: {
           barcodeValue: serial,
           serialNumber: serial, // Using same value for both fields
           productId: product.id,
-          boxQty: product.boxQty
+          unitsPerBox: product.unitsPerBox
         }
       });
 

@@ -16,12 +16,12 @@ import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch"
 import { useSession } from "next-auth/react"
 import { GenerateLabelsDialog } from "./GenerateLabelsDialog"
 import { getAvailableUnits, exportProductsToExcel } from "@/lib/server-api"
-import { 
-  Search, 
-  Filter, 
-  Download, 
-  Plus, 
-  Package, 
+import {
+  Search,
+  Filter,
+  Download,
+  Plus,
+  Package,
   MoreVertical,
   Eye,
   Edit,
@@ -39,6 +39,7 @@ interface Product {
   productName: string
   description?: string
   boxQty: number
+  unitsPerBox: number
   totalUnits: number
   availableUnits?: number // Add available units from inventory
   reorderThreshold?: number
@@ -74,7 +75,7 @@ interface BarcodeHistory {
 const getStockStatus = (totalUnits: number, availableUnits?: number, reorderThreshold?: number) => {
   const available = availableUnits ?? totalUnits;
   const threshold = reorderThreshold ?? 10;
-  
+
   if (available === 0) return "out_of_stock"
   if (available <= threshold) return "low_stock"
   return "in_stock"
@@ -92,7 +93,7 @@ export function ProductManagement() {
   const [isExporting, setIsExporting] = React.useState(false)
   const [isLabelDialogOpen, setIsLabelDialogOpen] = React.useState(false)
   const [selectedProductForLabels, setSelectedProductForLabels] = React.useState<Product | null>(null)
-  
+
   // Barcode history state
   const [barcodeHistory, setBarcodeHistory] = React.useState<BarcodeHistory[]>([])
   const [isLoadingBarcodes, setIsLoadingBarcodes] = React.useState(false)
@@ -105,7 +106,7 @@ export function ProductManagement() {
     total: 0,
     totalPages: 0
   })
-  
+
   const { toast } = useToast()
   const { isAuthenticated } = useAuthenticatedFetch()
   const { data: session } = useSession()
@@ -116,20 +117,21 @@ export function ProductManagement() {
     productName: "",
     description: "",
     boxQty: "",
-    totalUnits: "",
+    unitsPerBox: "",
     unitPrice: "",
     supplier: "",
     status: "ACTIVE"
   })
 
+
   const fetchProducts = React.useCallback(async () => {
     try {
       setIsLoadingProducts(true)
-      
+
       if (!isAuthenticated) {
         throw new Error('Not authenticated')
       }
-      
+
       // Call backend directly
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
       const sessionToken = (session as { user?: { sessionToken?: string } })?.user?.sessionToken
@@ -140,13 +142,13 @@ export function ProductManagement() {
           'Authorization': `Bearer ${sessionToken}`,
         },
       })
-      
+
       if (response.ok) {
         const data = await response.json()
         if (data.success) {
           const productsData = data.data
           setProducts(productsData)
-          
+
           // Fetch available units for each product
           const availableUnitsPromises = productsData.map(async (product: Product) => {
             try {
@@ -166,13 +168,13 @@ export function ProductManagement() {
               availableUnits: product.totalUnits // Fallback to total units
             }
           })
-          
+
           const availableUnitsResults = await Promise.all(availableUnitsPromises)
           const availableUnitsMap = availableUnitsResults.reduce((acc, result) => {
             acc[result.productId] = result.availableUnits
             return acc
           }, {} as Record<string, number>)
-          
+
           setAvailableUnitsMap(availableUnitsMap)
         } else {
           throw new Error(data.error || 'Failed to fetch products')
@@ -194,7 +196,7 @@ export function ProductManagement() {
 
   const refreshInventoryData = React.useCallback(async () => {
     if (!products.length) return;
-    
+
     try {
       const availableUnitsPromises = products.map(async (product: Product) => {
         try {
@@ -214,15 +216,15 @@ export function ProductManagement() {
           availableUnits: product.totalUnits // Fallback to total units
         }
       })
-      
+
       const availableUnitsResults = await Promise.all(availableUnitsPromises)
       const newAvailableUnitsMap = availableUnitsResults.reduce((acc, result) => {
         acc[result.productId] = result.availableUnits
         return acc
       }, {} as Record<string, number>)
-      
+
       setAvailableUnitsMap(newAvailableUnitsMap)
-      
+
       toast({
         title: "Success",
         description: "Inventory data refreshed successfully"
@@ -258,11 +260,11 @@ export function ProductManagement() {
   const fetchBarcodeHistory = async (productId: string, page: number = 1) => {
     try {
       setIsLoadingBarcodes(true)
-      
+
       if (!isAuthenticated) {
         throw new Error('Not authenticated')
       }
-      
+
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
       const sessionToken = (session as { user?: { sessionToken?: string } })?.user?.sessionToken
       const response = await fetch(`${backendUrl}/products/${productId}/barcode-history?page=${page}&limit=10`, {
@@ -272,7 +274,7 @@ export function ProductManagement() {
           'Authorization': `Bearer ${sessionToken}`,
         },
       })
-      
+
       if (response.ok) {
         const data = await response.json()
         if (data.success) {
@@ -317,13 +319,13 @@ export function ProductManagement() {
   // Filter products based on search and filters
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()))
-    
+      product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()))
+
     const availableUnits = availableUnitsMap[product.id]
     const status = getStockStatus(product.totalUnits, availableUnits, product.reorderThreshold)
     const matchesStatus = selectedStatus === "all" || status === selectedStatus
-    
+
     return matchesSearch && matchesStatus && product.isActive
   })
 
@@ -333,7 +335,7 @@ export function ProductManagement() {
       productName: "",
       description: "",
       boxQty: "",
-      totalUnits: "",
+      unitsPerBox: "",
       unitPrice: "",
       supplier: "",
       status: "ACTIVE"
@@ -352,7 +354,7 @@ export function ProductManagement() {
       }
 
       // Validate required fields
-      if (!formData.productName || !formData.boxQty || !formData.totalUnits) {
+      if (!formData.productName || !formData.boxQty || !formData.unitsPerBox) {
         toast({
           title: "Validation Error",
           description: "Please fill in all required fields",
@@ -361,12 +363,16 @@ export function ProductManagement() {
         return
       }
 
+      const boxQty = parseInt(formData.boxQty)
+      const unitsPerBox = parseInt(formData.unitsPerBox)
+
       const productData = {
         sku: formData.sku || undefined,
         productName: formData.productName,
         description: formData.description || undefined,
-        boxQty: parseInt(formData.boxQty),
-        totalUnits: parseInt(formData.totalUnits),
+        boxQty,
+        unitsPerBox,
+        totalUnits: boxQty * unitsPerBox,
         unitPrice: formData.unitPrice ? parseFloat(formData.unitPrice) : undefined,
         supplier: formData.supplier || undefined,
         status: formData.status
@@ -444,7 +450,7 @@ export function ProductManagement() {
       productName: product.productName,
       description: product.description || "",
       boxQty: product.boxQty.toString(),
-      totalUnits: product.totalUnits.toString(),
+      unitsPerBox: product.unitsPerBox.toString(),
       unitPrice: product.unitPrice?.toString() || "",
       supplier: product.supplier || "",
       status: product.status
@@ -504,7 +510,7 @@ export function ProductManagement() {
       setIsExporting(true)
 
       const exportParams: { status?: string; quickRange?: 'yesterday' | '15days' | '30days' } = {}
-      
+
       if (status && status !== 'all') {
         exportParams.status = status
       }
@@ -561,16 +567,16 @@ export function ProductManagement() {
               <h1 className="text-3xl font-bold text-gray-900">Product Management</h1>
             </div>
             <div className="flex items-center gap-3">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="border-gray-300 hover:bg-gray-50"
                 onClick={() => window.history.back()}
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Stock
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="border-gray-300 hover:bg-gray-50"
                 onClick={() => {
                   fetchProducts();
@@ -654,7 +660,7 @@ export function ProductManagement() {
                         />
                       </div>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="description">Description</Label>
                       <Textarea
@@ -685,15 +691,15 @@ export function ProductManagement() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="totalUnits">Total Units *</Label>
+                        <Label htmlFor="unitsPerBox">Units Per Box *</Label>
                         <Input
-                          id="totalUnits"
+                          id="unitsPerBox"
                           type="number"
-                          value={formData.totalUnits}
-                          onChange={(e) => setFormData(prev => ({ ...prev, totalUnits: e.target.value }))}
-                          placeholder="Current stock"
+                          value={formData.unitsPerBox}
+                          onChange={(e) => setFormData(prev => ({ ...prev, unitsPerBox: e.target.value }))}
+                          placeholder="Units inside one box"
                           required
-                          min="0"
+                          min="1"
                         />
                       </div>
                     </div>
@@ -738,9 +744,9 @@ export function ProductManagement() {
                     </div>
 
                     <div className="flex justify-end gap-3 pt-4">
-                      <Button 
-                        type="button" 
-                        variant="outline" 
+                      <Button
+                        type="button"
+                        variant="outline"
                         onClick={() => {
                           resetForm()
                           setIsAddProductOpen(false)
@@ -759,9 +765,9 @@ export function ProductManagement() {
               </Dialog>
             </div>
           </div>
-          
+
           <Separator className="my-6" />
-          
+
           {/* Quick Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-gray-50 rounded-lg">
@@ -840,11 +846,10 @@ export function ProductManagement() {
               ) : (
                 filteredProducts.map((product, index) => {
                   return (
-                    <TableRow 
-                      key={product.id} 
-                      className={`hover:bg-gray-50/50 border-b border-gray-100 ${
-                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
-                      }`}
+                    <TableRow
+                      key={product.id}
+                      className={`hover:bg-gray-50/50 border-b border-gray-100 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'
+                        }`}
                     >
                       <TableCell className="py-4 px-6">
                         <div className="flex items-center gap-4">
@@ -858,8 +863,8 @@ export function ProductManagement() {
                             <p className="text-sm text-gray-500">SKU: {product.sku}</p>
                             {product.description && (
                               <p className="text-xs text-gray-400 truncate max-w-[200px]" title={product.description}>
-                                {product.description.length > 50 
-                                  ? `${product.description.substring(0, 50)}...` 
+                                {product.description.length > 50
+                                  ? `${product.description.substring(0, 50)}...`
                                   : product.description
                                 }
                               </p>
@@ -868,12 +873,11 @@ export function ProductManagement() {
                         </div>
                       </TableCell>
                       <TableCell className="py-4 px-6">
-                        <Badge className={`${
-                          product.status === 'ACTIVE' ? 'bg-green-50 text-green-700 border-green-200' :
+                        <Badge className={`${product.status === 'ACTIVE' ? 'bg-green-50 text-green-700 border-green-200' :
                           product.status === 'INACTIVE' ? 'bg-gray-50 text-gray-700 border-gray-200' :
-                          product.status === 'DISCONTINUED' ? 'bg-red-50 text-red-700 border-red-200' :
-                          'bg-amber-50 text-amber-700 border-amber-200'
-                        } font-medium`}>
+                            product.status === 'DISCONTINUED' ? 'bg-red-50 text-red-700 border-red-200' :
+                              'bg-amber-50 text-amber-700 border-amber-200'
+                          } font-medium`}>
                           {product.status}
                         </Badge>
                       </TableCell>
@@ -890,16 +894,15 @@ export function ProductManagement() {
                             </div>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                              className={`h-2 rounded-full ${
-                                (availableUnitsMap[product.id] ?? product.totalUnits) === 0
-                                  ? 'bg-red-500' 
-                                  : (availableUnitsMap[product.id] ?? product.totalUnits) <= (product.reorderThreshold ?? 10)
-                                    ? 'bg-amber-500' 
-                                    : 'bg-green-500'
-                              }`}
-                              style={{ 
-                                width: `${Math.min(((availableUnitsMap[product.id] ?? product.totalUnits) / Math.max(product.totalUnits, 1)) * 100, 100)}%` 
+                            <div
+                              className={`h-2 rounded-full ${(availableUnitsMap[product.id] ?? product.totalUnits) === 0
+                                ? 'bg-red-500'
+                                : (availableUnitsMap[product.id] ?? product.totalUnits) <= (product.reorderThreshold ?? 10)
+                                  ? 'bg-amber-500'
+                                  : 'bg-green-500'
+                                }`}
+                              style={{
+                                width: `${Math.min(((availableUnitsMap[product.id] ?? product.totalUnits) / Math.max(product.totalUnits, 1)) * 100, 100)}%`
                               }}
                             ></div>
                           </div>
@@ -950,10 +953,6 @@ export function ProductManagement() {
                               <Edit className="h-4 w-4 mr-2" />
                               Edit Product
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Details
-                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleGenerateLabels(product)}>
                               <Package className="h-4 w-4 mr-2" />
                               Generate Labels
@@ -962,7 +961,7 @@ export function ProductManagement() {
                               <QrCode className="h-4 w-4 mr-2" />
                               Barcode History
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               className="text-red-600"
                               onClick={() => handleDelete(product.id)}
                             >
@@ -1025,7 +1024,7 @@ export function ProductManagement() {
               )}
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             {/* Search Bar */}
             <div className="flex items-center gap-4">
@@ -1054,7 +1053,7 @@ export function ProductManagement() {
                 <Table>
                   <TableHeader className="sticky top-0 bg-gray-50 z-10">
                     <TableRow>
-                      <TableHead className="w-[200px]">Barcode Value</TableHead>
+                      <TableHead className="w-[200px]">No.</TableHead>
                       <TableHead className="w-[150px]">Serial Number</TableHead>
                       <TableHead className="w-[150px]">Created Date</TableHead>
                     </TableRow>
@@ -1076,15 +1075,15 @@ export function ProductManagement() {
                       </TableRow>
                     ) : (
                       barcodeHistory
-                        .filter(barcode => 
-                          barcodeSearchTerm === "" || 
+                        .filter(barcode =>
+                          barcodeSearchTerm === "" ||
                           barcode.barcodeValue.toLowerCase().includes(barcodeSearchTerm.toLowerCase()) ||
                           barcode.serialNumber.toLowerCase().includes(barcodeSearchTerm.toLowerCase())
                         )
-                        .map((barcode) => (
+                        .map((barcode, index) => (
                           <TableRow key={barcode.id} className="hover:bg-gray-50">
                             <TableCell className="font-mono text-sm">
-                              {barcode.barcodeValue}
+                              {index + 1}
                             </TableCell>
                             <TableCell className="font-mono text-sm">
                               {barcode.serialNumber}
@@ -1151,8 +1150,8 @@ export function ProductManagement() {
           </div>
 
           <div className="flex justify-end pt-4">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setIsBarcodeHistoryOpen(false)
                 setSelectedProductForHistory(null)

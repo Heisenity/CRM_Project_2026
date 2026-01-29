@@ -16,8 +16,12 @@ const StockItemSchema = z
     sku: z.string().optional(),
     productName: z.string().min(1, "Product name is required"),
     description: z.string().optional(),
-    boxQty: z.coerce.number().int().min(0, "Units per box cannot be negative"),
-    totalUnits: z.coerce.number().int().min(0, "Total units cannot be negative"),
+    // boxQty now represents NUMBER OF BOXES (not units per box)
+    boxQty: z.coerce.number().int().min(0, "Number of boxes cannot be negative"),
+    // unitsPerBox = how many units are inside one box
+    unitsPerBox: z.coerce.number().int().min(0, "Units per box cannot be negative"),
+    // totalUnits is still present for compatibility, but will be computed client-side
+    totalUnits: z.coerce.number().int().min(0, "Total units cannot be negative").optional(),
     unitPrice: z.coerce.number().min(0, "Unit price cannot be negative").optional(),
     supplier: z.string().optional(),
     status: z.enum(["ACTIVE", "INACTIVE", "DISCONTINUED", "OUT_OF_STOCK"]).default("ACTIVE"),
@@ -28,8 +32,9 @@ type StockItemFormState = {
   sku: string
   productName: string
   description: string
-  boxQty: string
-  totalUnits: string
+  boxQty: string         // number of boxes
+  unitsPerBox: string    // units inside one box
+  totalUnits: string     // computed: boxQty * unitsPerBox (kept in state for compatibility)
   unitPrice: string
   supplier: string
   status: string
@@ -46,8 +51,9 @@ export default function AddStockItem({ onSuccess }: AddNewStockItemProps): React
     sku: "",
     productName: "",
     description: "",
-    boxQty: "0",
-    totalUnits: "0",
+    boxQty: "0",         // number of boxes
+    unitsPerBox: "0",    // units per box
+    totalUnits: "0",     // computed
     unitPrice: "",
     supplier: "",
     status: "ACTIVE",
@@ -57,6 +63,20 @@ export default function AddStockItem({ onSuccess }: AddNewStockItemProps): React
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const { toast } = useToast()
 
+  // compute totalUnits whenever boxes or unitsPerBox change
+  React.useEffect(() => {
+    const boxes = Number.parseInt(form.boxQty || "0", 10)
+    const units = Number.parseInt(form.unitsPerBox || "0", 10)
+    const safeBoxes = Number.isNaN(boxes) ? 0 : boxes
+    const safeUnits = Number.isNaN(units) ? 0 : units
+    const computed = safeBoxes * safeUnits
+    // only update if differs to avoid unnecessary renders
+    if (String(computed) !== form.totalUnits) {
+      setForm(prev => ({ ...prev, totalUnits: String(computed) }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.boxQty, form.unitsPerBox])
+
   const onChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ): void => {
@@ -65,7 +85,20 @@ export default function AddStockItem({ onSuccess }: AddNewStockItemProps): React
   }
 
   const onSubmit = async (): Promise<void> => {
-    const parsed = StockItemSchema.safeParse(form)
+    // Ensure totalUnits is computed before validation (defensive)
+    const boxes = Number.parseInt(form.boxQty || "0", 10) || 0
+    const units = Number.parseInt(form.unitsPerBox || "0", 10) || 0
+    const computedTotal = boxes * units
+
+    // Build a payload object that zod can parse (coercion will run)
+    const toValidate = {
+      ...form,
+      boxQty: form.boxQty,
+      unitsPerBox: form.unitsPerBox,
+      totalUnits: String(computedTotal)
+    }
+
+    const parsed = StockItemSchema.safeParse(toValidate)
 
     if (!parsed.success) {
       const nextErrors: FormErrors = {}
@@ -83,12 +116,25 @@ export default function AddStockItem({ onSuccess }: AddNewStockItemProps): React
     setIsSubmitting(true)
 
     try {
+      // Payload: keep boxQty (boxes), unitsPerBox, and computed totalUnits
+      const payload = {
+        sku: parsed.data.sku,
+        productName: parsed.data.productName,
+        description: parsed.data.description,
+        boxQty: parsed.data.boxQty,            // number of boxes (DB: box_qty)
+        unitsPerBox: parsed.data.unitsPerBox,  // new DB field units_per_box
+        totalUnits: Number(parsed.data.totalUnits ?? computedTotal), // computed
+        unitPrice: parsed.data.unitPrice,
+        supplier: parsed.data.supplier,
+        status: parsed.data.status,
+      }
+
       const response = await fetch('/api/products', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(parsed.data),
+        body: JSON.stringify(payload),
       })
 
       if (!response.ok) {
@@ -103,12 +149,13 @@ export default function AddStockItem({ onSuccess }: AddNewStockItemProps): React
         description: "Stock item created successfully",
       })
 
-      // Reset form
+      // Reset form (preserve new fields)
       setForm({
         sku: "",
         productName: "",
         description: "",
         boxQty: "0",
+        unitsPerBox: "0",
         totalUnits: "0",
         unitPrice: "",
         supplier: "",
@@ -129,6 +176,12 @@ export default function AddStockItem({ onSuccess }: AddNewStockItemProps): React
       setIsSubmitting(false)
     }
   }
+
+  // computed values for preview
+  const computedTotalUnits = Number.parseInt(form.totalUnits || "0", 10) || 0
+  const computedTotalValue = (form.unitPrice && !Number.isNaN(Number(form.unitPrice)))
+    ? (Number(form.unitPrice) * computedTotalUnits).toFixed(2)
+    : null
 
   return (
     <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -189,7 +242,7 @@ export default function AddStockItem({ onSuccess }: AddNewStockItemProps): React
           <h3 className="font-semibold">Stock Configuration</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Units per Box</Label>
+              <Label>Number of Boxes</Label>
               <Input
                 type="number"
                 min={0}
@@ -203,19 +256,35 @@ export default function AddStockItem({ onSuccess }: AddNewStockItemProps): React
               )}
             </div>
             <div className="space-y-2">
-              <Label>Total Units</Label>
+              <Label>Units per Box</Label>
               <Input
                 type="number"
                 min={0}
-                name="totalUnits"
-                placeholder="e.g. 250"
-                value={form.totalUnits}
+                name="unitsPerBox"
+                placeholder="e.g. 10"
+                value={form.unitsPerBox}
                 onChange={onChange}
               />
-              {errors.totalUnits && (
-                <p className="text-xs text-red-600">{errors.totalUnits}</p>
+              {errors.unitsPerBox && (
+                <p className="text-xs text-red-600">{errors.unitsPerBox}</p>
               )}
             </div>
+          </div>
+
+          {/* keep totalUnits visible but readOnly so code expecting it still works */}
+          <div className="pt-2">
+            <Label>Total Units (auto computed)</Label>
+            <Input
+              type="number"
+              min={0}
+              name="totalUnits"
+              placeholder="Automatically calculated"
+              value={form.totalUnits}
+              readOnly
+            />
+            {errors.totalUnits && (
+              <p className="text-xs text-red-600">{errors.totalUnits}</p>
+            )}
           </div>
         </section>
 
@@ -302,11 +371,15 @@ export default function AddStockItem({ onSuccess }: AddNewStockItemProps): React
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Total Units</span>
-              <span className="font-medium">{form.totalUnits}</span>
+              <span className="font-medium">{computedTotalUnits}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Number of Boxes</span>
+              <span className="font-medium">{form.boxQty}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Units per Box</span>
-              <span className="font-medium">{form.boxQty}</span>
+              <span className="font-medium">{form.unitsPerBox}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Unit Price</span>
@@ -315,10 +388,7 @@ export default function AddStockItem({ onSuccess }: AddNewStockItemProps): React
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Total Value</span>
               <span className="font-medium">
-                {form.unitPrice && form.totalUnits ? 
-                  `₹${(parseFloat(form.unitPrice) * parseInt(form.totalUnits || "0")).toFixed(2)}` : 
-                  "—"
-                }
+                {computedTotalValue ? `₹${computedTotalValue}` : "—"}
               </span>
             </div>
             <div className="flex justify-between text-sm">
