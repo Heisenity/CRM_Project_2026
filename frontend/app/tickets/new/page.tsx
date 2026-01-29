@@ -2,46 +2,71 @@
 
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { CreateTicketForm } from "@/components/CreateTicketForm"
+import { getMyFeatures, type StaffPortalFeature } from "@/lib/server-api"
 
 export default function NewTicket() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const [allowed, setAllowed] = useState<boolean | null>(null)
 
   useEffect(() => {
-    if (status === "loading") return // Still loading
-
+    if (status === "loading") return
     if (!session) {
-      router.push("/") // Redirect to login if not authenticated
+      router.push("/")
       return
     }
 
-    const userType = (session.user as any)?.userType
-    if (userType !== 'ADMIN') {
-      // Redirect non-admin users to staff portal
-      router.push("/staff-portal")
-      return
+    let isMounted = true
+
+    const checkAccess = async () => {
+      const userType = (session.user as any)?.userType
+
+      // ✅ Admin always allowed
+      if (userType === "ADMIN") {
+        if (isMounted) setAllowed(true)
+        return
+      }
+
+      if (userType === "EMPLOYEE") {
+        try {
+          const res = await getMyFeatures()
+          const features: StaffPortalFeature[] =
+            res?.data?.allowedFeatures ?? []
+
+          if (features.includes("TICKETS")) {
+            if (isMounted) setAllowed(true)
+          } else {
+            router.push("/staff-portal")
+          }
+        } catch {
+          router.push("/staff-portal")
+        }
+        return
+      }
+
+      // ❌ everyone else
+      router.push("/")
+    }
+
+    checkAccess()
+
+    return () => {
+      isMounted = false
     }
   }, [session, status, router])
 
-  // Show loading while checking authentication
-  if (status === "loading") {
+  // Loading while checking permissions
+  if (status === "loading" || allowed === null) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
 
-  // Don't render the component if not admin
-  const userType = (session?.user as any)?.userType
-  if (userType !== 'ADMIN') {
-    return null // Component will redirect in useEffect
-  }
+  if (!allowed) return null
 
   return (
     <div className="p-6">

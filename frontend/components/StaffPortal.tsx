@@ -74,7 +74,7 @@ export function StaffPortal() {
   const [employeeProfile, setEmployeeProfile] = useState<EmployeeProfile | null>(null)
   const [assignedVehicle, setAssignedVehicle] = useState<AssignedVehicle | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'attendance' | 'leave' | 'documents' | 'vehicle' | 'tasks' | 'dashboard' | 'project' | 'task_management' | 'tickets' | 'customers' | 'employees' | 'teams' | 'tenders' | 'stock' | 'leave_management' | 'field_engineer_attendance' | 'inoffice_attendance' | 'customer_support_requests' | 'staff_feature_access'>('attendance')
+  const [activeTab, setActiveTab] = useState<'attendance' | 'leave' | 'documents' | 'vehicle' | 'tasks' | 'dashboard' | 'project' | 'task_management' | 'support_requests' | 'customers' | 'employees' | 'teams' | 'admin_ticket_management' | 'tenders' | 'stock' | 'leave_management' | 'field_engineer_attendance' | 'inoffice_attendance' | 'customer_support_requests' | 'staff_feature_access'>('attendance')
   const [leaveRefreshTrigger, setLeaveRefreshTrigger] = useState(0)
   const [ticketRefreshTrigger, setTicketRefreshTrigger] = useState(0)
   const [dayClockOutLoading, setDayClockOutLoading] = useState(false)
@@ -523,6 +523,19 @@ export function StaffPortal() {
                   Project
                 </button>
               )}
+              {employeeProfile?.role === 'IN_OFFICE' && hasFeatureAccess('TICKETS') && (
+                <button
+                  onClick={() => setActiveTab('admin_ticket_management')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'task_management'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                >
+                  <FileText className="h-4 w-4 inline mr-2" />
+                  Ticket Management
+                </button>
+              )}
+
               {hasFeatureAccess('TASK_MANAGEMENT') && (
                 <button
                   onClick={() => setActiveTab('task_management')}
@@ -549,14 +562,14 @@ export function StaffPortal() {
               )}
               {employeeProfile?.role === 'IN_OFFICE' && (
                 <button
-                  onClick={() => setActiveTab('tickets')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'tickets'
+                  onClick={() => setActiveTab('support_requests')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'support_requests'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                 >
                   <FileText className="h-4 w-4 inline mr-2" />
-                  Tickets
+                  Support Requests
                 </button>
               )}
               <button
@@ -650,7 +663,7 @@ export function StaffPortal() {
                     }`}
                 >
                   <FileText className="h-4 w-4 inline mr-2" />
-                  Leave Mgmt
+                  Leave management
                 </button>
               )}
               {hasFeatureAccess('FIELD_ENGINEER_ATTENDANCE') && (
@@ -704,7 +717,7 @@ export function StaffPortal() {
             </nav>
           </div>
         </div>
-      </header>
+      </header >
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Message */}
@@ -826,13 +839,13 @@ export function StaffPortal() {
               </>
             )}
 
-            {activeTab === 'tickets' && employeeProfile?.role === 'IN_OFFICE' && (
+            {activeTab === 'support_requests' && employeeProfile?.role === 'IN_OFFICE' && (
               <div className="space-y-6">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
                       <FileText className="h-5 w-5 text-blue-500" />
-                      <span>Create Support Ticket</span>
+                      <span>Create Support Request</span>
                     </CardTitle>
                     <p className="text-gray-600">
                       Submit a support request or report an issue
@@ -926,6 +939,22 @@ export function StaffPortal() {
                       Open Project Management
                     </Button>
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === 'admin_ticket_management' && hasFeatureAccess('TICKETS') && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Ticket Management</CardTitle>
+                  <p className="text-gray-600">
+                    Access full ticket management system
+                  </p>
+                </CardHeader>
+                <CardContent className="text-center py-8">
+                  <Button onClick={() => router.push('/tickets')}>
+                    Open Ticket Management
+                  </Button>
                 </CardContent>
               </Card>
             )}
@@ -1409,6 +1438,6 @@ export function StaffPortal() {
           </DialogContent>
         </Dialog>
       </div>
-    </div>
+    </div >
   )
 }

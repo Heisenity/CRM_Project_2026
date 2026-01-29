@@ -53,7 +53,7 @@ const FEATURE_LABELS: Record<StaffPortalFeature, string> = {
   INOFFICE_ATTENDANCE: 'In-Office Attendance',
   CUSTOMER_SUPPORT_REQUESTS: 'Customer Support Requests',
   STAFF_FEATURE_ACCESS: 'Staff Feature Access',
-  TICKETS: 'Tickets Table Access'
+  TICKETS: 'Tickets'
 }
 
 const FEATURE_DESCRIPTIONS: Record<StaffPortalFeature, string> = {
