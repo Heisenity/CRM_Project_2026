@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Upload, FileText, Download, Trash2, User, Calendar } from "lucide-react"
 import { showToast } from "@/lib/toast-utils"
+import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch' 
 
 interface Employee {
   id: string
@@ -39,6 +40,8 @@ interface AdminDocumentUploadProps {
 }
 
 export function AdminDocumentUpload({ adminId, adminName }: AdminDocumentUploadProps) {
+  const { authenticatedFetch, isAuthenticated } = useAuthenticatedFetch()
+
   const [employees, setEmployees] = useState<Employee[]>([])
   const [documents, setDocuments] = useState<EmployeeDocument[]>([])
   const [loading, setLoading] = useState(false)
@@ -54,7 +57,8 @@ export function AdminDocumentUpload({ adminId, adminName }: AdminDocumentUploadP
     const fetchEmployees = async () => {
       setEmployeesLoading(true)
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees`)
+        // Use authenticatedFetch to include session token
+        const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees`)
         const result = await response.json()
         
         console.log('Employees API response:', result) // Debug log
@@ -76,6 +80,9 @@ export function AdminDocumentUpload({ adminId, adminName }: AdminDocumentUploadP
         }
       } catch (error) {
         console.error('Error fetching employees:', error)
+        if (error instanceof Error && error.message.includes('No valid session token')) {
+          showToast.error('Please sign in to view employees')
+        }
         setEmployees([])
       } finally {
         setEmployeesLoading(false)
@@ -83,13 +90,14 @@ export function AdminDocumentUpload({ adminId, adminName }: AdminDocumentUploadP
     }
 
     fetchEmployees()
-  }, [])
+  }, [authenticatedFetch])
 
   // Fetch all documents
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     setLoading(true)
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/documents/all`)
+      // Use authenticatedFetch to include session token
+      const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/documents/all`)
       const result = await response.json()
       
       if (result.success) {
@@ -97,15 +105,19 @@ export function AdminDocumentUpload({ adminId, adminName }: AdminDocumentUploadP
       }
     } catch (error) {
       console.error('Error fetching documents:', error)
-      showToast.error('Failed to fetch documents')
+      if (error instanceof Error && error.message.includes('No valid session token')) {
+        showToast.error('Please sign in to fetch documents')
+      } else {
+        showToast.error('Failed to fetch documents')
+      }
     } finally {
       setLoading(false)
     }
-  }
+  }, [authenticatedFetch])
 
   useEffect(() => {
     fetchDocuments()
-  }, [])
+  }, [fetchDocuments])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -129,14 +141,22 @@ export function AdminDocumentUpload({ adminId, adminName }: AdminDocumentUploadP
 
     setUploading(true)
     try {
+      if (!isAuthenticated) {
+        showToast.error('You need to be signed in to upload documents')
+        setUploading(false)
+        return
+      }
+
       const formData = new FormData()
       formData.append('employeeId', selectedEmployee)
       formData.append('title', title.trim())
       formData.append('description', description.trim())
       formData.append('uploadedBy', adminName)
+      formData.append('adminId', adminId)
       formData.append('file', selectedFile)
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/documents/upload`, {
+      // Use authenticatedFetch; it will automatically set Authorization header and avoid setting Content-Type for FormData
+      const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/documents/upload`, {
         method: 'POST',
         body: formData
       })
@@ -167,7 +187,13 @@ export function AdminDocumentUpload({ adminId, adminName }: AdminDocumentUploadP
 
   const handleDownload = async (documentId: string, fileName: string) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/documents/download/${documentId}`)
+      if (!isAuthenticated) {
+        showToast.error('You need to be signed in to download documents')
+        return
+      }
+
+      // Use authenticatedFetch for authorized download
+      const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/documents/download/${documentId}`)
       
       if (response.ok) {
         const blob = await response.blob()
@@ -180,11 +206,18 @@ export function AdminDocumentUpload({ adminId, adminName }: AdminDocumentUploadP
         window.URL.revokeObjectURL(url)
         document.body.removeChild(a)
       } else {
+        if (response.status === 403) {
+          showToast.error('Access denied to download this document')
+        }
         throw new Error('Failed to download document')
       }
     } catch (error) {
       console.error('Error downloading document:', error)
-      showToast.error('Failed to download document')
+      if (error instanceof Error && error.message.includes('No valid session token')) {
+        showToast.error('Please sign in to download documents')
+      } else {
+        showToast.error('Failed to download document')
+      }
     }
   }
 
@@ -192,7 +225,12 @@ export function AdminDocumentUpload({ adminId, adminName }: AdminDocumentUploadP
     if (!confirm('Are you sure you want to delete this document?')) return
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/documents/${documentId}`, {
+      if (!isAuthenticated) {
+        showToast.error('You need to be signed in to delete documents')
+        return
+      }
+
+      const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/documents/${documentId}`, {
         method: 'DELETE'
       })
 
@@ -206,8 +244,12 @@ export function AdminDocumentUpload({ adminId, adminName }: AdminDocumentUploadP
       }
     } catch (error) {
       console.error('Error deleting document:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      showToast.error(`Failed to delete document: ${errorMessage}`)
+      if (error instanceof Error && error.message.includes('No valid session token')) {
+        showToast.error('Please sign in to delete documents')
+      } else {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        showToast.error(`Failed to delete document: ${errorMessage}`)
+      }
     }
   }
 

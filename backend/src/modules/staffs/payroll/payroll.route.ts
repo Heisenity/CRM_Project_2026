@@ -9,9 +9,11 @@ const router = Router()
 router.use(authenticateToken)
 
 // Admin only routes
-router.get('/', adminOnly, getPayrollRecords)
-router.post('/generate', adminOnly, generatePayslip)
-router.put('/:id', adminOnly, updatePayrollRecord)
-router.post('/:id/send', adminOnly, sendPayslip)
+// Allow admins or HR_CENTER staff to manage payslips
+import { hrCenterOrAdmin } from '../../../middleware/hrCenterOrAdmin.middleware'
+router.get('/', hrCenterOrAdmin, getPayrollRecords)
+router.post('/generate', hrCenterOrAdmin, generatePayslip)
+router.put('/:id', hrCenterOrAdmin, updatePayrollRecord)
+router.post('/:id/send', hrCenterOrAdmin, sendPayslip)
 
 export default router

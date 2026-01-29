@@ -2,30 +2,73 @@
 
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { PayslipManagement } from "@/components/PayslipManagement"
 import { Loader2 } from "lucide-react"
+import { getMyFeatures } from "@/lib/server-api"
+import type { StaffPortalFeature } from "@/lib/server-api"
 
 export default function PayslipPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const [checkingAccess, setCheckingAccess] = useState(true)
+  const [hrAllowed, setHrAllowed] = useState(false)
 
   useEffect(() => {
     if (status === "loading") return
 
+    // If not logged in, send to home
     if (!session) {
       router.push("/")
       return
     }
 
+    let mounted = true
+
     const userType = (session.user as any)?.userType
-    if (userType !== 'ADMIN') {
-      router.push('/landing')
+
+    // Admin: always allowed
+    if (userType === "ADMIN") {
+      if (mounted) {
+        setHrAllowed(true)
+        setCheckingAccess(false)
+      }
       return
+    }
+
+    // Employees: check HR_CENTER feature
+    const checkFeatureAccess = async () => {
+      try {
+        const res = await getMyFeatures()
+
+        const features: StaffPortalFeature[] = res?.data?.allowedFeatures ?? []
+
+        if (res.success && features.includes("HR_CENTER" as StaffPortalFeature)) {
+          if (mounted) {
+            setHrAllowed(true)
+            setCheckingAccess(false)
+          }
+          return
+        }
+
+        // No permission -> back to landing
+        router.push('/landing')
+      } catch (err) {
+        console.error("Payslip access check failed", err)
+        router.push('/landing')
+      } finally {
+        if (mounted) setCheckingAccess(false)
+      }
+    }
+
+    checkFeatureAccess()
+
+    return () => {
+      mounted = false
     }
   }, [session, status, router])
 
-  if (status === "loading") {
+  if (status === "loading" || checkingAccess) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -36,12 +79,15 @@ export default function PayslipPage() {
     )
   }
 
-  if (!session?.user || (session.user as any)?.userType !== 'ADMIN') {
+  const isAdmin = (session?.user as any)?.userType === "ADMIN"
+  const canUseHr = isAdmin || hrAllowed
+
+  if (!session?.user || !canUseHr) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
-          <p className="text-gray-600">You need admin privileges to access this page.</p>
+          <p className="text-gray-600">You need admin or HR Center access to access this page.</p>
         </div>
       </div>
     )

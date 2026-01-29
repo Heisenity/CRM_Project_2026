@@ -74,7 +74,7 @@ export function StaffPortal() {
   const [employeeProfile, setEmployeeProfile] = useState<EmployeeProfile | null>(null)
   const [assignedVehicle, setAssignedVehicle] = useState<AssignedVehicle | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'attendance' | 'leave' | 'documents' | 'vehicle' | 'tasks' | 'dashboard' | 'project' | 'task_management' | 'support_requests' | 'customers' | 'employees' | 'teams' | 'admin_ticket_management' | 'tenders' | 'stock' | 'leave_management' | 'field_engineer_attendance' | 'inoffice_attendance' | 'customer_support_requests' | 'staff_feature_access'>('attendance')
+  const [activeTab, setActiveTab] = useState<'attendance' | 'leave' | 'documents' | 'vehicle' | 'tasks' | 'dashboard' | 'project' | 'task_management' | 'support_requests' | 'customers' | 'employees' | 'teams' | 'admin_ticket_management' | 'tenders' | 'stock' | 'hr_center' | 'field_engineer_attendance' | 'inoffice_attendance' | 'customer_support_requests' | 'staff_feature_access'>('attendance')
   const [leaveRefreshTrigger, setLeaveRefreshTrigger] = useState(0)
   const [ticketRefreshTrigger, setTicketRefreshTrigger] = useState(0)
   const [dayClockOutLoading, setDayClockOutLoading] = useState(false)
@@ -654,16 +654,16 @@ export function StaffPortal() {
                   Stock
                 </button>
               )}
-              {hasFeatureAccess('LEAVE_MANAGEMENT') && (
+              {hasFeatureAccess('HR_CENTER') && (
                 <button
-                  onClick={() => setActiveTab('leave_management')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'leave_management'
+                  onClick={() => setActiveTab('hr_center')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'hr_center'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                 >
                   <FileText className="h-4 w-4 inline mr-2" />
-                  Leave management
+                  HR Center
                 </button>
               )}
               {hasFeatureAccess('FIELD_ENGINEER_ATTENDANCE') && (
@@ -1220,30 +1220,30 @@ export function StaffPortal() {
               </Card>
             )}
 
-            {activeTab === 'leave_management' && (
+            {activeTab === 'hr_center' && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
                     <FileText className="h-5 w-5 text-blue-500" />
-                    <span>Leave Management</span>
+                    <span>HR Center</span>
                   </CardTitle>
                   <p className="text-gray-600">
-                    Approve and manage leave applications
+                    Centralized HR tools
                   </p>
                 </CardHeader>
                 <CardContent>
                   <div className="text-center py-12">
                     <FileText className="h-12 w-12 text-blue-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Leave Management</h3>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">HR Center</h3>
                     <p className="text-gray-600 mb-6">
-                      Access the leave management system
+                      Access the HR center
                     </p>
                     <Button
                       onClick={() => router.push('/leave-management')}
                       className="bg-blue-600 hover:bg-blue-700"
                     >
                       <FileText className="h-4 w-4 mr-2" />
-                      Open Leave Management
+                      Open HR Center
                     </Button>
                   </div>
                 </CardContent>

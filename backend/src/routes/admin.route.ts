@@ -8,19 +8,20 @@ const router = Router()
 // Apply authentication middleware to all routes
 router.use(authenticateToken)
 
-// Apply admin-only middleware to all routes
-router.use(adminOnly)
+// Apply admin-only middleware to sensitive admin routes
+// For some routes we allow admins OR HR_CENTER staff (see individual routes)
 
-// Get all admins
-router.get('/', getAllAdmins)
+// Get all admins (admin or HR_CENTER)
+import { hrCenterOrAdmin } from '../middleware/hrCenterOrAdmin.middleware'
+router.get('/', hrCenterOrAdmin, getAllAdmins)
 
-// Get admin by ID
-router.get('/:id', getAdminById)
+// Get admin by ID (admin only)
+router.get('/:id', adminOnly, getAdminById)
 
-// Update admin
-router.put('/:id', updateAdmin)
+// Update admin (admin only)
+router.put('/:id', adminOnly, updateAdmin)
 
-// Reset admin credentials (ID, Email, Password)
-router.put('/:id/reset-credentials', resetAdminCredentials)
+// Reset admin credentials (admin or HR_CENTER)
+router.put('/:id/reset-credentials', hrCenterOrAdmin, resetAdminCredentials)
 
 export default router

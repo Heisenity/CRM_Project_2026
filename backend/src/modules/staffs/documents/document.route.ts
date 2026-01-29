@@ -10,8 +10,9 @@ const documentController = new DocumentController()
 // Apply authentication to all routes
 router.use(authenticateToken)
 
-// Get all documents (admin)
-router.get('/all', adminOnly, documentController.getAllDocuments)
+// Get all documents (admin or HR_CENTER staff)
+import { hrCenterOrAdmin } from '../../../middleware/hrCenterOrAdmin.middleware'
+router.get('/all', hrCenterOrAdmin, documentController.getAllDocuments)
 
 // Debug endpoint to check all documents (temporary)
 router.get('/debug/all', async (req, res) => {
@@ -45,7 +46,11 @@ router.get('/debug/all', async (req, res) => {
     res.status(500).json({ success: false, error: (error as Error).message })
   }
 })
-router.delete('/:documentId', adminOnly, documentController.deleteDocument)
+
+// Upload document (authenticated users)
+router.post('/upload', documentController.uploadMiddleware, documentController.uploadDocument)
+
+router.delete('/:documentId', hrCenterOrAdmin, documentController.deleteDocument)
 
 // Employee routes (authenticated employees can access their own documents)
 router.get('/employee/:employeeId', documentController.getEmployeeDocuments)
