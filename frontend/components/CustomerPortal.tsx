@@ -7,8 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { User, Phone, Mail, MapPin, LogOut, Upload, X, FileText, Image, File, CheckCircle, Users, MessageSquare, Edit3 } from "lucide-react";
+import { User, Phone, Mail, MapPin, LogOut, Upload, X, FileText, Image, File, CheckCircle, Users, MessageSquare, Edit3, Bell, BellRing } from "lucide-react";
 import { toast } from "sonner";
+import { getCustomerNotifications, getCustomerUnreadCount, markCustomerNotificationAsRead, markAllCustomerNotificationsAsRead } from "@/lib/server-api";
 import { Progress } from "@/components/ui/progress";
 import { playNotificationSound } from "@/lib/notification-sound";
 
@@ -90,7 +91,81 @@ export default function CustomerPortal() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [createdTicketId, setCreatedTicketId] = useState("");
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
   const router = useRouter();
+
+  // Poll for customer notifications unread count
+  useEffect(() => {
+    let lastCount = 0
+
+    const checkUnread = async () => {
+      try {
+        const res = await getCustomerUnreadCount()
+        if (res.success && res.data) {
+          const count = res.data.count || 0
+          // if increased, fetch notifications and play sound
+          if (count > lastCount) {
+            const notifRes = await getCustomerNotifications({ limit: 10 })
+            if (notifRes.success && notifRes.data) {
+              setNotifications(notifRes.data)
+              if (notifRes.data.length > 0) {
+                // Notify user of new notification
+                toast(`New notification: ${notifRes.data[0].title}`)
+                playNotificationSound()
+              }
+            }
+          }
+          lastCount = count
+          setUnreadCount(count)
+        }
+      } catch (error) {
+        console.error('Error checking customer notifications:', error)
+      }
+    }
+
+    // Initial check
+    checkUnread()
+
+    const interval = setInterval(checkUnread, 20000) // every 20 seconds
+    return () => clearInterval(interval)
+  }, [])
+
+  const refreshNotifications = async () => {
+    try {
+      const res = await getCustomerNotifications({ limit: 50 })
+      if (res.success && res.data) {
+        setNotifications(res.data)
+      }
+      const cnt = await getCustomerUnreadCount()
+      if (cnt.success && cnt.data) setUnreadCount(cnt.data.count || 0)
+    } catch (error) {
+      console.error('Error refreshing notifications:', error)
+    }
+  }
+
+  const handleOpenNotifications = () => {
+    setShowNotificationsDropdown(prev => !prev)
+    // mark as read will be controlled per notification by clicking
+    if (!showNotificationsDropdown) {
+      // just refresh when opening
+      refreshNotifications()
+    }
+  }
+
+  const handleMarkAsRead = async (notificationId: string) => {
+    try {
+      const res = await markCustomerNotificationAsRead(notificationId)
+      if (res.success) {
+        setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n))
+        const cnt = await getCustomerUnreadCount()
+        if (cnt.success && cnt.data) setUnreadCount(cnt.data.count || 0)
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error)
+    }
+  }
 
   useEffect(() => {
     const customerData = localStorage.getItem("customerData");
@@ -305,10 +380,77 @@ export default function CustomerPortal() {
                 <p className="text-sm text-gray-500">{customer.customerId}</p>
               </div>
             </div>
-            <Button variant="outline" onClick={handleLogout}>
-              <LogOut className="w-4 h-4 mr-2" />
-              Logout
-            </Button>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <button
+                  onClick={handleOpenNotifications}
+                  className="p-2 rounded-full hover:bg-gray-100 relative"
+                  aria-label="Notifications"
+                >
+                  {unreadCount > 0 ? (
+                    <BellRing className="w-5 h-5 text-blue-600" />
+                  ) : (
+                    <Bell className="w-5 h-5" />
+                  )}
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {showNotificationsDropdown && (
+                  <div className="absolute right-0 mt-2 w-80 bg-white border rounded-lg shadow-lg z-50">
+                    <div className="p-2 border-b flex items-center justify-between">
+                      <div className="font-medium">Notifications</div>
+                      <button
+                        className="text-sm text-blue-600"
+                        onClick={async () => {
+                          await refreshNotifications()
+                        }}
+                      >
+                        Refresh
+                      </button>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
+                      {notifications.length === 0 && (
+                        <div className="p-4 text-sm text-gray-500">No notifications</div>
+                      )}
+                      {notifications.map(n => (
+                        <div key={n.id} className={`p-3 border-b flex items-start justify-between ${n.isRead ? 'bg-white' : 'bg-blue-50'}`}>
+                          <div>
+                            <div className="font-medium text-sm">{n.title}</div>
+                            <div className="text-xs text-gray-600 mt-1">{n.message}</div>
+                            <div className="text-xs text-gray-400 mt-1">{new Date(n.createdAt).toLocaleString()}</div>
+                          </div>
+                          <div className="ml-3 flex flex-col gap-1">
+                            {!n.isRead && (
+                              <button className="text-xs text-blue-600" onClick={() => handleMarkAsRead(n.id)}>Mark read</button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="p-2">
+                      <button
+                        className="w-full text-sm bg-gray-100 rounded-md py-2"
+                        onClick={async () => {
+                          await markAllCustomerNotificationsAsRead()
+                          refreshNotifications()
+                        }}
+                      >
+                        Mark all as read
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Button variant="outline" onClick={handleLogout}>
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
+            </div>
           </div>
         </div>
       </header>

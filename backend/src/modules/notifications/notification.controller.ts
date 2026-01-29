@@ -108,6 +108,78 @@ export class NotificationController {
     }
   }
 
+  // --- Customer notification endpoints ---
+  // GET /customers/notifications - Get notifications for authenticated customer
+  async getCustomerNotifications(req: Request, res: Response) {
+    try {
+      const customer = (req as any).customer
+      if (!customer) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' })
+      }
+
+      const { isRead, limit } = req.query
+      const filters: any = {}
+      if (isRead !== undefined) filters.isRead = isRead === 'true'
+      if (limit) filters.limit = parseInt(limit as string)
+
+      const result = await notificationService.getCustomerNotifications(customer.id, filters)
+
+      if (result.success) return res.json(result)
+      return res.status(400).json(result)
+    } catch (error) {
+      console.error('Error in getCustomerNotifications:', error)
+      res.status(500).json({ success: false, error: 'Internal server error' })
+    }
+  }
+
+  // GET /customers/notifications/unread-count - Get unread count for customer
+  async getCustomerUnreadCount(req: Request, res: Response) {
+    try {
+      const customer = (req as any).customer
+      if (!customer) return res.status(401).json({ success: false, error: 'Unauthorized' })
+
+      const result = await notificationService.getCustomerUnreadCount(customer.id)
+      if (result.success) return res.json(result)
+      return res.status(400).json(result)
+    } catch (error) {
+      console.error('Error in getCustomerUnreadCount:', error)
+      res.status(500).json({ success: false, error: 'Internal server error' })
+    }
+  }
+
+  // PUT /customers/notifications/:id/read - mark a customer notification as read
+  async markCustomerNotificationAsRead(req: Request, res: Response) {
+    try {
+      const customer = (req as any).customer
+      if (!customer) return res.status(401).json({ success: false, error: 'Unauthorized' })
+
+      const { id } = req.params
+      const result = await notificationService.markCustomerNotificationAsRead(id, customer.id)
+
+      if (result.success) return res.json(result)
+      return res.status(400).json(result)
+    } catch (error) {
+      console.error('Error in markCustomerNotificationAsRead:', error)
+      res.status(500).json({ success: false, error: 'Internal server error' })
+    }
+  }
+
+  // PUT /customers/notifications/read-all - mark all customer notifications as read
+  async markAllCustomerNotificationsAsRead(req: Request, res: Response) {
+    try {
+      const customer = (req as any).customer
+      if (!customer) return res.status(401).json({ success: false, error: 'Unauthorized' })
+
+      const result = await notificationService.markAllCustomerNotificationsAsRead(customer.id)
+
+      if (result.success) return res.json(result)
+      return res.status(400).json(result)
+    } catch (error) {
+      console.error('Error in markAllCustomerNotificationsAsRead:', error)
+      res.status(500).json({ success: false, error: 'Internal server error' })
+    }
+  }
+
   // POST /admin/notifications/:id/accept-ticket - Accept ticket from notification
   async acceptTicketFromNotification(req: Request, res: Response) {
     try {

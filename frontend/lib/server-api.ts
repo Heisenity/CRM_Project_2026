@@ -1864,6 +1864,118 @@ export async function markAllNotificationsAsRead(): Promise<NotificationActionRe
   }
 }
 
+// --- Customer notification API ---
+export type CustomerNotification = {
+  id: string
+  type: 'TICKET_RESOLVED' | 'TICKET_CLOSED' | 'ACCESS_GRANTED' | 'GENERIC'
+  title: string
+  message: string
+  data?: any
+  isRead: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type GetCustomerNotificationsResponse = {
+  success: boolean
+  data?: CustomerNotification[]
+  error?: string
+}
+
+export async function getCustomerNotifications(params?: { isRead?: boolean; limit?: number }): Promise<GetCustomerNotificationsResponse> {
+  try {
+    const searchParams = new URLSearchParams()
+    if (params?.isRead !== undefined) searchParams.append('isRead', params.isRead.toString())
+    if (params?.limit) searchParams.append('limit', params.limit.toString())
+
+    const token = localStorage.getItem('customerToken')
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/customers/notifications?${searchParams}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: token ? `Bearer ${token}` : ''
+      },
+      cache: 'no-store'
+    })
+
+    return await res.json()
+  } catch (error) {
+    console.error('Error fetching customer notifications:', error)
+    return {
+      success: false,
+      error: 'Failed to fetch notifications'
+    }
+  }
+}
+
+export async function getCustomerUnreadCount(): Promise<GetUnreadCountResponse> {
+  try {
+    const token = localStorage.getItem('customerToken')
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/customers/notifications/unread-count`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: token ? `Bearer ${token}` : ''
+      },
+      cache: 'no-store'
+    })
+
+    return await res.json()
+  } catch (error) {
+    console.error('Error fetching customer unread count:', error)
+    return {
+      success: false,
+      error: 'Failed to fetch unread count'
+    }
+  }
+}
+
+export async function markCustomerNotificationAsRead(notificationId: string): Promise<NotificationActionResponse> {
+  try {
+    const token = localStorage.getItem('customerToken')
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/customers/notifications/${notificationId}/read`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: token ? `Bearer ${token}` : ''
+      },
+    })
+
+    return await res.json()
+  } catch (error) {
+    console.error('Error marking customer notification as read:', error)
+    return {
+      success: false,
+      error: 'Failed to mark notification as read'
+    }
+  }
+}
+
+export async function markAllCustomerNotificationsAsRead(): Promise<NotificationActionResponse> {
+  try {
+    const token = localStorage.getItem('customerToken')
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/customers/notifications/read-all`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: token ? `Bearer ${token}` : ''
+      },
+    })
+
+    return await res.json()
+  } catch (error) {
+    console.error('Error marking all customer notifications as read:', error)
+    return {
+      success: false,
+      error: 'Failed to mark all notifications as read'
+    }
+  }
+}
+
 export async function deleteNotification(notificationId: string): Promise<NotificationActionResponse> {
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/admin/notifications/${notificationId}`, {

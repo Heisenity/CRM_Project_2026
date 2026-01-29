@@ -146,7 +146,7 @@ export class NotificationService {
     }
   }
 
-  // Get unread notification count
+  // Get unread notification count (admin-wide)
   async getUnreadCount() {
     try {
       const count = await prisma.adminNotification.count({
@@ -163,6 +163,96 @@ export class NotificationService {
         success: false,
         error: 'Failed to get unread count'
       }
+    }
+  }
+
+  // --- Customer notifications ---
+  // Create a customer notification. Accepts customer identifier (customer.customerId string) or internal id
+  async createCustomerNotification(customerIdentifier: string, data: { type: 'TICKET_RESOLVED' | 'TICKET_CLOSED' | 'ACCESS_GRANTED' | 'GENERIC'; title: string; message: string; data?: any }) {
+    try {
+      // Try to find customer by external customerId first, then by internal ID
+      let customer = await prisma.customer.findUnique({ where: { customerId: customerIdentifier } })
+      if (!customer) {
+        customer = await prisma.customer.findUnique({ where: { id: customerIdentifier } })
+      }
+
+      if (!customer) {
+        console.warn('Customer not found for notification:', customerIdentifier)
+        return { success: false, error: 'Customer not found' }
+      }
+
+      const notification = await prisma.customerNotification.create({
+        data: {
+          customerId: customer.id,
+          type: data.type,
+          title: data.title,
+          message: data.message,
+          data: data.data ? JSON.stringify(data.data) : null,
+          isRead: false
+        }
+      })
+
+      return { success: true, data: notification }
+    } catch (error) {
+      console.error('Error creating customer notification:', error)
+      return { success: false, error: 'Failed to create customer notification' }
+    }
+  }
+
+  // Get customer notifications
+  async getCustomerNotifications(customerInternalId: string, filters?: { isRead?: boolean; limit?: number }) {
+    try {
+      const where: any = { customerId: customerInternalId }
+      if (filters?.isRead !== undefined) where.isRead = filters.isRead
+
+      const notifications = await prisma.customerNotification.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: filters?.limit || 50
+      })
+
+      return { success: true, data: notifications.map(n => ({ ...n, data: n.data ? JSON.parse(n.data) : null })) }
+    } catch (error) {
+      console.error('Error fetching customer notifications:', error)
+      return { success: false, error: 'Failed to fetch customer notifications' }
+    }
+  }
+
+  // Get unread count for a customer
+  async getCustomerUnreadCount(customerInternalId: string) {
+    try {
+      const count = await prisma.customerNotification.count({ where: { customerId: customerInternalId, isRead: false } })
+      return { success: true, data: { count } }
+    } catch (error) {
+      console.error('Error getting customer unread count:', error)
+      return { success: false, error: 'Failed to get customer unread count' }
+    }
+  }
+
+  // Mark customer notification as read, verifying ownership
+  async markCustomerNotificationAsRead(notificationId: string, customerInternalId: string) {
+    try {
+      const notification = await prisma.customerNotification.findUnique({ where: { id: notificationId } })
+      if (!notification || notification.customerId !== customerInternalId) {
+        return { success: false, error: 'Notification not found' }
+      }
+
+      const updated = await prisma.customerNotification.update({ where: { id: notificationId }, data: { isRead: true } })
+      return { success: true, data: updated }
+    } catch (error) {
+      console.error('Error marking customer notification as read:', error)
+      return { success: false, error: 'Failed to mark notification as read' }
+    }
+  }
+
+  // Mark all customer notifications as read
+  async markAllCustomerNotificationsAsRead(customerInternalId: string) {
+    try {
+      await prisma.customerNotification.updateMany({ where: { customerId: customerInternalId, isRead: false }, data: { isRead: true } })
+      return { success: true, message: 'All customer notifications marked as read' }
+    } catch (error) {
+      console.error('Error marking all customer notifications as read:', error)
+      return { success: false, error: 'Failed to mark all customer notifications as read' }
     }
   }
 

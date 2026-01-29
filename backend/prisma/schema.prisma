@@ -316,6 +316,33 @@ model AdminNotification {
   @@map("admin_notifications")
 }
 
+// Notifications targeted to customers
+enum CustomerNotificationType {
+  TICKET_RESOLVED
+  TICKET_CLOSED
+  ACCESS_GRANTED
+  GENERIC
+}
+
+model CustomerNotification {
+  id         String                    @id @default(cuid())
+  customerId String
+  type       CustomerNotificationType
+  title      String
+  message    String
+  data       String?
+  isRead     Boolean                   @default(false)
+  createdAt  DateTime                  @default(now())
+  updatedAt  DateTime                  @updatedAt
+
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("customer_notifications")
+}
+
 model EmployeeDocument {
   id          String   @id @default(cuid())
   employeeId  String
@@ -680,6 +707,7 @@ model Customer {
   supportRequests CustomerSupportRequest[]
   projects        Project[]                @relation("CustomerProjects")
   meetings        Meeting[]
+  notifications   CustomerNotification[]
 
   @@index([customerId])
   @@index([phone])

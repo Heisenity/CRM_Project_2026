@@ -669,6 +669,42 @@ export class TicketService {
       }
     }
 
+    // If ticket was resolved, notify the customer (if we have a customerId)
+    if (data.status === TicketStatus.RESOLVED && ticket.customerId) {
+      try {
+        const notificationService = new NotificationService();
+        await notificationService.createCustomerNotification(ticket.customerId, {
+          type: 'TICKET_RESOLVED',
+          title: 'Your support ticket has been resolved',
+          message: `Ticket ${ticket.ticketId} has been resolved by our support team. If you have any further query kindly call to the support team 6290867573`,
+          data: {
+            ticketId: ticket.ticketId,
+            resolvedAt: new Date().toISOString()
+          }
+        });
+      } catch (notifError) {
+        console.error('Failed to create customer notification for ticket resolution:', notifError);
+      }
+    }
+
+    // If ticket was closed, notify the customer (if we have a customerId)
+    if (data.status === TicketStatus.CLOSED && ticket.customerId) {
+      try {
+        const notificationService = new NotificationService();
+        await notificationService.createCustomerNotification(ticket.customerId, {
+          type: 'TICKET_CLOSED',
+          title: 'Your support ticket has been closed',
+          message: `Ticket ${ticket.ticketId} has been closed. If this wasn't expected, please open a new support request or if you have any further query kindly call to the support team 6290867573`,
+          data: {
+            ticketId: ticket.ticketId,
+            closedAt: new Date().toISOString()
+          }
+        });
+      } catch (notifError) {
+        console.error('Failed to create customer notification for ticket closure:', notifError);
+      }
+    }
+
     return ticket;
   }
 
