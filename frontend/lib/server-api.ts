@@ -608,6 +608,7 @@ export type CreateEmployeeRequest = {
   isTeamLeader?: boolean
   assignedBy?: string
   role?: 'FIELD_ENGINEER' | 'IN_OFFICE'
+  designation?: string
   sickLeaveBalance?: number
   casualLeaveBalance?: number
   salary?: number
@@ -627,6 +628,7 @@ export type UpdateEmployeeRequest = {
   name?: string
   email?: string
   phone?: string
+  designation?: string
   teamId?: string
   isTeamLeader?: boolean
   status?: string

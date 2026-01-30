@@ -1016,6 +1016,12 @@ export default function EmployeeManagement() {
                                     <Label className="text-sm font-semibold text-foreground">Phone</Label>
                                     <p className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">{selectedEmployee.phone || 'Not provided'}</p>
                                 </div>
+
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-semibold text-foreground">Designation</Label>
+                                    <p className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">{(selectedEmployee as any).designation || 'Not specified'}</p>
+                                </div>
+
                                 <div className="space-y-2">
                                     <Label className="text-sm font-semibold text-foreground">Role</Label>
                                     <div className="bg-muted/50 p-2 rounded">
@@ -1147,6 +1153,7 @@ function EditEmployeeForm({ employee, teams, onSave, onCancel }: EditEmployeeFor
         name: employee.name || '',
         email: employee.email || '',
         phone: employee.phone || '',
+        designation: (employee as any).designation || '',
         teamId: employee.teamId || '',
         salary: employee.salary || '',
         address: employee.address || '',
@@ -1221,6 +1228,17 @@ function EditEmployeeForm({ employee, teams, onSave, onCancel }: EditEmployeeFor
                         onChange={(e) => handleChange('phone', e.target.value)}
                     />
                 </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="designation">Designation</Label>
+                    <Input
+                        id="designation"
+                        value={formData.designation}
+                        onChange={(e) => handleChange('designation', e.target.value)}
+                        placeholder="e.g., Senior Field Engineer"
+                    />
+                </div>
+
                 <div className="space-y-2">
                     <Label htmlFor="team">Team</Label>
                     <Select value={formData.teamId || "no-team"} onValueChange={(value) => handleChange('teamId', value === "no-team" ? "" : value)}>

@@ -395,6 +395,7 @@ export const updateEmployee = async (req: Request, res: Response) => {
             name: true
           }
         },
+        designation: true,
         isTeamLeader: true,
         role: true,
         status: true,
@@ -495,6 +496,7 @@ export const getEmployeeById = async (req: Request, res: Response) => {
             name: true
           }
         },
+        designation: true,
         isTeamLeader: true,
         role: true,
         status: true,

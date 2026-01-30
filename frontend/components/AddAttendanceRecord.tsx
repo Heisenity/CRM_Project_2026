@@ -28,6 +28,7 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
     email: '',
     password: '',
     phone: '',
+    designation: '',
     sickLeaveBalance: 12,
     casualLeaveBalance: 12,
     salary: '',
@@ -87,6 +88,7 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
         email: formData.email.trim(),
         password: formData.password.trim(),
         phone: formData.phone.trim() || undefined,
+        designation: formData.designation.trim() || undefined,
         isTeamLeader: false, // Always false during employee creation
         role: role, // Use the role prop
         sickLeaveBalance: formData.sickLeaveBalance,
@@ -116,6 +118,7 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
           email: '',
           password: '',
           phone: '',
+          designation: '',
           sickLeaveBalance: 12,
           casualLeaveBalance: 12,
           salary: '',
@@ -337,6 +340,18 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
                           value={formData.phone}
                           onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                           placeholder="Phone number"
+                          className="border-green-300 focus:border-green-500 focus:ring-green-500"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-green-800">
+                          Designation <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          value={formData.designation}
+                          onChange={(e) => setFormData(prev => ({ ...prev, designation: e.target.value }))}
+                          placeholder="e.g. Senior Manager"
                           className="border-green-300 focus:border-green-500 focus:ring-green-500"
                         />
                       </div>
