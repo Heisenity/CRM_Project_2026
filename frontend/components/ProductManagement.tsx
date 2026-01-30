@@ -459,6 +459,12 @@ export function ProductManagement() {
           resetForm()
           setIsAddProductOpen(false)
           fetchProducts()
+
+          // Notify application that inventory changed so other views (like Dashboard) can refresh
+          try { window.dispatchEvent(new Event('inventoryUpdated')) } catch { /* ignore */ }
+          // Also notify other tabs/windows via localStorage and BroadcastChannel for cross-tab updates
+          try { localStorage.setItem('inventoryUpdated', Date.now().toString()) } catch { /* ignore */ }
+          try { const bc = new BroadcastChannel('inventory-updates'); bc.postMessage('inventoryUpdated'); bc.close(); } catch { /* ignore */ }
         } else {
           throw new Error(data.error || "Failed to save product")
         }
@@ -528,6 +534,11 @@ export function ProductManagement() {
             description: "Product deleted successfully"
           })
           fetchProducts() // Refresh the products list
+          // Notify application that inventory changed so other views (like Dashboard) can refresh
+          try { window.dispatchEvent(new Event('inventoryUpdated')) } catch { /* ignore */ }
+          // Also notify other tabs/windows via localStorage and BroadcastChannel for cross-tab updates
+          try { localStorage.setItem('inventoryUpdated', Date.now().toString()) } catch { /* ignore */ }
+          try { const bc = new BroadcastChannel('inventory-updates'); bc.postMessage('inventoryUpdated'); bc.close(); } catch { /* ignore */ }
         } else {
           throw new Error(data.error || 'Failed to delete product')
         }

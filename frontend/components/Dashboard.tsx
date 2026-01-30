@@ -91,51 +91,80 @@ export function Dashboard() {
     setTimeout(() => setLastScannedProduct(null), 5000)
   }
 
-  // Fetch database statistics
-  React.useEffect(() => {
-    const fetchDatabaseStats = async () => {
-      // Don't fetch if not authenticated
-      if (status !== "authenticated" || !session?.user) {
-        console.log("Not authenticated, skipping database stats fetch")
-        setLoadingStats(false)
-        return
-      }
-
-      try {
-        const response = await getDatabaseStats()
-
-        if (response.success && response.data) {
-          setDbStats(prev => ({
-            ...prev,
-            ...response.data
-          }))
-        } else {
-          // Fallback: try to get employee count without role filtering
-          try {
-            const employeeResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees?limit=1000`, {
-              cache: 'no-store'
-            })
-            const employeeData = await employeeResponse.json()
-
-            if (employeeData.success && employeeData.data) {
-              setDbStats(prev => ({
-                ...prev,
-                employees: employeeData.data.pagination?.total || employeeData.data.employees?.length || 0
-              }))
-            }
-          } catch (fallbackError) {
-            console.error('Fallback employee count failed:', fallbackError)
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching database stats:', error)
-      } finally {
-        setLoadingStats(false)
-      }
+  // Fetch database statistics (also listen for inventory updates)
+  const fetchDatabaseStats = React.useCallback(async () => {
+    // Don't fetch if not authenticated
+    if (status !== "authenticated" || !session?.user) {
+      console.log("Not authenticated, skipping database stats fetch")
+      setLoadingStats(false)
+      return
     }
 
+    setLoadingStats(true)
+
+    try {
+      const response = await getDatabaseStats()
+
+      if (response.success && response.data) {
+        setDbStats(prev => ({
+          ...prev,
+          ...response.data
+        }))
+      } else {
+        // Fallback: try to get employee count without role filtering
+        try {
+          const employeeResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees?limit=1000`, {
+            cache: 'no-store'
+          })
+          const employeeData = await employeeResponse.json()
+
+          if (employeeData.success && employeeData.data) {
+            setDbStats(prev => ({
+              ...prev,
+              employees: employeeData.data.pagination?.total || employeeData.data.employees?.length || 0
+            }))
+          }
+        } catch (fallbackError) {
+          console.error('Fallback employee count failed:', fallbackError)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching database stats:', error)
+    } finally {
+      setLoadingStats(false)
+    }
+  }, [status, session])
+
+  React.useEffect(() => {
+    // Initial fetch
     fetchDatabaseStats()
-  }, [status, session]) // Add dependencies
+
+    // Listen for inventory changes from other pages/components (including cross-tab)
+    const handler = () => {
+      try { fetchDatabaseStats() } catch { /* ignore */ }
+    }
+
+    window.addEventListener('inventoryUpdated', handler)
+
+    // BroadcastChannel: listen for inventory updates from other tabs/windows
+    let bc: BroadcastChannel | null = null
+    try {
+      bc = new BroadcastChannel('inventory-updates')
+      bc.addEventListener('message', handler)
+    } catch { /* ignore */ }
+
+    // Listen for storage events (localStorage set from other tabs)
+    const storageHandler = (e: StorageEvent) => {
+      if (e.key === 'inventoryUpdated') handler()
+    }
+    window.addEventListener('storage', storageHandler)
+
+    return () => {
+      window.removeEventListener('inventoryUpdated', handler)
+      window.removeEventListener('storage', storageHandler)
+      try { bc?.close() } catch { /* ignore */ }
+    }
+  }, [fetchDatabaseStats]) // Re-run when fetchDatabaseStats changes (auth changes)
 
   // Fetch today's attendance data
   React.useEffect(() => {
@@ -248,7 +277,6 @@ export function Dashboard() {
             </div>
             <div className="flex items-center gap-3">
               <NotificationBell />
-              <QRScanner onScan={handleProductScan} />
             </div>
           </div>
         </div>
