@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getTodayDate } from "@/utils/date";
+import { NotificationService } from "../../notifications/notification.service";
 
 /**
  * =============================================================================
@@ -215,6 +216,112 @@ export async function taskCheckOut(data: TaskCheckOutData): Promise<TaskAttendan
         updatedAt: now
       }
     });
+
+    // Create admin notification for task completion and unassign any vehicles
+    try {
+      const notificationService = new NotificationService();
+
+      // Task completed notification
+      try {
+        await notificationService.createAdminNotification({
+          type: 'TASK_COMPLETED',
+          title: 'Task Completed',
+          message: `${employee.name} completed task: ${task.title}`,
+          data: {
+            taskId: task.id,
+            taskTitle: task.title,
+            employeeId: employee.employeeId,
+            employeeName: employee.name,
+            completedAt: now.toISOString()
+          }
+        })
+      } catch (err) {
+        console.error('Failed to create TASK_COMPLETED notification:', err)
+      }
+
+      // Unassign any vehicle individually assigned to this employee
+      try {
+        const individualVehicle = await prisma.vehicle.findFirst({
+          where: { assignedTo: employee.id, status: 'ASSIGNED' }
+        })
+
+        if (individualVehicle) {
+          await prisma.vehicle.update({
+            where: { id: individualVehicle.id },
+            data: { assignedTo: null, assignedAt: null, status: 'AVAILABLE' }
+          })
+
+          try {
+            await notificationService.createAdminNotification({
+              type: 'VEHICLE_UNASSIGNED',
+              title: 'Vehicle Unassigned',
+              message: `Vehicle ${individualVehicle.vehicleNumber} has been unassigned from ${employee.name} after task completion.`,
+              data: {
+                vehicleId: individualVehicle.id,
+                vehicleNumber: individualVehicle.vehicleNumber,
+                employeeId: employee.employeeId,
+                employeeName: employee.name,
+                unassignedAt: new Date().toISOString(),
+                reason: 'task-complete',
+                taskId: task.id
+              }
+            })
+          } catch (err) {
+            console.error('Failed to create VEHICLE_UNASSIGNED notification (individual):', err)
+          }
+        }
+      } catch (err) {
+        console.error('Error while unassigning individual vehicle on task completion:', err)
+      }
+
+      // If employee belongs to a team, unassign vehicle assigned to the team leader as well
+      try {
+        if (employee.teamId) {
+          const teamLeader = await prisma.employee.findFirst({
+            where: { teamId: employee.teamId, isTeamLeader: true }
+          })
+
+          if (teamLeader && teamLeader.id !== employee.id) {
+            const teamVehicle = await prisma.vehicle.findFirst({
+              where: { assignedTo: teamLeader.id, status: 'ASSIGNED' }
+            })
+
+            if (teamVehicle) {
+              await prisma.vehicle.update({
+                where: { id: teamVehicle.id },
+                data: { assignedTo: null, assignedAt: null, status: 'AVAILABLE' }
+              })
+
+              try {
+                await notificationService.createAdminNotification({
+                  type: 'VEHICLE_UNASSIGNED',
+                  title: 'Team Vehicle Unassigned',
+                  message: `Team vehicle ${teamVehicle.vehicleNumber} assigned to ${teamLeader.name} has been unassigned after ${employee.name} completed a task.`,
+                  data: {
+                    vehicleId: teamVehicle.id,
+                    vehicleNumber: teamVehicle.vehicleNumber,
+                    teamLeaderId: teamLeader.employeeId,
+                    teamLeaderName: teamLeader.name,
+                    affectedEmployeeId: employee.employeeId,
+                    affectedEmployeeName: employee.name,
+                    unassignedAt: new Date().toISOString(),
+                    reason: 'task-complete',
+                    taskId: task.id
+                  }
+                })
+              } catch (err) {
+                console.error('Failed to create VEHICLE_UNASSIGNED notification (team):', err)
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error while unassigning team vehicle on task completion:', err)
+      }
+
+    } catch (err) {
+      console.error('Error during post-task-completion notifications/unassign logic:', err)
+    }
 
     return {
       success: true,

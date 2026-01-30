@@ -2591,6 +2591,7 @@ export type DatabaseStats = {
   attendance: number
   tasks: number
   vehicles: number
+  vailableVehicles: number     
   petrolBills: number
   payrollRecords: number
   notifications: number

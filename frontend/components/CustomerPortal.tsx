@@ -61,13 +61,9 @@ function SuccessPopup({ isOpen, onClose, ticketId }: SuccessPopupProps) {
           <div>
             <h3 className="text-xl font-semibold text-gray-900">Support Request Submitted!</h3>
             <p className="text-gray-600 mt-2">Your support request has been created successfully.</p>
-            <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
-              <p className="text-sm font-medium text-green-800">Ticket ID:</p>
-              <p className="text-lg font-mono font-bold text-green-900">{ticketId}</p>
-            </div>
           </div>
           <div className="text-sm text-gray-500">
-            Our support team will review your request and contact you soon via phone or email.
+            Our support team will review your request.
           </div>
           <Button 
             onClick={onClose}
@@ -584,7 +580,7 @@ export default function CustomerPortal() {
               Create Support Ticket
             </DialogTitle>
             <DialogDescription>
-              Describe your issue in detail and attach any relevant documents. Our support team will review and respond within 24 hours.
+              Describe your issue in detail and attach any relevant documents. Our support team will review and respond soon.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">

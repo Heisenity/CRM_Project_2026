@@ -534,19 +534,6 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
                         });
                       }}
                     />
-                    {/* Debug info */}
-                    <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
-                      Camera Active {videoReady ? '✓' : '⏳'}
-                    </div>
-                    <div className="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
-                      Stream: {streamRef.current?.active ? 'Active' : 'Inactive'}
-                    </div>
-                    <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
-                      Tracks: {streamRef.current?.getTracks().length || 0}
-                    </div>
-                    <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
-                      Video: {videoRef.current?.readyState || 0}
-                    </div>
                   </div>
                 )}
               </div>

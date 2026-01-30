@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '@/lib/prisma';
+import { NotificationService } from '../notifications/notification.service';
 
 export class CustomerSupportController {
   // Customer: Submit support request
@@ -544,6 +545,23 @@ export class CustomerSupportController {
       });
 
       console.log('Ticket created successfully:', ticket.id);
+
+      // Notify customer that a ticket was created and is now open
+      try {
+        const notificationService = new NotificationService();
+        await notificationService.createCustomerNotification(request.customer.id, {
+          type: 'ACCESS_GRANTED',
+          title: 'Your support ticket has been created',
+          message: `Ticket ${ticket.ticketId} is now open and assigned to our support team.`,
+          data: {
+            ticketId: ticket.ticketId,
+            status: 'OPEN',
+            createdAt: new Date().toISOString()
+          }
+        });
+      } catch (notifError) {
+        console.error('Failed to create customer notification for created ticket:', notifError);
+      }
 
       // Transfer documents from support request to ticket attachments
       if (request.documents) {

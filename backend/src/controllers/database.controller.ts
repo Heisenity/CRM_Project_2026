@@ -39,7 +39,7 @@ export class DatabaseController {
   async clearAttendance(req: Request, res: Response) {
     try {
       const result = await prisma.attendance.deleteMany({})
-      
+
       res.json({
         success: true,
         message: `Deleted ${result.count} attendance records`
@@ -57,7 +57,7 @@ export class DatabaseController {
   async clearTasks(req: Request, res: Response) {
     try {
       const result = await prisma.task.deleteMany({})
-      
+
       res.json({
         success: true,
         message: `Deleted ${result.count} tasks`
@@ -81,7 +81,7 @@ export class DatabaseController {
           status: 'AVAILABLE'
         }
       })
-      
+
       res.json({
         success: true,
         message: `Unassigned ${result.count} vehicles`
@@ -99,7 +99,7 @@ export class DatabaseController {
   async clearNotifications(req: Request, res: Response) {
     try {
       const result = await prisma.adminNotification.deleteMany({})
-      
+
       res.json({
         success: true,
         message: `Deleted ${result.count} notifications`
@@ -116,25 +116,63 @@ export class DatabaseController {
   // GET /api/database/stats - Get database statistics
   async getDatabaseStats(req: Request, res: Response) {
     try {
-      const stats = {
-        admins: await prisma.admin.count(),
-        employees: await prisma.employee.count(),
-        products: await prisma.product.count(),
-        teams: await prisma.team.count(),
-        attendance: await prisma.attendance.count(),
-        tasks: await prisma.task.count(),
-        vehicles: await prisma.vehicle.count(),
-        petrolBills: await prisma.petrolBill.count(),
-        payrollRecords: await prisma.payrollRecord.count(),
-        notifications: await prisma.adminNotification.count(),
-        userSessions: await prisma.userSession.count(),
-        // Add customer support stats
-        pendingCustomerSupport: await prisma.customerSupportRequest.count({
+      const [
+        admins,
+        employees,
+        products,
+        teams,
+        attendance,
+        tasks,
+        vehicles,
+        availableVehicles,
+        petrolBills,
+        payrollRecords,
+        notifications,
+        userSessions,
+        pendingCustomerSupport,
+        totalCustomers
+      ] = await Promise.all([
+        prisma.admin.count(),
+        prisma.employee.count(),
+        prisma.product.count(),
+        prisma.team.count(),
+        prisma.attendance.count(),
+        prisma.task.count(),
+        prisma.vehicle.count(),
+
+        prisma.vehicle.count({
+          where: { status: 'AVAILABLE' }
+        }),
+
+        prisma.petrolBill.count(),
+        prisma.payrollRecord.count(),
+        prisma.adminNotification.count(),
+        prisma.userSession.count(),
+        prisma.customerSupportRequest.count({
           where: { status: 'PENDING' }
         }),
-        totalCustomers: await prisma.customer.count()
+        prisma.customer.count()
+      ])
+
+      const stats = {
+        admins,
+        employees,
+        products,
+        teams,
+        attendance,
+        tasks,
+
+        vehicles,
+        availableVehicles,
+
+        petrolBills,
+        payrollRecords,
+        notifications,
+        userSessions,
+        pendingCustomerSupport,
+        totalCustomers
       }
-      
+
       res.json({
         success: true,
         data: stats

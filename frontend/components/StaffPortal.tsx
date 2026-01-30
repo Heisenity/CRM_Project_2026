@@ -474,12 +474,7 @@ export function StaffPortal() {
           <div>
             <h1 className="text-xl font-semibold text-gray-900">Staff Portal</h1>
           </div>
-          <div>
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-gray-600">
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
-          </div>
+
         </div>
 
         <div className="px-4 mt-6">
@@ -621,6 +616,16 @@ export function StaffPortal() {
             </Button>
           )}
         </div>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleLogout}
+          className="w-full justify-start text-gray-600"
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          Logout
+        </Button>
       </aside>
 
       {/* Mobile slide-over sidebar */}
@@ -661,15 +666,22 @@ export function StaffPortal() {
                 <NavItem onClick={() => { setActiveTab('documents'); setSidebarOpen(false) }} active={activeTab === 'documents'}>
                   <FileText className="h-4 w-4" /> Documents
                 </NavItem>
-                <NavItem onClick={() => { handleLogout(); setSidebarOpen(false) }}>
-                  <LogOut className="h-4 w-4" /> Logout
-                </NavItem>
                 {/* Field engineer: show Vehicle on mobile too */}
                 {employeeProfile?.role === 'FIELD_ENGINEER' && (
                   <NavItem onClick={() => { setActiveTab('vehicle'); setSidebarOpen(false) }} active={activeTab === 'vehicle'}>
                     <Car className="h-4 w-4" /> Vehicle
                   </NavItem>
                 )}
+                <div className="pt-4 border-t">
+                  <button
+                    onClick={() => { handleLogout(); setSidebarOpen(false) }}
+                    className="w-full text-left px-4 py-3 rounded-md flex items-center gap-3 text-sm font-medium text-red-600 hover:bg-red-50"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                  </button>
+                </div>
+
               </nav>
             </div>
           </div>

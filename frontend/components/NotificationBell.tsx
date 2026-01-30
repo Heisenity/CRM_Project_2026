@@ -5,11 +5,14 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Bell, BellRing } from "lucide-react"
+import { playAlertSound } from "@/lib/notification-sound";
 import { AdminNotifications } from "./AdminNotifications"
 
 export function NotificationBell() {
   const [unreadCount, setUnreadCount] = React.useState(0)
   const [isOpen, setIsOpen] = React.useState(false)
+  // Keep track of the previous unread count so we only play sounds for new notifications
+  const prevCountRef = React.useRef<number | null>(null)
 
   // Fetch unread count
   React.useEffect(() => {
@@ -27,7 +30,32 @@ export function NotificationBell() {
       if (response.ok) {
         const result = await response.json()
         if (result.success && result.data) {
-          setUnreadCount(result.data.count)
+          const newCount = result.data.count
+
+          // On initial load, set the previous count without playing sounds
+          if (prevCountRef.current === null) {
+            prevCountRef.current = newCount
+          } else if (newCount > (prevCountRef.current ?? 0)) {
+            const diff = newCount - (prevCountRef.current ?? 0)
+
+            // Play a sound for each new notification with a small spacing to avoid overlap
+            for (let i = 0; i < diff; i++) {
+              setTimeout(() => {
+                try {
+                  playAlertSound()
+                } catch (e) {
+                  console.error('Error playing notification sound:', e)
+                }
+              }, i * 150)
+            }
+
+            prevCountRef.current = newCount
+          } else {
+            // Update ref when count decreases or stays the same
+            prevCountRef.current = newCount
+          }
+
+          setUnreadCount(newCount)
         }
       }
     } catch (error) {

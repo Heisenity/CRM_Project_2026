@@ -464,6 +464,24 @@ export class NotificationService {
         }
       })
 
+      // Notify customer that ticket is now open/assigned (if we have a customerId)
+      if (updatedTicket.customerId) {
+        try {
+          await this.createCustomerNotification(updatedTicket.customerId, {
+            type: 'ACCESS_GRANTED',
+            title: 'Your support ticket is now open',
+            message: `Ticket ${notificationData.ticketId} has been accepted by ${assigneeName} and is now open.`,
+            data: {
+              ticketId: notificationData.ticketId,
+              status: 'OPEN',
+              assignedAt: new Date().toISOString()
+            }
+          })
+        } catch (custNotifErr) {
+          console.error('Failed to create customer notification for ticket assignment:', custNotifErr)
+        }
+      }
+
       return {
         success: true,
         data: updatedTicket,

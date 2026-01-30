@@ -6,9 +6,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { QRScanner } from "@/components/QRScanner"
 import { NotificationBell } from "@/components/NotificationBell"
-import { 
-  Users, 
-  Ticket, 
+import {
+  Users,
+  Ticket,
   Package,
   Clock,
   CheckCircle,
@@ -30,6 +30,7 @@ type DatabaseStats = {
   attendance: number
   tasks: number
   vehicles: number
+  availableVehicles: number
   petrolBills: number
   payrollRecords: number
   notifications: number
@@ -101,7 +102,7 @@ export function Dashboard() {
 
       try {
         const response = await getDatabaseStats()
-        
+
         if (response.success && response.data) {
           setDbStats(response.data)
         } else {
@@ -111,7 +112,7 @@ export function Dashboard() {
               cache: 'no-store'
             })
             const employeeData = await employeeResponse.json()
-            
+
             if (employeeData.success && employeeData.data) {
               setDbStats(prev => ({
                 ...prev,
@@ -138,13 +139,13 @@ export function Dashboard() {
       try {
         const today = new Date().toISOString().split('T')[0]
         const response = await getAttendanceRecords({ date: today, limit: 1000 })
-        
+
         if (response.success && response.data) {
           const records = response.data.records
-          const presentCount = records.filter(record => 
+          const presentCount = records.filter(record =>
             record.status === 'PRESENT' || record.status === 'LATE'
           ).length
-          
+
           setTodayAttendance({
             present: presentCount,
             total: dbStats.employees || records.length
@@ -178,12 +179,12 @@ export function Dashboard() {
         console.log("Session status:", status)
         console.log("Session data:", session)
         console.log("Session token:", (session?.user as any)?.sessionToken)
-        
-        const response = await getAllTickets({ 
+
+        const response = await getAllTickets({
           limit: 3,
           token: (session?.user as any)?.sessionToken
         })
-        
+
         if (response.success && response.data) {
           setRecentTickets(response.data)
         }
@@ -203,14 +204,14 @@ export function Dashboard() {
       try {
         const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/leave/applications`)
         const result = await response.json()
-        
+
         if (result.success) {
           // Get only pending applications, sorted by most recent
           const pendingApplications = (result.data || [])
             .filter((app: LeaveApplication) => app.status === 'PENDING')
             .sort((a: LeaveApplication, b: LeaveApplication) => new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime())
             .slice(0, 3) // Show only 3 most recent
-          
+
           setLeaveApplications(pendingApplications)
         }
       } catch (error) {
@@ -232,7 +233,7 @@ export function Dashboard() {
           <span className="text-sm font-medium">Product {lastScannedProduct} scanned!</span>
         </div>
       )}
-      
+
       <div className="p-8 space-y-8">
         {/* Header */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -312,7 +313,7 @@ export function Dashboard() {
             <CardContent>
               <div className="space-y-2">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-gray-900">{loadingStats ? '...': dbStats.products}</span>
+                  <span className="text-3xl font-bold text-gray-900">{loadingStats ? '...' : dbStats.products}</span>
                 </div>
                 <p className="text-sm text-gray-500">items in inventory</p>
               </div>
@@ -357,7 +358,7 @@ export function Dashboard() {
                   </span>
                 </div>
                 <p className="text-sm text-gray-500">
-                  {todayAttendance.total > 0 
+                  {todayAttendance.total > 0
                     ? `${((todayAttendance.present / todayAttendance.total) * 100).toFixed(1)}% attendance`
                     : 'attendance today'
                   }
@@ -443,43 +444,54 @@ export function Dashboard() {
                   <p>No recent tickets</p>
                 </div>
               ) : (
-                recentTickets.map((ticket) => (
-                  <div key={ticket.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${
-                        ticket.priority === 'HIGH' || ticket.priority === 'CRITICAL' 
-                          ? 'bg-red-50' 
-                          : ticket.priority === 'MEDIUM' 
-                          ? 'bg-amber-50' 
-                          : 'bg-blue-50'
-                      }`}>
-                        {ticket.priority === 'HIGH' || ticket.priority === 'CRITICAL' ? (
-                          <AlertTriangle className="h-4 w-4 text-red-600" />
-                        ) : ticket.priority === 'MEDIUM' ? (
-                          <Clock className="h-4 w-4 text-amber-600" />
-                        ) : (
-                          <CheckCircle className="h-4 w-4 text-blue-600" />
-                        )}
+                recentTickets
+                  .slice(0, 5) // 👈 show only first 5 tickets
+                  .map((ticket) => (
+                    <div
+                      key={ticket.id}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`p-2 rounded-lg ${ticket.priority === "HIGH" || ticket.priority === "CRITICAL"
+                            ? "bg-red-50"
+                            : ticket.priority === "MEDIUM"
+                              ? "bg-amber-50"
+                              : "bg-blue-50"
+                            }`}
+                        >
+                          {ticket.priority === "HIGH" || ticket.priority === "CRITICAL" ? (
+                            <AlertTriangle className="h-4 w-4 text-red-600" />
+                          ) : ticket.priority === "MEDIUM" ? (
+                            <Clock className="h-4 w-4 text-amber-600" />
+                          ) : (
+                            <CheckCircle className="h-4 w-4 text-blue-600" />
+                          )}
+                        </div>
+
+                        <div>
+                          <p className="font-medium text-gray-900">{ticket.ticketId}</p>
+                          <p className="text-sm text-gray-500">
+                            {ticket.ticketId} • {ticket.reporter?.name || "Unknown"}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{ticket.ticketId}</p>
-                        <p className="text-sm text-gray-500">
-                          {ticket.ticketId} • {ticket.reporter?.name || 'Unknown'}
-                        </p>
-                      </div>
+
+                      <Badge
+                        className={
+                          ticket.priority === "HIGH" || ticket.priority === "CRITICAL"
+                            ? "bg-red-50 text-red-700 border-red-200"
+                            : ticket.priority === "MEDIUM"
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : "bg-blue-50 text-blue-700 border-blue-200"
+                        }
+                      >
+                        {ticket.priority}
+                      </Badge>
                     </div>
-                    <Badge className={
-                      ticket.priority === 'HIGH' || ticket.priority === 'CRITICAL'
-                        ? "bg-red-50 text-red-700 border-red-200"
-                        : ticket.priority === 'MEDIUM'
-                        ? "bg-amber-50 text-amber-700 border-amber-200"
-                        : "bg-blue-50 text-blue-700 border-blue-200"
-                    }>
-                      {ticket.priority}
-                    </Badge>
-                  </div>
-                ))
+                  ))
               )}
+
             </CardContent>
           </Card>
 
@@ -514,7 +526,7 @@ export function Dashboard() {
                   {loadingStats ? '...' : dbStats.vehicles}
                 </span>
               </div>
-              
+
               <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-green-100 rounded-lg">
@@ -525,20 +537,9 @@ export function Dashboard() {
                     <p className="text-sm text-gray-500">Ready for assignment</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold text-green-700">-</span>
-              </div>
-              
-              <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-amber-100 rounded-lg">
-                    <AlertTriangle className="h-4 w-4 text-amber-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Assigned</p>
-                    <p className="text-sm text-gray-500">Currently in use</p>
-                  </div>
-                </div>
-                <span className="text-2xl font-bold text-amber-700">-</span>
+                <span className="text-2xl font-bold text-amber-700">
+                  {loadingStats ? '...' : dbStats.availableVehicles}
+                </span>
               </div>
             </CardContent>
           </Card>
