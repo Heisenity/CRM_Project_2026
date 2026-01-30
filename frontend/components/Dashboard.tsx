@@ -73,6 +73,7 @@ export function Dashboard() {
     attendance: 0,
     tasks: 0,
     vehicles: 0,
+    availableVehicles: 0,
     petrolBills: 0,
     payrollRecords: 0,
     notifications: 0,
@@ -104,7 +105,10 @@ export function Dashboard() {
         const response = await getDatabaseStats()
 
         if (response.success && response.data) {
-          setDbStats(response.data)
+          setDbStats(prev => ({
+            ...prev,
+            ...response.data
+          }))
         } else {
           // Fallback: try to get employee count without role filtering
           try {
