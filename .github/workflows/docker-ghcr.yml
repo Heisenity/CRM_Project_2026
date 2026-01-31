@@ -18,7 +18,7 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build -t ghcr.io/heisenity/crm:latest .
+          docker build -t ghcr.io/heisenity/crm:latest ./backend
 
       - name: Push Docker Image
         run: |
