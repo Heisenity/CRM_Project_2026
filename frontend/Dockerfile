@@ -3,7 +3,7 @@ WORKDIR /app
 
 FROM base AS deps
 COPY package.json ./
-RUN npm install
+RUN npm install --legacy-peer-deps --no-audit --no-fund
 
 FROM base AS builder
 WORKDIR /app
