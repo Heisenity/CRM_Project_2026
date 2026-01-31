@@ -1,15 +1,27 @@
 "use client"
 
-import React, { useState } from 'react'
-import { useSession } from 'next-auth/react'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Checkbox } from '@/components/ui/checkbox'
-import { toast } from '@/hooks/use-toast'
-import { Upload, FileText, X } from 'lucide-react'
+import React, { useState } from "react"
+import { useSession } from "next-auth/react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
+import { toast } from "@/hooks/use-toast"
+import { Upload, FileText, X } from "lucide-react"
 
 interface TenderDocumentUploadProps {
   tenderId: string
@@ -19,50 +31,68 @@ interface TenderDocumentUploadProps {
 }
 
 const DOCUMENT_TYPES = [
-  { value: 'TECHNICAL_SPECIFICATION', label: 'Technical Specification' },
-  { value: 'FINANCIAL_PROPOSAL', label: 'Financial Proposal' },
-  { value: 'COMPANY_PROFILE', label: 'Company Profile' },
-  { value: 'COMPLIANCE_CERTIFICATE', label: 'Compliance Certificate' },
-  { value: 'EMD_PROOF', label: 'EMD Proof' },
-  { value: 'TENDER_FORM', label: 'Tender Form' },
-  { value: 'OTHER', label: 'Other' }
+  { value: "TECHNICAL_SPECIFICATION", label: "Technical Specification" },
+  { value: "FINANCIAL_PROPOSAL", label: "Financial Proposal" },
+  { value: "COMPANY_PROFILE", label: "Company Profile" },
+  { value: "COMPLIANCE_CERTIFICATE", label: "Compliance Certificate" },
+  { value: "EMD_PROOF", label: "EMD Proof" },
+  { value: "TENDER_FORM", label: "Tender Form" },
+  { value: "OTHER", label: "Other" },
 ]
 
-export default function TenderDocumentUpload({ tenderId, isOpen, onClose, onSuccess }: TenderDocumentUploadProps) {
+export default function TenderDocumentUpload({
+  tenderId,
+  isOpen,
+  onClose,
+  onSuccess,
+}: TenderDocumentUploadProps) {
   const { data: session } = useSession()
+
   const [file, setFile] = useState<File | null>(null)
-  const [documentType, setDocumentType] = useState('')
+  const [documentType, setDocumentType] = useState("")
   const [isRequired, setIsRequired] = useState(false)
   const [uploading, setUploading] = useState(false)
 
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL!
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
-    if (selectedFile) {
-      // Validate file type
-      const allowedTypes = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.jpg', '.jpeg', '.png']
-      const fileExtension = selectedFile.name.toLowerCase().substring(selectedFile.name.lastIndexOf('.'))
-      
-      if (!allowedTypes.includes(fileExtension)) {
-        toast({
-          title: "Invalid File Type",
-          description: "Only PDF, DOC, DOCX, XLS, XLSX, JPG, JPEG, PNG files are allowed",
-          variant: "destructive"
-        })
-        return
-      }
+    if (!selectedFile) return
 
-      // Validate file size (10MB limit)
-      if (selectedFile.size > 10 * 1024 * 1024) {
-        toast({
-          title: "File Too Large",
-          description: "File size must be less than 10MB",
-          variant: "destructive"
-        })
-        return
-      }
+    const allowed = [
+      ".pdf",
+      ".doc",
+      ".docx",
+      ".xls",
+      ".xlsx",
+      ".jpg",
+      ".jpeg",
+      ".png",
+    ]
 
-      setFile(selectedFile)
+    const ext = selectedFile.name
+      .toLowerCase()
+      .substring(selectedFile.name.lastIndexOf("."))
+
+    if (!allowed.includes(ext)) {
+      toast({
+        title: "Invalid File Type",
+        description: "Unsupported file format",
+        variant: "destructive",
+      })
+      return
     }
+
+    if (selectedFile.size > 10 * 1024 * 1024) {
+      toast({
+        title: "File Too Large",
+        description: "Max size is 10MB",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setFile(selectedFile)
   }
 
   const handleUpload = async () => {
@@ -70,7 +100,7 @@ export default function TenderDocumentUpload({ tenderId, isOpen, onClose, onSucc
       toast({
         title: "Missing Information",
         description: "Please select a file and document type",
-        variant: "destructive"
+        variant: "destructive",
       })
       return
     }
@@ -78,56 +108,86 @@ export default function TenderDocumentUpload({ tenderId, isOpen, onClose, onSucc
     setUploading(true)
 
     try {
-      const formData = new FormData()
-      formData.append('document', file)
-      formData.append('documentType', documentType)
-      formData.append('isRequired', isRequired.toString())
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/tenders/${tenderId}/documents`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${(session?.user as any)?.sessionToken}`
+      // 1️⃣ Ask backend for presigned URL
+      const presignRes = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/tenders/${tenderId}/documents/presign`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" , 
+          Authorization: `Bearer ${(session?.user as any)?.sessionToken}`
         },
-        body: formData
+          body: JSON.stringify({
+            fileName: file.name,
+            fileType: file.type,
+            tenderId,
+          }),
+        }
+      )
+
+      const presignData = await presignRes.json()
+      if (!presignData.success) {
+        throw new Error("Failed to get upload URL")
+      }
+
+      // 2️⃣ Upload directly to S3
+      const uploadRes = await fetch(presignData.uploadUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": file.type,
+        },
+        body: file,
       })
 
-      const result = await response.json()
-
-      if (result.success) {
-        toast({
-          title: "Success",
-          description: "Document uploaded successfully"
-        })
-        onSuccess()
-        handleClose()
-      } else {
-        toast({
-          title: "Upload Failed",
-          description: result.message || "Failed to upload document",
-          variant: "destructive"
-        })
+      if (!uploadRes.ok) {
+        throw new Error("S3 upload failed")
       }
-    } catch (error) {
-      console.error('Error uploading document:', error)
+
+      // 3️⃣ Save metadata ONLY (no file)
+      const saveRes = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/tenders/${tenderId}/documents`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${(session?.user as any)?.sessionToken}`,
+          },
+          body: JSON.stringify({
+            documentType,
+            isRequired,
+            fileName: file.name,
+            fileUrl: presignData.fileUrl,
+            fileSize: file.size,
+            mimeType: file.type,
+          }),
+        }
+      )
+
+      const result = await saveRes.json()
+      if (!result.success) {
+        throw new Error("Failed to save document metadata")
+      }
+
+      toast({ title: "Success", description: "Document uploaded successfully" })
+      onSuccess()
+      onClose()
+    } catch (err) {
+      console.error(err)
       toast({
         title: "Upload Failed",
-        description: "Failed to upload document",
-        variant: "destructive"
+        description: "Something went wrong while uploading",
+        variant: "destructive",
       })
     } finally {
       setUploading(false)
     }
   }
 
+
   const handleClose = () => {
     setFile(null)
-    setDocumentType('')
+    setDocumentType("")
     setIsRequired(false)
     onClose()
-  }
-
-  const removeFile = () => {
-    setFile(null)
   }
 
   return (
@@ -141,41 +201,21 @@ export default function TenderDocumentUpload({ tenderId, isOpen, onClose, onSucc
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* File Upload */}
-          <div className="space-y-2">
+          <div>
             <Label>Document File *</Label>
             {!file ? (
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-600 mb-2">
-                  Click to upload or drag and drop
-                </p>
-                <p className="text-xs text-gray-500">
-                  PDF, DOC, DOCX, XLS, XLSX, JPG, JPEG, PNG (max 10MB)
-                </p>
-                <Input
-                  type="file"
-                  onChange={handleFileChange}
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-                  className="mt-2"
-                />
-              </div>
+              <Input
+                type="file"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                onChange={handleFileChange}
+              />
             ) : (
-              <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-gray-400" />
-                  <div>
-                    <p className="text-sm font-medium">{file.name}</p>
-                    <p className="text-xs text-gray-500">
-                      {(file.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                  </div>
-                </div>
+              <div className="flex justify-between items-center p-2 border rounded">
+                <span className="text-sm">{file.name}</span>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={removeFile}
-                  className="text-red-500 hover:text-red-700"
+                  onClick={() => setFile(null)}
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -183,45 +223,37 @@ export default function TenderDocumentUpload({ tenderId, isOpen, onClose, onSucc
             )}
           </div>
 
-          {/* Document Type */}
-          <div className="space-y-2">
+          <div>
             <Label>Document Type *</Label>
             <Select value={documentType} onValueChange={setDocumentType}>
               <SelectTrigger>
                 <SelectValue placeholder="Select document type" />
               </SelectTrigger>
               <SelectContent>
-                {DOCUMENT_TYPES.map(type => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
+                {DOCUMENT_TYPES.map((d) => (
+                  <SelectItem key={d.value} value={d.value}>
+                    {d.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Required Checkbox */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2">
             <Checkbox
-              id="isRequired"
               checked={isRequired}
-              onCheckedChange={(checked) => setIsRequired(checked as boolean)}
+              onCheckedChange={(v) => setIsRequired(Boolean(v))}
             />
-            <Label htmlFor="isRequired" className="text-sm">
-              Mark as required document
-            </Label>
+            <Label>Mark as required</Label>
           </div>
         </div>
 
         <div className="flex justify-end gap-2 mt-6">
-          <Button variant="outline" onClick={handleClose} disabled={uploading}>
+          <Button variant="outline" onClick={handleClose}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleUpload} 
-            disabled={!file || !documentType || uploading}
-          >
-            {uploading ? 'Uploading...' : 'Upload Document'}
+          <Button onClick={handleUpload} disabled={uploading}>
+            {uploading ? "Uploading..." : "Upload"}
           </Button>
         </div>
       </DialogContent>

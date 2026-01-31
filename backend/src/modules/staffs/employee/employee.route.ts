@@ -6,8 +6,10 @@ import {
   deleteEmployee, 
   getEmployeeById,
   getNextEmployeeId,
-  getEmployeeByEmployeeId
+  getEmployeeByEmployeeId,
+  getEmployeePhotoUrl
 } from './employee.controller'
+
 
 const router = Router()
 
@@ -24,6 +26,11 @@ router.get('/next-id', (req: Request, res: Response) => {
 // Get employee by employeeId - GET /employees/by-employee-id/:employeeId
 router.get('/by-employee-id/:employeeId', (req: Request, res: Response) => {
   return getEmployeeByEmployeeId(req, res)
+})
+
+// Get presigned URL for employee photo - POST /employees/photo-url
+router.post('/photo-url', (req: Request, res: Response) => {
+  return getEmployeePhotoUrl(req, res)
 })
 
 // Get employee by ID - GET /employees/:id

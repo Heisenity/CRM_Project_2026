@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 import { prisma } from '../../../lib/prisma'
 import bcrypt from 'bcryptjs'
 import { EmployeeIdGeneratorService } from '../../../services/employeeIdGenerator.service'
+import { getDownloadUrl } from '../../../services/s3.service'
 
 // Generate next employee ID
 export const generateEmployeeId = async (): Promise<string> => {
@@ -90,6 +91,7 @@ export const getAllEmployees = async (req: Request, res: Response) => {
         uanNumber: true,
         esiNumber: true,
         bankAccountNumber: true,
+        photoKey: true,
         createdAt: true,
         updatedAt: true,
         assignedBy: true
@@ -101,10 +103,28 @@ export const getAllEmployees = async (req: Request, res: Response) => {
       where: whereClause
     })
 
+    // Generate presigned URLs for employee photos
+    const bucket = process.env.AWS_S3_EMPLOYEE_BUCKET!
+    const region = process.env.AWS_REGION!
+    const employeesWithPhoto = await Promise.all(employees.map(async (e) => {
+      let photoUrl = null
+      if (e.photoKey) {
+        try {
+          photoUrl = await getDownloadUrl(bucket, e.photoKey, 3600) // 1 hour
+        } catch (err) {
+          console.error('Presigned GET failed for employee', e.id, err)
+        }
+      }
+      return {
+        ...e,
+        photoUrl
+      }
+    }))
+
     return res.status(200).json({
       success: true,
       data: {
-        employees,
+        employees: employeesWithPhoto,
         pagination: {
           page: pageNum,
           limit: limitNum,
@@ -143,7 +163,8 @@ export const createEmployee = async (req: Request, res: Response) => {
       panCard,
       uanNumber,
       esiNumber,
-      bankAccountNumber
+      bankAccountNumber,
+      photoKey
     } = req.body
 
     // Validate required fields
@@ -230,7 +251,8 @@ export const createEmployee = async (req: Request, res: Response) => {
         panCard: panCard || null,
         uanNumber: uanNumber || null,
         esiNumber: esiNumber || null,
-        bankAccountNumber: bankAccountNumber || null
+        bankAccountNumber: bankAccountNumber || null,
+        photoKey: photoKey || null
       },
       select: {
         id: true,
@@ -252,6 +274,7 @@ export const createEmployee = async (req: Request, res: Response) => {
         uanNumber: true,
         esiNumber: true,
         bankAccountNumber: true,
+        photoKey: true,
         createdAt: true,
         updatedAt: true
       }
@@ -292,7 +315,8 @@ export const updateEmployee = async (req: Request, res: Response) => {
       panCard,
       uanNumber,
       esiNumber,
-      bankAccountNumber
+      bankAccountNumber,
+      photoKey
     } = req.body
 
     if (!id) {
@@ -374,6 +398,7 @@ export const updateEmployee = async (req: Request, res: Response) => {
     if (uanNumber !== undefined) updateData.uanNumber = uanNumber
     if (esiNumber !== undefined) updateData.esiNumber = esiNumber
     if (bankAccountNumber !== undefined) updateData.bankAccountNumber = bankAccountNumber
+    if (photoKey !== undefined) updateData.photoKey = photoKey
     if (password) {
       updateData.password = await bcrypt.hash(password, 12)
     }
@@ -408,6 +433,7 @@ export const updateEmployee = async (req: Request, res: Response) => {
         uanNumber: true,
         esiNumber: true,
         bankAccountNumber: true,
+        photoKey: true,
         createdAt: true,
         updatedAt: true
       }
@@ -589,6 +615,7 @@ export const getEmployeeByEmployeeId = async (req: Request, res: Response) => {
         isTeamLeader: true,
         sickLeaveBalance: true,
         casualLeaveBalance: true,
+        photoKey: true,
         createdAt: true,
         updatedAt: true,
         team: {
@@ -607,15 +634,73 @@ export const getEmployeeByEmployeeId = async (req: Request, res: Response) => {
       })
     }
 
+    // Generate presigned URL for employee photo if it exists
+    let photoUrl = null
+    if (employee.photoKey) {
+      try {
+        const bucket = process.env.AWS_S3_EMPLOYEE_BUCKET!
+        const region = process.env.AWS_REGION!
+        const { getDownloadUrl } = require('../../../services/s3.service')
+        
+        photoUrl = await getDownloadUrl(bucket, employee.photoKey, 3600) // 1 hour
+      } catch (err) {
+        console.error('Error generating presigned URL for employee photo:', err)
+        // Continue without photo URL if there's an error
+      }
+    }
+
     return res.status(200).json({
       success: true,
-      data: employee
+      data: {
+        ...employee,
+        photoUrl
+      }
     })
   } catch (error) {
     console.error('Error getting employee by employeeId:', error)
     return res.status(500).json({
       success: false,
       error: 'Failed to get employee'
+    })
+  }
+}
+
+// Get presigned URL for employee photo
+export const getEmployeePhotoUrl = async (req: Request, res: Response) => {
+  try {
+    const { photoKey } = req.body
+
+    if (!photoKey) {
+      return res.status(400).json({
+        success: false,
+        error: 'Photo key is required'
+      })
+    }
+
+    const bucket = process.env.AWS_S3_EMPLOYEE_BUCKET
+    const region = process.env.AWS_REGION
+    if (!bucket || !region) {
+      return res.status(500).json({
+        success: false,
+        error: 'S3 bucket or region not configured'
+      })
+    }
+
+    // Import getDownloadUrl from s3.service
+    const { getDownloadUrl } = require('../../../services/s3.service')
+    
+    // Generate presigned URL for viewing (1 hour expiry)
+    const photoUrl = await getDownloadUrl(bucket, photoKey, 3600)
+
+    return res.status(200).json({
+      success: true,
+      photoUrl
+    })
+  } catch (error) {
+    console.error('Error getting employee photo URL:', error)
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to get photo URL'
     })
   }
 }

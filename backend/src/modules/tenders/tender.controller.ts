@@ -2,38 +2,11 @@ import { Request, Response } from 'express';
 import { tenderService } from './tender.service';
 import { TenderType, TenderStatus, TenderDocumentType, DocumentStatus, EMDStatus } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
-import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
+import { getDownloadUrl, deleteFileFromS3, getTenderDocumentUploadUrl } from '../../services/s3.service';
+
+import fs from "fs"
 
 // Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../../../uploads/tenders');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, `tender-${uniqueSuffix}${path.extname(file.originalname)}`);
-  }
-});
-
-export const upload = multer({ 
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.jpg', '.jpeg', '.png'];
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (allowedTypes.includes(ext)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Invalid file type. Only PDF, DOC, DOCX, XLS, XLSX, JPG, JPEG, PNG files are allowed.'));
-    }
-  }
-});
 
 export class TenderController {
   // Create new tender
@@ -102,20 +75,20 @@ export class TenderController {
       } = req.query;
 
       const filters: any = {};
-      
+
       if (status && Object.values(TenderStatus).includes(status as TenderStatus)) {
         filters.status = status as TenderStatus;
       }
-      
+
       if (department) filters.department = department as string;
-      
+
       if (tenderType && Object.values(TenderType).includes(tenderType as TenderType)) {
         filters.tenderType = tenderType as TenderType;
       }
-      
+
       if (dateFrom) filters.dateFrom = new Date(dateFrom as string);
       if (dateTo) filters.dateTo = new Date(dateTo as string);
-      
+
       if (page) filters.page = parseInt(page as string);
       if (limit) filters.limit = parseInt(limit as string);
 
@@ -139,9 +112,9 @@ export class TenderController {
   async getTenderById(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      
+
       const tender = await tenderService.getTenderById(id);
-      
+
       if (!tender) {
         return res.status(404).json({
           success: false,
@@ -167,7 +140,7 @@ export class TenderController {
     try {
       const { id } = req.params;
       const updatedBy = req.user?.id;
-      
+
       if (!updatedBy) {
         return res.status(401).json({
           success: false,
@@ -177,7 +150,7 @@ export class TenderController {
 
       const updateData: any = {};
       const allowedFields = [
-        'name', 'description', 'department', 'projectMapping', 
+        'name', 'description', 'department', 'projectMapping',
         'tenderType', 'submissionDate', 'deadline', 'totalValue', 'internalRemarks', 'requiredDocuments'
       ];
 
@@ -221,7 +194,7 @@ export class TenderController {
       const { id } = req.params;
       const { status, remarks } = req.body;
       const updatedBy = req.user?.id;
-      
+
       if (!updatedBy) {
         return res.status(401).json({
           success: false,
@@ -262,46 +235,55 @@ export class TenderController {
   async uploadDocument(req: Request, res: Response) {
     try {
       const { tenderId } = req.params;
-      const { documentType, isRequired } = req.body;
       const uploadedBy = req.user?.id;
-      
       if (!uploadedBy) {
-        return res.status(401).json({
-          success: false,
-          message: 'Unauthorized'
-        });
+        return res.status(401).json({ success: false, message: 'Unauthorized' });
       }
 
-      if (!req.file) {
-        return res.status(400).json({
-          success: false,
-          message: 'No file uploaded'
-        });
-      }
+      // Expect metadata posted from frontend after presigned upload
+      const {
+        documentType,
+        isRequired,
+        fileName,
+        fileUrl,
+        fileSize,
+        mimeType,
+        originalName
+      } = req.body;
 
       if (!documentType || !Object.values(TenderDocumentType).includes(documentType as TenderDocumentType)) {
         return res.status(400).json({
           success: false,
-          message: 'Invalid document type'
+          message: 'Invalid or missing documentType'
         });
       }
 
-      const document = await tenderService.uploadDocument({
-        tenderId,
-        fileName: req.file.filename,
-        originalName: req.file.originalname,
-        filePath: req.file.path,
-        fileSize: req.file.size,
-        mimeType: req.file.mimetype,
-        documentType,
-        isRequired: isRequired === 'true',
-        uploadedBy
+      if (!fileName || !fileUrl || !fileSize || !mimeType) {
+        return res.status(400).json({
+          success: false,
+          message: 'Missing file metadata. Expecting fileName, fileUrl, fileSize, mimeType'
+        });
+      }
+
+      const created = await prisma.tenderDocument.create({
+        data: {
+          tenderId,
+          documentType: documentType as TenderDocumentType,
+          isRequired: Boolean(isRequired),
+          fileName,
+          originalName: originalName || fileName,
+          filePath: fileUrl,   // store S3 URL here
+          fileSize: Number(fileSize),
+          mimeType,
+          uploadedBy,
+          uploadedAt: new Date()
+        }
       });
 
-      res.status(201).json({
+      return res.status(201).json({
         success: true,
-        message: 'Document uploaded successfully',
-        data: document
+        message: 'Document metadata saved successfully',
+        data: created
       });
     } catch (error) {
       console.error('Error uploading document:', error);
@@ -312,13 +294,14 @@ export class TenderController {
     }
   }
 
+
   // Update document status
   async updateDocumentStatus(req: Request, res: Response) {
     try {
       const { documentId } = req.params;
       const { status, remarks } = req.body;
       const verifiedBy = req.user?.id;
-      
+
       if (!verifiedBy) {
         return res.status(401).json({
           success: false,
@@ -355,7 +338,7 @@ export class TenderController {
       const { tenderId } = req.params;
       const { amount, status, remarks } = req.body;
       const createdBy = req.user?.id;
-      
+
       if (!createdBy) {
         return res.status(401).json({
           success: false,
@@ -405,7 +388,7 @@ export class TenderController {
       const { emdId } = req.params;
       const { status, remarks } = req.body;
       const updatedBy = req.user?.id;
-      
+
       if (!updatedBy) {
         return res.status(401).json({
           success: false,
@@ -483,7 +466,7 @@ export class TenderController {
     try {
       const { id } = req.params;
       const deletedBy = req.user?.id;
-      
+
       if (!deletedBy) {
         return res.status(401).json({
           success: false,
@@ -511,42 +494,113 @@ export class TenderController {
   async downloadDocument(req: Request, res: Response) {
     try {
       const { documentId } = req.params;
-      
-      // Get document info from database
+
       const document = await prisma.tenderDocument.findUnique({
         where: { id: documentId }
       });
 
       if (!document) {
-        return res.status(404).json({
-          success: false,
-          message: 'Document not found'
-        });
+        return res.status(404).json({ success: false, message: 'Document not found' });
       }
 
-      // Check if file exists
-      if (!fs.existsSync(document.filePath)) {
-        return res.status(404).json({
-          success: false,
-          message: 'File not found on server'
-        });
+      const isUrl = typeof document.filePath === 'string' && /^https?:\/\//i.test(document.filePath);
+      if (isUrl) {
+        const bucket = process.env.AWS_S3_MISCELLANEOUS_BUCKET;
+        if (!bucket) {
+          console.error('Missing AWS_S3_MISCELLANEOUS_BUCKET env for S3 download');
+          return res.status(500).json({ success: false, message: 'Server misconfiguration' });
+        }
+
+        try {
+          const presigned = await getDownloadUrl(bucket, document.filePath, 120); // expiry seconds
+          return res.redirect(presigned);
+        } catch (err) {
+          console.error('Error generating presigned download URL:', err);
+          return res.status(500).json({ success: false, message: 'Failed to generate download URL' });
+        }
       }
 
-      // Set appropriate headers
-      res.setHeader('Content-Disposition', `attachment; filename="${document.originalName}"`);
+      res.setHeader('Content-Disposition', `attachment; filename="${document.originalName || document.fileName}"`);
       res.setHeader('Content-Type', document.mimeType);
 
-      // Stream the file
       const fileStream = fs.createReadStream(document.filePath);
       fileStream.pipe(res);
     } catch (error) {
       console.error('Error downloading document:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Internal server error'
-      });
+      res.status(500).json({ success: false, message: 'Internal server error' });
     }
   }
+  
+  async deleteDocument(req: Request, res: Response) {
+  try {
+    const { documentId } = req.params;
+    const deletedBy = req.user?.id;
+    if (!deletedBy) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const document = await prisma.tenderDocument.findUnique({ where: { id: documentId }});
+    if (!document) {
+      return res.status(404).json({ success: false, message: 'Document not found' });
+    }
+
+    const isUrl = typeof document.filePath === 'string' && /^https?:\/\//i.test(document.filePath);
+
+    if (isUrl) {
+      const bucket = process.env.AWS_S3_MISCELLANEOUS_BUCKET;
+      if (!bucket) {
+        console.error('Missing AWS_S3_MISCELLANEOUS_BUCKET env for S3 delete');
+        return res.status(500).json({ success: false, message: 'Server misconfiguration' });
+      }
+      try {
+        await deleteFileFromS3(bucket, document.filePath);
+      } catch (err) {
+        console.error('Failed to delete file from S3:', err);
+        return res.status(500).json({ success: false, message: 'Failed to delete file from S3' });
+      }
+    } else {
+      // legacy local file delete (optional)
+      try {
+        if (fs.existsSync(document.filePath)) {
+          fs.unlinkSync(document.filePath);
+        }
+      } catch (err) {
+        console.error('Failed to delete local file:', err);
+        return res.status(500).json({ success: false, message: 'Failed to delete local file' });
+      }
+    }
+
+    await prisma.tenderDocument.delete({ where: { id: documentId } });
+
+    return res.json({ success: true, message: 'Document deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting document:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+}
+
+async getTenderDocumentPresign(req: Request, res: Response) {
+  const { tenderId } = req.params
+  const { fileName, fileType } = req.body
+
+  if (!fileName || !fileType) {
+    return res.status(400).json({
+      success: false,
+      message: "fileName and fileType are required",
+    })
+  }
+
+  const { uploadUrl, fileUrl } =
+    await getTenderDocumentUploadUrl(fileName, fileType, tenderId)
+
+  return res.json({
+    success: true,
+    uploadUrl,
+    fileUrl,
+  })
+}
+
+
 }
 
 export const tenderController = new TenderController();

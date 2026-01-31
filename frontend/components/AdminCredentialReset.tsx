@@ -433,7 +433,7 @@ export function AdminCredentialReset({ adminId, adminName }: AdminCredentialRese
                                 <Checkbox
                                     id="resetAdminId"
                                     checked={resetOptions.resetAdminId}
-                                    onCheckedChange={(checked) => 
+                                    onCheckedChange={(checked: boolean) => 
                                         setResetOptions(prev => ({ ...prev, resetAdminId: checked as boolean }))
                                     }
                                 />
@@ -458,7 +458,7 @@ export function AdminCredentialReset({ adminId, adminName }: AdminCredentialRese
                                 <Checkbox
                                     id="resetEmail"
                                     checked={resetOptions.resetEmail}
-                                    onCheckedChange={(checked) => 
+                                    onCheckedChange={(checked: boolean) => 
                                         setResetOptions(prev => ({ ...prev, resetEmail: checked as boolean }))
                                     }
                                 />
@@ -484,7 +484,7 @@ export function AdminCredentialReset({ adminId, adminName }: AdminCredentialRese
                                 <Checkbox
                                     id="resetPassword"
                                     checked={resetOptions.resetPassword}
-                                    onCheckedChange={(checked) => 
+                                    onCheckedChange={(checked: boolean) => 
                                         setResetOptions(prev => ({ ...prev, resetPassword: checked as boolean }))
                                     }
                                 />

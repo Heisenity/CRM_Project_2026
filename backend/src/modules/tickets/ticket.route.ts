@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { ticketController } from './ticket.controller';
 import { authenticateToken } from '../../middleware/auth.middleware';
 import { exportTicketsToExcel } from './ticket.export';
+import { getPresignedUploadUrl } from './uplaod.controller'
+
 
 const router = Router();
 
@@ -40,5 +42,7 @@ router.post('/:id/comments', ticketController.addComment.bind(ticketController))
 
 // Download ticket attachment
 router.get('/attachments/:attachmentId/download', ticketController.downloadAttachment.bind(ticketController));
+
+router.post('/presigned-url', getPresignedUploadUrl);
 
 export default router;

@@ -18,7 +18,12 @@ declare global {
 export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+    const token =
+      authHeader?.startsWith('Bearer ')
+        ? authHeader.split(' ')[1]
+        : (req.query.token as string);
+
 
     if (!token) {
       return res.status(401).json({
@@ -29,7 +34,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
 
     // Validate session token
     const session = await sessionService.validateSession(token);
-    
+
     if (!session) {
       return res.status(401).json({
         success: false,

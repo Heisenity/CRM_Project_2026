@@ -307,7 +307,7 @@ export default function CreateEmployeeForm({ onEmployeeCreated }: CreateEmployee
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="role">Employee Role *</Label>
-                                    <Select value={formData.role} onValueChange={(value) => handleInputChange('role', value)}>
+                                    <Select value={formData.role} onValueChange={(value: string) => handleInputChange('role', value)}>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Select role" />
                                         </SelectTrigger>
@@ -325,7 +325,7 @@ export default function CreateEmployeeForm({ onEmployeeCreated }: CreateEmployee
                                 
                                 <div className="space-y-2">
                                     <Label htmlFor="team">Team</Label>
-                                    <Select value={formData.teamId} onValueChange={(value) => handleInputChange('teamId', value)}>
+                                    <Select value={formData.teamId} onValueChange={(value: string) => handleInputChange('teamId', value)}>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Select team (optional)" />
                                         </SelectTrigger>

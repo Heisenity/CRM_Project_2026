@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Upload, CheckCircle, AlertCircle, User, Info, Save, Plus, Camera, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { EmployeeIdGenerator } from "@/components/EmployeeIdGenerator"
+import { uploadEmployeePhotoToS3 } from "@/lib/s3-upload"
 
 interface Team {
     id: string
@@ -42,6 +42,18 @@ export default function CreateEmployeePage() {
         photo: null as File | null
     })
 
+    // store an object URL for preview and clean it up
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    useEffect(() => {
+        if (formData.photo) {
+            const url = URL.createObjectURL(formData.photo);
+            setPreviewUrl(url);
+            return () => URL.revokeObjectURL(url);
+        } else {
+            setPreviewUrl(null);
+        }
+    }, [formData.photo]);
+
     // Auto-generate employee ID when role changes
     useEffect(() => {
         if (formData.role && !formData.employeeId) {
@@ -62,111 +74,108 @@ export default function CreateEmployeePage() {
         }
     }, [formData.role])
 
+
     const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
+        e.preventDefault();
 
         if (!formData.employeeId.trim()) {
-            setError('Employee ID is required')
-            return
+            setError('Employee ID is required');
+            return;
         }
-
         if (!formData.employeeName.trim()) {
-            setError('Employee name is required')
-            return
+            setError('Employee name is required');
+            return;
         }
-
         if (!formData.email.trim()) {
-            setError('Email is required')
-            return
+            setError('Email is required');
+            return;
         }
-
         if (!formData.password.trim()) {
-            setError('Password is required')
-            return
+            setError('Password is required');
+            return;
         }
-
         if (!formData.phone.trim()) {
-            setError('Phone is required')
-            return
+            setError('Phone is required');
+            return;
         }
-
-        // Validate Aadhar card format (12 digits) if provided
         if (formData.aadharCard && !/^\d{12}$/.test(formData.aadharCard)) {
-            setError('Aadhar card must be 12 digits')
-            return
+            setError('Aadhar card must be 12 digits');
+            return;
         }
-
-        // Validate PAN card format (5 letters, 4 digits, 1 letter) if provided
         if (formData.panCard && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formData.panCard)) {
-            setError('PAN card format should be like ABCDE1234F')
-            return
+            setError('PAN card format should be like ABCDE1234F');
+            return;
         }
 
-        setLoading(true)
-        setError(null)
+        setLoading(true);
+        setError(null);
 
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    name: formData.employeeName.trim(),
-                    email: formData.email.trim(),
-                    password: formData.password.trim(),
-                    phone: formData.phone.trim() || undefined,
-                    designation: formData.designation.trim(),
-                    role: formData.role,
-                    isTeamLeader: false,
-                    sickLeaveBalance: formData.sickLeaveBalance,
-                    casualLeaveBalance: formData.casualLeaveBalance,
-                    salary: formData.salary ? parseFloat(formData.salary) : undefined,
-                    address: formData.address.trim() || undefined,
-                    aadharCard: formData.aadharCard.trim() || undefined,
-                    panCard: formData.panCard.trim() || undefined
-                })
-            })
+            let photoKey: string | undefined;
 
-            const result = await response.json()
+            // 🔹 STEP 1: upload photo to S3 if exists
+            if (formData.photo) {
+                photoKey = await uploadEmployeePhotoToS3(formData.photo, formData.employeeId);
+            }
+
+            // 🔹 STEP 2: create employee with photoKey
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_BACKEND_URL}/employees`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: formData.employeeName.trim(),
+                        email: formData.email.trim(),
+                        password: formData.password.trim(),
+                        phone: formData.phone.trim() || undefined,
+                        designation: formData.designation.trim(),
+                        role: formData.role,
+                        isTeamLeader: false,
+                        sickLeaveBalance: formData.sickLeaveBalance,
+                        casualLeaveBalance: formData.casualLeaveBalance,
+                        salary: formData.salary ? parseFloat(formData.salary) : undefined,
+                        address: formData.address.trim() || undefined,
+                        aadharCard: formData.aadharCard.trim() || undefined,
+                        panCard: formData.panCard.trim() || undefined,
+                        photoKey, 
+                    }),
+                }
+            );
+
+            const result = await response.json();
 
             if (result.success) {
-                setShowSuccess(true)
-
-                // Reset form and redirect after success
+                setShowSuccess(true);
                 setTimeout(() => {
-                    router.push('/employee-management')
-                }, 2000)
+                    router.push('/employee-management');
+                }, 2000);
             } else {
-                setError(result.error || 'Failed to create employee')
+                setError(result.error || 'Failed to create employee');
             }
-        } catch (error) {
-            console.error('Error creating employee:', error)
-            setError('Failed to create employee')
+        } catch (err) {
+            console.error('Error creating employee:', err);
+            setError('Failed to create employee');
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
-    }
+    };
 
     const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0]
-        if (file) {
-            // Validate file type
-            if (!file.type.startsWith('image/')) {
-                setError('Please select an image file')
-                return
-            }
-
-            // Validate file size (5MB max)
-            if (file.size > 5 * 1024 * 1024) {
-                setError('File size must be less than 5MB')
-                return
-            }
-
-            setError(null) // Clear any previous errors
-            setFormData(prev => ({ ...prev, photo: file }))
+        const file = event.target.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            setError('Please select an image file');
+            return;
         }
-    }
+        if (file.size > 5 * 1024 * 1024) {
+            setError('File size must be less than 5MB');
+            return;
+        }
+        setError(null);
+        setFormData(prev => ({ ...prev, photo: file }));
+    };
+
 
     return (
         <div className="min-h-screen bg-gray-50/30">
@@ -232,29 +241,22 @@ export default function CreateEmployeePage() {
                                             Add New Employee
                                         </CardTitle>
                                     </CardHeader>
+                                    {/* Photo Upload Section */}
                                     <CardContent className="space-y-4">
-                                        {/* Photo Upload Section */}
                                         <div className="space-y-2">
-                                            <Label className="text-sm font-medium text-green-800">
-                                                Employee Photo (Optional)
-                                            </Label>
+                                            <Label className="text-sm font-medium text-green-800">Employee Photo (Optional)</Label>
                                             <div className="border-2 border-dashed border-green-300 rounded-lg p-6 text-center hover:border-green-400 transition-colors">
-                                                {formData.photo ? (
+                                                {previewUrl ? (
                                                     <div className="space-y-3">
                                                         <div className="w-20 h-20 mx-auto rounded-full overflow-hidden bg-gray-100 relative">
-                                                            <Image
-                                                                src={URL.createObjectURL(formData.photo)}
-                                                                alt="Employee preview"
-                                                                fill
-                                                                className="object-cover"
-                                                            />
+                                                            <img src={previewUrl} alt="Employee preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                                                         </div>
-                                                        <p className="text-sm text-green-700 font-medium">{formData.photo.name}</p>
+                                                        <p className="text-sm text-green-700 font-medium">{formData.photo?.name}</p>
                                                         <Button
                                                             type="button"
                                                             variant="outline"
                                                             size="sm"
-                                                            onClick={() => setFormData(prev => ({ ...prev, photo: null }))}
+                                                            onClick={() => setFormData((prev) => ({ ...prev, photo: null }))}
                                                             className="border-green-300 text-green-600 hover:bg-green-100"
                                                         >
                                                             Remove Photo
@@ -265,22 +267,14 @@ export default function CreateEmployeePage() {
                                                         <Camera className="h-12 w-12 text-green-400 mx-auto" />
                                                         <div>
                                                             <p className="text-green-700 font-medium mb-1">Upload Employee Photo</p>
-                                                            <p className="text-xs text-green-600 mb-4">
-                                                                Supported formats: JPG, PNG (Max 5MB)
-                                                            </p>
+                                                            <p className="text-xs text-green-600 mb-4">Supported formats: JPG, PNG (Max 5MB)</p>
                                                         </div>
                                                         <div>
-                                                            <input
-                                                                type="file"
-                                                                accept="image/*"
-                                                                onChange={handlePhotoUpload}
-                                                                className="hidden"
-                                                                id="photo-upload"
-                                                            />
+                                                            <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" id="photo-upload" />
                                                             <Button
                                                                 type="button"
                                                                 variant="outline"
-                                                                onClick={() => document.getElementById('photo-upload')?.click()}
+                                                                onClick={() => document.getElementById("photo-upload")?.click()}
                                                                 className="border-green-300 text-green-600 hover:bg-green-100"
                                                             >
                                                                 <Upload className="h-4 w-4 mr-2" />

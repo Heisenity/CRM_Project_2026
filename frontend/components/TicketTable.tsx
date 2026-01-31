@@ -451,34 +451,37 @@ export function TicketTable() {
   const [deletingTicket, setDeletingTicket] = React.useState(false)
   const [exporting, setExporting] = React.useState(false)
 
-  const downloadFile = async (filePath: string, fileName: string) => {
+  const downloadFile = async (attachmentId: string, fileName: string) => {
     try {
-      // Static files are served from root, not /api/v1
-      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL?.replace('/api/v1', '') || 'http://localhost:3001'
-      const staticUrl = `${baseUrl}${filePath}`
-      console.log('Direct download URL:', staticUrl)
+      // Use the proper backend download endpoint that generates presigned S3 URLs
+      const response = await authenticatedFetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/tickets/attachments/${attachmentId}/download`
+      )
       
-      // Create a temporary link to download the file with the correct name
-      const response = await fetch(staticUrl)
       if (!response.ok) {
-        throw new Error('File not found')
+        throw new Error('Failed to get download URL')
       }
       
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
+      const { url } = await response.json()
+      
+      // Download the file from the presigned S3 URL
+      const fileResponse = await fetch(url)
+      if (!fileResponse.ok) {
+        throw new Error('Failed to download file')
+      }
+      
+      const blob = await fileResponse.blob()
+      const downloadUrl = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
-      a.href = url
+      a.href = downloadUrl
       a.download = fileName
       document.body.appendChild(a)
       a.click()
-      window.URL.revokeObjectURL(url)
+      window.URL.revokeObjectURL(downloadUrl)
       document.body.removeChild(a)
     } catch (error) {
       console.error('Error downloading file:', error)
-      // Final fallback - just open the file in a new tab
-      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL?.replace('/api/v1', '') || 'http://localhost:3001'
-      const staticUrl = `${baseUrl}${filePath}`
-      window.open(staticUrl, '_blank')
+      showToast.error('Could not download the attachment. Please try again.')
     }
   }
 
@@ -1124,7 +1127,7 @@ export function TicketTable() {
                                       className="h-6 w-6 p-0 flex-shrink-0"
                                       onClick={(e) => {
                                         e.stopPropagation()
-                                        downloadFile(attachment.filePath, attachment.fileName)
+                                        downloadFile(attachment.id, attachment.fileName)
                                       }}
                                     >
                                       <Download className="h-3 w-3" />

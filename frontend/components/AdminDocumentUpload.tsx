@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Upload, FileText, Download, Trash2, User, Calendar } from "lucide-react"
 import { showToast } from "@/lib/toast-utils"
-import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch' 
+import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
+import { uploadDocumentToS3 } from "@/lib/s3-upload"
 
 interface Employee {
   id: string
@@ -60,12 +61,12 @@ export function AdminDocumentUpload({ adminId, adminName }: AdminDocumentUploadP
         // Use authenticatedFetch to include session token
         const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees`)
         const result = await response.json()
-        
+
         console.log('Employees API response:', result) // Debug log
-        
+
         if (result.success && result.data && Array.isArray(result.data.employees)) {
           // The API returns data.employees, not just data
-          const validEmployees = result.data.employees.filter((emp: any) => 
+          const validEmployees = result.data.employees.filter((emp: any) =>
             emp && emp.employeeId && emp.name
           ).map((emp: any) => ({
             id: emp.id,
@@ -99,7 +100,7 @@ export function AdminDocumentUpload({ adminId, adminName }: AdminDocumentUploadP
       // Use authenticatedFetch to include session token
       const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/documents/all`)
       const result = await response.json()
-      
+
       if (result.success) {
         setDocuments(result.data || [])
       }
@@ -133,93 +134,100 @@ export function AdminDocumentUpload({ adminId, adminName }: AdminDocumentUploadP
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (!selectedEmployee || selectedEmployee === 'no-employees' || selectedEmployee === 'loading' || !title.trim() || !selectedFile) {
-      showToast.error('Please fill in all required fields and select a file')
+
+    if (!selectedEmployee || !title.trim() || !selectedFile) {
+      showToast.error("Please fill all required fields")
       return
     }
 
     setUploading(true)
+
     try {
-      if (!isAuthenticated) {
-        showToast.error('You need to be signed in to upload documents')
-        setUploading(false)
-        return
-      }
+      // Upload to S3
+      const uploaded = await uploadDocumentToS3(
+        selectedFile,
+        selectedEmployee
+      )
 
-      const formData = new FormData()
-      formData.append('employeeId', selectedEmployee)
-      formData.append('title', title.trim())
-      formData.append('description', description.trim())
-      formData.append('uploadedBy', adminName)
-      formData.append('adminId', adminId)
-      formData.append('file', selectedFile)
-
-      // Use authenticatedFetch; it will automatically set Authorization header and avoid setting Content-Type for FormData
-      const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/documents/upload`, {
-        method: 'POST',
-        body: formData
-      })
+      // Save metadata to backend
+      const response = await authenticatedFetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/documents`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            employeeId: selectedEmployee,
+            title: title.trim(),
+            description: description.trim(),
+            uploadedBy: adminName,
+            adminId,
+            fileName: uploaded.fileName,
+            filePath: uploaded.fileUrl,
+            fileSize: uploaded.fileSize,
+            mimeType: uploaded.mimeType,
+          }),
+        }
+      )
 
       const result = await response.json()
 
-      if (result.success) {
-        showToast.success('Document uploaded successfully!', 'Upload Complete')
-        setSelectedEmployee('')
-        setTitle('')
-        setDescription('')
-        setSelectedFile(null)
-        // Reset file input
-        const fileInput = document.getElementById('file-upload') as HTMLInputElement
-        if (fileInput) fileInput.value = ''
-        fetchDocuments()
-      } else {
-        throw new Error(result.error || 'Failed to upload document')
+      if (!result.success) {
+        throw new Error(result.error || "Failed to save document")
       }
-    } catch (error) {
-      console.error('Error uploading document:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      showToast.error(`Failed to upload document: ${errorMessage}`)
+
+      showToast.success("Document uploaded successfully")
+      setSelectedEmployee("")
+      setTitle("")
+      setDescription("")
+      setSelectedFile(null)
+      fetchDocuments()
+    } catch (err: any) {
+      console.error(err)
+      showToast.error(err.message || "Upload failed")
     } finally {
       setUploading(false)
     }
   }
 
-  const handleDownload = async (documentId: string, fileName: string) => {
+
+  const handleDownload = async (documentId: string) => {
     try {
       if (!isAuthenticated) {
         showToast.error('You need to be signed in to download documents')
         return
       }
 
-      // Use authenticatedFetch for authorized download
-      const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/documents/download/${documentId}`)
-      
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = fileName
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
-      } else {
-        if (response.status === 403) {
-          showToast.error('Access denied to download this document')
-        }
-        throw new Error('Failed to download document')
+      const response = await authenticatedFetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/documents/download/${documentId}`
+      )
+
+      const result = await response.json()
+
+      const url =
+        result?.url ||
+        result?.data?.url ||
+        result?.fileUrl
+
+      if (!url) {
+        throw new Error('Download URL missing in response')
       }
+
+      // ✅ Trigger download without leaving page
+      const a = document.createElement('a')
+      a.href = url
+      a.rel = 'noopener'
+      a.target = '_blank'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+
     } catch (error) {
       console.error('Error downloading document:', error)
-      if (error instanceof Error && error.message.includes('No valid session token')) {
-        showToast.error('Please sign in to download documents')
-      } else {
-        showToast.error('Failed to download document')
-      }
+      showToast.error('Failed to download document')
     }
   }
+
+
 
   const handleDelete = async (documentId: string) => {
     if (!confirm('Are you sure you want to delete this document?')) return
@@ -420,7 +428,7 @@ export function AdminDocumentUpload({ adminId, adminName }: AdminDocumentUploadP
                           {document.mimeType.split('/')[1].toUpperCase()}
                         </Badge>
                       </div>
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 mb-3">
                         <div className="flex items-center space-x-2">
                           <User className="h-4 w-4" />
@@ -452,7 +460,7 @@ export function AdminDocumentUpload({ adminId, adminName }: AdminDocumentUploadP
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDownload(document.id, document.fileName)}
+                        onClick={() => handleDownload(document.id)}
                         className="text-blue-600 hover:text-blue-700 border-blue-300 hover:border-blue-400"
                       >
                         <Download className="h-4 w-4" />

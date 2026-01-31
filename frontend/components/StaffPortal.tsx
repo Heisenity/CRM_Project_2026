@@ -22,7 +22,6 @@ import {
   LogOut,
   FileText,
   Car,
-  Upload,
   QrCode,
   History,
   ArrowUpCircle,
@@ -60,6 +59,7 @@ interface EmployeeProfile {
   isTeamLeader: boolean
   status: string
   role?: string
+  photoUrl?: string
 }
 
 interface AssignedVehicle {
@@ -179,7 +179,8 @@ export function StaffPortal() {
             team: result.data.team, // Include team object with name
             isTeamLeader: result.data.isTeamLeader,
             status: result.data.status,
-            role: result.data.role // Include role information
+            role: result.data.role, // Include role information
+            photoUrl: result.data.photoUrl // Include photo URL
           })
         } else {
           // Fallback to session data
@@ -481,7 +482,7 @@ export function StaffPortal() {
           <div className="flex items-center gap-3">
             <Avatar className="h-12 w-12">
               <AvatarImage
-                src={`https://api.dicebear.com/7.x/initials/svg?seed=${employeeProfile.name}`}
+                src={employeeProfile.photoUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${employeeProfile.name}`}
                 alt={employeeProfile.name}
               />
               <AvatarFallback className="text-sm">{getInitials(employeeProfile.name)}</AvatarFallback>
@@ -644,7 +645,7 @@ export function StaffPortal() {
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10">
                   <AvatarImage
-                    src={`https://api.dicebear.com/7.x/initials/svg?seed=${employeeProfile.name}`}
+                    src={employeeProfile.photoUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${employeeProfile.name}`}
                     alt={employeeProfile.name}
                   />
                   <AvatarFallback className="text-sm">{getInitials(employeeProfile.name)}</AvatarFallback>
@@ -778,10 +779,10 @@ export function StaffPortal() {
             <div className="lg:col-span-1">
               <Card>
                 <CardHeader className="text-center pb-4">
-                  <div className="flex justify-center mb-4">
+                  <div className="flex justify-center mb-4 relative">
                     <Avatar className="h-24 w-24">
                       <AvatarImage
-                        src={`https://api.dicebear.com/7.x/initials/svg?seed=${employeeProfile.name}`}
+                        src={employeeProfile.photoUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${employeeProfile.name}`}
                         alt={employeeProfile.name}
                       />
                       <AvatarFallback className="text-lg">

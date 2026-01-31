@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { ticketService } from './ticket.service';
 import { TicketPriority, TicketStatus } from '@prisma/client';
+import { getDownloadUrl } from '@/services/s3.service'
 
 export class TicketController {
   async createTicket(req: Request, res: Response) {
@@ -298,63 +299,48 @@ export class TicketController {
     }
   }
 
-  async downloadAttachment(req: Request, res: Response) {
-    try {
-      const { attachmentId } = req.params;
+  async downloadAttachment(req: Request<{ attachmentId: string }>, res: Response) {
+  try {
+    const { attachmentId } = req.params
 
-      // Get attachment details from database
-      const attachment = await ticketService.prisma.ticketAttachment.findUnique({
-        where: { id: attachmentId },
-        include: {
-          ticket: {
-            select: { id: true, ticketId: true }
-          }
-        }
-      });
+    const attachment = await ticketService.prisma.ticketAttachment.findUnique({
+      where: { id: attachmentId }
+    })
 
-      if (!attachment) {
-        return res.status(404).json({
-          success: false,
-          message: 'Attachment not found'
-        });
-      }
+    if (!attachment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Attachment not found'
+      })
+    }
 
-      // Check if file exists
-      const fs = require('fs');
-      const path = require('path');
-      
-      // Handle both customer support files and regular ticket files
-      let filePath: string;
-      if (attachment.filePath.startsWith('/uploads/customer-support/')) {
-        filePath = path.join(__dirname, '../../../uploads/customer-support', path.basename(attachment.filePath));
-      } else if (attachment.filePath.startsWith('/uploads/tickets/')) {
-        filePath = path.join(__dirname, '../../../uploads/tickets', path.basename(attachment.filePath));
-      } else {
-        // Fallback - try to construct path from filePath
-        filePath = path.join(__dirname, '../../..', attachment.filePath);
-      }
-
-      if (!fs.existsSync(filePath)) {
-        return res.status(404).json({
-          success: false,
-          message: 'File not found on disk'
-        });
-      }
-
-      // Set appropriate headers
-      res.setHeader('Content-Disposition', `attachment; filename="${attachment.fileName}"`);
-      res.setHeader('Content-Type', attachment.mimeType);
-      
-      return res.sendFile(filePath);
-    } catch (error) {
-      console.error('Error downloading attachment:', error);
+    const bucket = process.env.AWS_S3_MISCELLANEOUS_BUCKET
+    if (!bucket) {
       return res.status(500).json({
         success: false,
-        message: 'Failed to download attachment',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
+        message: 'S3 bucket not configured'
+      })
     }
+
+    // attachment.filePath = S3 key
+    const url = await getDownloadUrl(
+      bucket,
+      attachment.filePath,
+      60 // expires in 60 seconds
+    )
+
+    return res.status(200).json({
+      success: true,
+      url
+    })
+  } catch (error) {
+    console.error('Error downloading attachment:', error)
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to generate download link'
+    })
   }
+}
 
   async getTicketCount(req: Request, res: Response) {
     try {

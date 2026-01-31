@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { EmployeeAvatar } from "@/components/EmployeeAvatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { 
@@ -40,11 +41,14 @@ import {
     RefreshCw,
     MoreVertical,
     Edit,
-    Trash2
+    Trash2,
+    Upload,
+    Camera
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from 'next/navigation'
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch'
+import { uploadEmployeePhotoToS3 } from "@/lib/s3-upload"
 
 interface Employee {
     id: string
@@ -65,6 +69,8 @@ interface Employee {
     address?: string
     aadharCard?: string
     panCard?: string
+    photoUrl?: string
+    photoKey?: string
     createdAt: string
     updatedAt: string
 }
@@ -623,9 +629,12 @@ export default function EmployeeManagement() {
                                             >
                                                 <TableCell className="py-4 px-6">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white font-semibold text-sm">
-                                                            {employee.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                                                        </div>
+                                                        <EmployeeAvatar 
+                                                            photoUrl={employee.photoUrl}
+                                                            photoKey={employee.photoKey}
+                                                            name={employee.name}
+                                                            size="lg"
+                                                        />
                                                         <div className="space-y-1">
                                                             <div className="font-semibold text-foreground text-base">{employee.name}</div>
                                                             <div className="text-sm text-muted-foreground">{employee.email}</div>
@@ -1161,26 +1170,81 @@ function EditEmployeeForm({ employee, teams, onSave, onCancel }: EditEmployeeFor
         panCard: employee.panCard || '',
         sickLeaveBalance: employee.sickLeaveBalance || 12,
         casualLeaveBalance: employee.casualLeaveBalance || 12,
-        password: ''
+        password: '',
+        photo: null as File | null
     })
 
     const [showPassword, setShowPassword] = useState(false)
     const [passwordEditable, setPasswordEditable] = useState(false)
     const [showPasswordDialog, setShowPasswordDialog] = useState(false)
+    const [previewUrl, setPreviewUrl] = useState<string | null>(employee.photoUrl || null)
+    const [uploadingPhoto, setUploadingPhoto] = useState(false)
 
-    const handleSubmit = (e: React.FormEvent) => {
+    // Clean up preview URL when component unmounts
+    React.useEffect(() => {
+        if (formData.photo) {
+            const url = URL.createObjectURL(formData.photo)
+            setPreviewUrl(url)
+            return () => URL.revokeObjectURL(url)
+        }
+    }, [formData.photo])
+
+    const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0]
+        if (!file) return
+        
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file')
+            return
+        }
+        
+        if (file.size > 5 * 1024 * 1024) {
+            alert('File size must be less than 5MB')
+            return
+        }
+        
+        setFormData(prev => ({ ...prev, photo: file }))
+    }
+
+    const handleRemovePhoto = () => {
+        setFormData(prev => ({ ...prev, photo: null }))
+        setPreviewUrl(null)
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        
+        let photoUrl = employee.photoUrl // Keep existing photo URL by default
+        
+        // Upload new photo if one was selected
+        if (formData.photo) {
+            setUploadingPhoto(true)
+            try {
+                photoUrl = await uploadEmployeePhotoToS3(formData.photo, employee.employeeId)
+            } catch (error) {
+                console.error('Photo upload failed:', error)
+                alert('Failed to upload photo. Please try again.')
+                setUploadingPhoto(false)
+                return
+            } finally {
+                setUploadingPhoto(false)
+            }
+        }
         
         const updateData: any = {
             ...formData,
             salary: formData.salary ? parseFloat(formData.salary.toString()) : null,
-            teamId: formData.teamId && formData.teamId !== "no-team" ? formData.teamId : null
+            teamId: formData.teamId && formData.teamId !== "no-team" ? formData.teamId : null,
+            photoUrl: photoUrl
         }
 
         // Only include password if it was changed
         if (formData.password && passwordEditable) {
             updateData.password = formData.password
         }
+        
+        // Remove photo from update data as it's handled separately
+        delete updateData.photo
         
         onSave(updateData)
     }

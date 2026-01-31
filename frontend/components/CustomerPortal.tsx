@@ -268,35 +268,66 @@ export default function CustomerPortal() {
     
     try {
       const token = localStorage.getItem("customerToken");
-      let uploadedDocuments: UploadedDocument[] = [];
+      let uploadedDocuments: any[] = [];
 
-      // Upload files first if any
+      // Upload files to S3 first if any
       if (uploadedFiles.length > 0) {
         setUploadProgress(25);
         toast.info("Uploading files...");
         
-        const formData = new FormData();
-        uploadedFiles.forEach(file => {
-          formData.append('documents', file);
-        });
+        try {
+          uploadedDocuments = await Promise.all(
+            uploadedFiles.map(async (file) => {
+              // 1️⃣ Get presigned URL from backend
+              const presignRes = await fetch(
+                `${process.env.NEXT_PUBLIC_BACKEND_URL}/uploads/customer-presigned-url`,
+                {
+                  method: 'POST',
+                  headers: { 
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                  },
+                  body: JSON.stringify({
+                    fileName: file.name,
+                    fileType: file.type,
+                    folder: 'customer-support'
+                  })
+                }
+              );
 
-        const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/customer-support/upload`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        });
+              if (!presignRes.ok) {
+                throw new Error('Failed to get upload URL');
+              }
 
-        if (!uploadResponse.ok) {
-          const errorData = await uploadResponse.json();
-          throw new Error(errorData.error || "Failed to upload files");
+              const { uploadUrl, filePath } = await presignRes.json();
+
+              // 2️⃣ Upload directly to S3
+              const uploadRes = await fetch(uploadUrl, {
+                method: 'PUT',
+                headers: { 'Content-Type': file.type },
+                body: file
+              });
+
+              if (!uploadRes.ok) {
+                throw new Error(`Failed to upload ${file.name}`);
+              }
+
+              // 3️⃣ Return attachment metadata
+              return {
+                filename: file.name,
+                originalName: file.name,
+                path: filePath, // S3 key
+                size: file.size,
+                mimetype: file.type
+              };
+            })
+          );
+          
+          setUploadProgress(75);
+          toast.success("Files uploaded successfully");
+        } catch (uploadError) {
+          throw new Error(`File upload failed: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`);
         }
-
-        const uploadData = await uploadResponse.json();
-        uploadedDocuments = uploadData.files || [];
-        setUploadProgress(75);
-        toast.success("Files uploaded successfully");
       }
 
       // Submit support request with uploaded file information

@@ -1,27 +1,29 @@
 import { prisma } from '../../../lib/prisma'
 import {
   EmployeeDocument,
-  UploadDocumentRequest,
   DocumentResponse,
   DocumentsResponse
 } from './document.types'
-import fs from 'fs'
-import path from 'path'
+import { getDownloadUrl, deleteFileFromS3 } from '@/services/s3.service'
+import { Request, Response } from 'express'
 
 export class DocumentService {
-  private uploadDir = path.join(process.cwd(), 'uploads', 'documents')
 
-  constructor() {
-    // Ensure upload directory exists
-    if (!fs.existsSync(this.uploadDir)) {
-      fs.mkdirSync(this.uploadDir, { recursive: true })
-    }
-  }
-
-  // Upload document for employee
-  async uploadDocument(data: UploadDocumentRequest): Promise<DocumentResponse> {
+  /* -------------------------------------------------------------------------- */
+  /*                         CREATE DOCUMENT (METADATA)                          */
+  /* -------------------------------------------------------------------------- */
+  async createDocument(data: {
+    employeeId: string            // business ID like IO002
+    title: string
+    description?: string
+    fileName: string
+    filePath: string              // S3 URL or key
+    fileSize?: number
+    mimeType?: string
+    uploadedBy: string
+  }): Promise<DocumentResponse> {
     try {
-      // Find employee
+      // Convert business employeeId → internal FK
       const employee = await prisma.employee.findUnique({
         where: { employeeId: data.employeeId }
       })
@@ -30,25 +32,15 @@ export class DocumentService {
         return { success: false, error: 'Employee not found' }
       }
 
-      // Generate unique filename
-      const timestamp = Date.now()
-      const fileExtension = path.extname(data.file.originalname)
-      const fileName = `${data.employeeId}_${timestamp}${fileExtension}`
-      const filePath = path.join(this.uploadDir, fileName)
-
-      // Save file to disk
-      fs.writeFileSync(filePath, data.file.buffer)
-
-      // Save document record to database
       const document = await prisma.employeeDocument.create({
         data: {
           employeeId: employee.id,
           title: data.title,
           description: data.description,
-          fileName: data.file.originalname,
-          filePath: fileName, // Store relative path
-          fileSize: data.file.size,
-          mimeType: data.file.mimetype,
+          fileName: data.fileName,
+          filePath: data.filePath,
+          fileSize: data.fileSize,
+          mimeType: data.mimeType,
           uploadedBy: data.uploadedBy
         },
         include: {
@@ -63,7 +55,7 @@ export class DocumentService {
 
       const response: EmployeeDocument = {
         id: document.id,
-        employeeId: data.employeeId,
+        employeeId: document.employee.employeeId,
         employeeName: document.employee.name,
         title: document.title,
         description: document.description || undefined,
@@ -79,49 +71,37 @@ export class DocumentService {
 
       return { success: true, data: response }
     } catch (error) {
-      console.error('Error uploading document:', error)
-      return { success: false, error: 'Failed to upload document' }
+      console.error('Error creating document:', error)
+      return { success: false, error: 'Failed to create document' }
     }
   }
 
-  // Get documents for an employee
+  /* -------------------------------------------------------------------------- */
+  /*                        GET DOCUMENTS FOR EMPLOYEE                           */
+  /* -------------------------------------------------------------------------- */
   async getEmployeeDocuments(employeeId: string): Promise<DocumentsResponse> {
     try {
-      console.log('=== FETCHING EMPLOYEE DOCUMENTS ===')
-      console.log('Looking for employee with employeeId:', employeeId)
-      
       const employee = await prisma.employee.findUnique({
         where: { employeeId }
       })
 
       if (!employee) {
-        console.log('Employee not found with employeeId:', employeeId)
         return { success: false, error: 'Employee not found' }
       }
-
-      console.log('Found employee:', employee.name, 'with internal ID:', employee.id)
 
       const documents = await prisma.employeeDocument.findMany({
         where: { employeeId: employee.id },
         include: {
           employee: {
-            select: {
-              name: true,
-              employeeId: true
-            }
+            select: { name: true, employeeId: true }
           }
         },
         orderBy: { uploadedAt: 'desc' }
       })
 
-      console.log('Found', documents.length, 'documents for employee')
-      documents.forEach(doc => {
-        console.log('- Document:', doc.title, 'uploaded at:', doc.uploadedAt)
-      })
-
       const response: EmployeeDocument[] = documents.map(doc => ({
         id: doc.id,
-        employeeId: employeeId,
+        employeeId,
         employeeName: doc.employee.name,
         title: doc.title,
         description: doc.description || undefined,
@@ -135,25 +115,22 @@ export class DocumentService {
         updatedAt: doc.updatedAt.toISOString()
       }))
 
-      console.log('=== DOCUMENT FETCH SUCCESS ===')
       return { success: true, data: response }
     } catch (error) {
-      console.error('=== DOCUMENT FETCH ERROR ===')
       console.error('Error fetching employee documents:', error)
       return { success: false, error: 'Failed to fetch documents' }
     }
   }
 
-  // Get all documents (for admin)
+  /* -------------------------------------------------------------------------- */
+  /*                            GET ALL DOCUMENTS                                */
+  /* -------------------------------------------------------------------------- */
   async getAllDocuments(): Promise<DocumentsResponse> {
     try {
       const documents = await prisma.employeeDocument.findMany({
         include: {
           employee: {
-            select: {
-              name: true,
-              employeeId: true
-            }
+            select: { name: true, employeeId: true }
           }
         },
         orderBy: { uploadedAt: 'desc' }
@@ -182,35 +159,35 @@ export class DocumentService {
     }
   }
 
-  // Download document
-  async downloadDocument(documentId: string): Promise<{ success: boolean; filePath?: string; fileName?: string; error?: string }> {
-    try {
-      const document = await prisma.employeeDocument.findUnique({
-        where: { id: documentId }
-      })
+  /* -------------------------------------------------------------------------- */
+  /*                          DOWNLOAD (SIGNED URL)                               */
+  /* -------------------------------------------------------------------------- */
+  async downloadDocument(req: Request, res: Response) {
+    const { documentId } = req.params
 
-      if (!document) {
-        return { success: false, error: 'Document not found' }
-      }
+    const document = await prisma.employeeDocument.findUnique({
+      where: { id: documentId }
+    })
 
-      const fullPath = path.join(this.uploadDir, document.filePath)
-
-      if (!fs.existsSync(fullPath)) {
-        return { success: false, error: 'File not found on disk' }
-      }
-
-      return {
-        success: true,
-        filePath: fullPath,
-        fileName: document.fileName
-      }
-    } catch (error) {
-      console.error('Error downloading document:', error)
-      return { success: false, error: 'Failed to download document' }
+    if (!document) {
+      return res.status(404).json({ success: false, error: 'Document not found' })
     }
+
+    const bucket = process.env.AWS_S3_EMPLOYEE_BUCKET
+    if (!bucket) {
+      return res.status(500).json({ success: false, error: 'Bucket not configured' })
+    }
+
+    const url = await getDownloadUrl(bucket, document.filePath, 60)
+
+    // ✅ LET BROWSER HANDLE FILE TYPE
+    return res.redirect(url)
   }
 
-  // Delete document
+
+  /* -------------------------------------------------------------------------- */
+  /*                              DELETE DOCUMENT                                 */
+  /* -------------------------------------------------------------------------- */
   async deleteDocument(documentId: string): Promise<{ success: boolean; error?: string }> {
     try {
       const document = await prisma.employeeDocument.findUnique({
@@ -221,13 +198,12 @@ export class DocumentService {
         return { success: false, error: 'Document not found' }
       }
 
-      // Delete file from disk
-      const fullPath = path.join(this.uploadDir, document.filePath)
-      if (fs.existsSync(fullPath)) {
-        fs.unlinkSync(fullPath)
+      // OPTIONAL: delete from S3
+      const bucket = process.env.AWS_S3_MISCELLANEOUS_BUCKET
+      if (bucket) {
+        await deleteFileFromS3(bucket, document.filePath)
       }
 
-      // Delete record from database
       await prisma.employeeDocument.delete({
         where: { id: documentId }
       })
@@ -237,14 +213,5 @@ export class DocumentService {
       console.error('Error deleting document:', error)
       return { success: false, error: 'Failed to delete document' }
     }
-  }
-
-  // Format file size
-  formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 }

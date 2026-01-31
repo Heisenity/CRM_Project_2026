@@ -432,7 +432,7 @@ export default function CustomerSupportRequests() {
                 </div>
                 <Select
                   value={ticketForm.category}
-                  onValueChange={(value) => setTicketForm({ ...ticketForm, category: value })}
+                  onValueChange={(value: string) => setTicketForm({ ...ticketForm, category: value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select problem type" />
@@ -451,7 +451,7 @@ export default function CustomerSupportRequests() {
                 <Label htmlFor="priority">Priority</Label>
                 <Select
                   value={ticketForm.priority}
-                  onValueChange={(value) => setTicketForm({ ...ticketForm, priority: value })}
+                  onValueChange={(value: string) => setTicketForm({ ...ticketForm, priority: value })}
                 >
                   <SelectTrigger>
                     <SelectValue />

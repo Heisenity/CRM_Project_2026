@@ -42,7 +42,7 @@ export function EmployeeDocuments({ employeeId }: EmployeeDocumentsProps) {
     try {
       const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/documents/employee/${employeeId}`)
       const result = await response.json()
-      
+
       if (result.success) {
         setDocuments(result.data || [])
       } else {
@@ -60,29 +60,44 @@ export function EmployeeDocuments({ employeeId }: EmployeeDocumentsProps) {
     fetchDocuments()
   }, [employeeId, isAuthenticated])
 
-  const handleDownload = async (documentId: string, fileName: string) => {
+  const handleDownload = async (documentId: string) => {
     try {
-      const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/documents/download/${documentId}`)
-      
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = fileName
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
-        showToast.success('Document downloaded successfully')
-      } else {
-        throw new Error('Failed to download document')
+      if (!isAuthenticated) {
+        showToast.error('You need to be signed in to download documents')
+        return
       }
+
+      const response = await authenticatedFetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/documents/download/${documentId}`
+      )
+
+      const result = await response.json()
+
+      const url =
+        result?.url ||
+        result?.data?.url ||
+        result?.fileUrl
+
+      if (!url) {
+        throw new Error('Download URL missing in response')
+      }
+
+      // ✅ Trigger download without leaving page
+      const a = document.createElement('a')
+      a.href = url
+      a.rel = 'noopener'
+      a.target = '_blank'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+
     } catch (error) {
       console.error('Error downloading document:', error)
       showToast.error('Failed to download document')
     }
   }
+
+
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes'
@@ -163,7 +178,7 @@ export function EmployeeDocuments({ employeeId }: EmployeeDocumentsProps) {
                         {document.mimeType.split('/')[1].toUpperCase()}
                       </Badge>
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600 mb-3">
                       <div className="flex items-center space-x-2">
                         <User className="h-4 w-4" />
@@ -189,7 +204,7 @@ export function EmployeeDocuments({ employeeId }: EmployeeDocumentsProps) {
 
                   <div className="ml-4">
                     <Button
-                      onClick={() => handleDownload(document.id, document.fileName)}
+                      onClick={() => handleDownload(document.id)}
                       className="bg-blue-600 hover:bg-blue-700"
                     >
                       <Download className="h-4 w-4 mr-2" />

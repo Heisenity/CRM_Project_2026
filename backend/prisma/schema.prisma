@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Admin {
@@ -55,6 +56,7 @@ model Employee {
   uanNumber               String?
   esiNumber               String?
   bankAccountNumber       String?
+  photoKey                String?
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
   /// *
@@ -350,8 +352,8 @@ model EmployeeDocument {
   description String?
   fileName    String
   filePath    String
-  fileSize    Int
-  mimeType    String
+  fileSize    Int?
+  mimeType    String?
   uploadedBy  String
   uploadedAt  DateTime @default(now())
   createdAt   DateTime @default(now())

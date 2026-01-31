@@ -566,26 +566,72 @@ export class CustomerSupportController {
       // Transfer documents from support request to ticket attachments
       if (request.documents) {
         try {
+          console.log('Raw documents from request:', request.documents);
           const documents = JSON.parse(request.documents);
+          console.log('Parsed documents:', documents);
+          
           if (Array.isArray(documents) && documents.length > 0) {
-            const attachmentPromises = documents.map(doc => 
-              prisma.ticketAttachment.create({
+            // Use the same assigneeId logic for uploadedBy to ensure we have a valid employee ID
+            let uploadedById = assigneeId;
+            
+            // If assigneeId is null, use the acceptedBy employee ID
+            if (!uploadedById) {
+              uploadedById = request.acceptedBy;
+            }
+            
+            // If still null, create a system employee
+            if (!uploadedById) {
+              let systemEmployee = await prisma.employee.findUnique({
+                where: { employeeId: 'SYSTEM' },
+                select: { id: true }
+              });
+
+              if (!systemEmployee) {
+                systemEmployee = await prisma.employee.create({
+                  data: {
+                    name: 'System',
+                    employeeId: 'SYSTEM',
+                    email: 'system@local',
+                    password: 'N/A',
+                    role: 'IN_OFFICE',
+                    status: 'ACTIVE'
+                  },
+                  select: { id: true }
+                });
+              }
+
+              uploadedById = systemEmployee.id;
+            }
+            
+            console.log('Creating attachments with uploadedById:', uploadedById);
+            
+            const attachmentPromises = documents.map((doc, index) => {
+              console.log(`Processing attachment ${index + 1}:`, {
+                fileName: doc.originalName || doc.filename,
+                filePath: doc.path,
+                fileSize: doc.size || 0,
+                mimeType: doc.mimetype || 'application/octet-stream'
+              });
+              
+              return prisma.ticketAttachment.create({
                 data: {
                   ticketId: ticket.id,
                   fileName: doc.originalName || doc.filename,
                   filePath: doc.path,
                   fileSize: doc.size || 0,
                   mimeType: doc.mimetype || 'application/octet-stream',
-                  uploadedBy: employeeId
+                  uploadedBy: uploadedById!
                 }
-              })
-            );
+              });
+            });
             
-            await Promise.all(attachmentPromises);
-            console.log(`Transferred ${documents.length} attachments to ticket ${ticketId}`);
+            const createdAttachments = await Promise.all(attachmentPromises);
+            console.log(`Successfully transferred ${documents.length} attachments to ticket ${ticketId}:`, createdAttachments.map(att => att.id));
+          } else {
+            console.log('No valid documents array found or empty array');
           }
         } catch (parseError) {
-          console.error('Error parsing support request documents:', parseError);
+          console.error('Error parsing or creating support request attachments:', parseError);
           // Continue without attachments rather than failing the entire operation
         }
       }

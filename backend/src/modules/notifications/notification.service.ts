@@ -70,9 +70,29 @@ export class NotificationService {
 
       return {
         success: true,
-        data: notifications.map(notification => ({
-          ...notification,
-          data: notification.data ? JSON.parse(notification.data) : null
+        data: await Promise.all(notifications.map(async (notification) => {
+          let parsedData = notification.data ? JSON.parse(notification.data) : null
+          
+          // Generate presigned URL for attendance photos in notification data
+          if (parsedData && parsedData.photo && notification.type === 'ATTENDANCE_APPROVAL_REQUEST') {
+            // Check if the photo is already a presigned URL (starts with https://)
+            if (!parsedData.photo.startsWith('https://')) {
+              try {
+                const bucket = process.env.AWS_S3_ATTENDANCE_BUCKET!
+                const { getDownloadUrl } = require('../../services/s3.service')
+                
+                parsedData.photo = await getDownloadUrl(bucket, parsedData.photo, 3600) // 1 hour
+              } catch (err) {
+                console.error('Error generating presigned URL for notification photo:', err)
+                // Keep the original photo value if presigned URL generation fails
+              }
+            }
+          }
+          
+          return {
+            ...notification,
+            data: parsedData
+          }
         }))
       }
     } catch (error) {

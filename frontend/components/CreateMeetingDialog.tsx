@@ -378,7 +378,7 @@ export default function CreateMeetingDialog({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="meetingType">Meeting Type</Label>
-              <Select value={formData.meetingType} onValueChange={(value) => handleInputChange('meetingType', value)}>
+              <Select value={formData.meetingType} onValueChange={(value: string) => handleInputChange('meetingType', value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -395,7 +395,7 @@ export default function CreateMeetingDialog({
 
             <div>
               <Label htmlFor="priority">Priority</Label>
-              <Select value={formData.priority} onValueChange={(value) => handleInputChange('priority', value)}>
+              <Select value={formData.priority} onValueChange={(value: string) => handleInputChange('priority', value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -438,7 +438,7 @@ export default function CreateMeetingDialog({
                   Please log in to view customers
                 </div>
               ) : Array.isArray(customers) && customers.length > 0 ? (
-                <Select value={formData.customerId} onValueChange={(value) => handleInputChange('customerId', value)}>
+                <Select value={formData.customerId} onValueChange={(value: string) => handleInputChange('customerId', value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a customer" />
                   </SelectTrigger>
@@ -513,7 +513,7 @@ export default function CreateMeetingDialog({
                       <Checkbox
                         id="select-all"
                         checked={selectedAttendees.length === filteredEmployees.length && filteredEmployees.length > 0}
-                        onCheckedChange={(checked) => {
+                        onCheckedChange={(checked: boolean) => {
                           if (checked) {
                             const newSelected = [...new Set([...selectedAttendees, ...filteredEmployees.map(emp => emp.id)])];
                             setSelectedAttendees(newSelected);
@@ -648,7 +648,7 @@ export default function CreateMeetingDialog({
                 ) : Array.isArray(customers) && customers.length > 0 ? (
                   <Select 
                     value={formData.customerId} 
-                    onValueChange={(value) => handleInputChange('customerId', value)}
+                    onValueChange={(value: string) => handleInputChange('customerId', value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Choose a customer" />
@@ -741,7 +741,7 @@ export default function CreateMeetingDialog({
                           <Checkbox
                             id="calendly-select-all"
                             checked={selectedAttendees.length === filteredEmployees.length && filteredEmployees.length > 0}
-                            onCheckedChange={(checked) => {
+                            onCheckedChange={(checked: boolean) => {
                               if (checked) {
                                 const newSelected = [...new Set([...selectedAttendees, ...filteredEmployees.map(emp => emp.id)])];
                                 setSelectedAttendees(newSelected);

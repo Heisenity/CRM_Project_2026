@@ -21,8 +21,8 @@ router.get('/json', (_req: Request, res: Response) => {
 // Swagger UI
 router.use(
   '/',
-  swaggerUi.serve,
-  swaggerUi.setup(swaggerDocument)
+  swaggerUi.serve as any,
+  swaggerUi.setup(swaggerDocument) as any
 );
 
 export default router;

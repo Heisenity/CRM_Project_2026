@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AssignTaskPage } from "@/components/AssignTaskPage"
 import { VehiclesPage } from "@/components/VehiclesPage"
+import { EmployeeAvatar } from "@/components/EmployeeAvatar"
 import { showToast } from "@/lib/toast-utils"
 import {
   ChevronLeft,
@@ -41,6 +42,8 @@ interface ExtendedAttendanceRecord extends AttendanceRecord {
   taskStartTime?: string
   taskEndTime?: string
   taskLocation?: string
+  photoUrl?: string
+  photoKey?: string
   assignedTask?: {
     id: string
     title: string
@@ -242,7 +245,8 @@ export function TaskPage() {
               ...attendanceRecord,
               hasAttendance: true,
               assignedTask: assignedTask || undefined,
-              taskLocation: assignedTask?.location || undefined
+              taskLocation: assignedTask?.location || undefined,
+              photoKey: employee.photoKey // Add photoKey from employee data
             }
           } else {
             // Create a placeholder record for employees without attendance
@@ -254,6 +258,8 @@ export function TaskPage() {
               phone: employee.phone,
               teamId: employee.teamId,
               isTeamLeader: employee.isTeamLeader,
+              photoUrl: employee.photoUrl,
+              photoKey: employee.photoKey, // Add photoKey from employee data
               date: new Date().toISOString().split('T')[0],
               status: 'ABSENT' as const,
               source: 'ADMIN' as const,
@@ -883,24 +889,24 @@ export function TaskPage() {
                         <TableCell className="py-4 px-6">
                           <div className="flex items-center gap-4">
                             <div className="relative">
-                              {(() => {
-                                return (
-                                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-sm ${record.assignedTask
-                                    ? record.assignedTask.status === 'COMPLETED'
-                                      ? 'bg-gradient-to-br from-green-500 to-green-600'
-                                      : record.assignedTask.status === 'IN_PROGRESS'
-                                        ? 'bg-gradient-to-br from-blue-500 to-blue-600'
-                                        : record.assignedTask.status === 'PENDING'
-                                          ? 'bg-gradient-to-br from-yellow-500 to-yellow-600'
-                                          : record.assignedTask.status === 'CANCELLED'
-                                            ? 'bg-gradient-to-br from-red-500 to-red-600'
-                                            : 'bg-gradient-to-br from-blue-500 to-blue-600' // default blue for unknown status
-                                    : 'bg-gradient-to-br from-blue-500 to-blue-600' // default blue when no task
-                                    }`}>
-                                    {record.employeeName.split(' ').map(n => n[0]).join('').toUpperCase()}
-                                  </div>
-                                )
-                              })()}
+                              <EmployeeAvatar 
+                                photoUrl={record.photoUrl}
+                                photoKey={record.photoKey}
+                                name={record.employeeName}
+                                size="lg"
+                                className={record.assignedTask
+                                  ? record.assignedTask.status === 'COMPLETED'
+                                    ? 'ring-2 ring-green-500'
+                                    : record.assignedTask.status === 'IN_PROGRESS'
+                                      ? 'ring-2 ring-blue-500'
+                                      : record.assignedTask.status === 'PENDING'
+                                        ? 'ring-2 ring-yellow-500'
+                                        : record.assignedTask.status === 'CANCELLED'
+                                          ? 'ring-2 ring-red-500'
+                                          : 'ring-2 ring-blue-500'
+                                  : ''
+                                }
+                              />
                               {record.assignedTask ? (
                                 <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5">
                                   {(() => {

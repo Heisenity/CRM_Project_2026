@@ -38,6 +38,18 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
     photo: null as File | null
   })
 
+  // store an object URL for preview and clean it up
+  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    if (formData.photo) {
+      const url = URL.createObjectURL(formData.photo);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setPreviewUrl(null);
+    }
+  }, [formData.photo]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -82,6 +94,37 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
     setError(null)
 
     try {
+      let photoUrl: string | undefined;
+
+      // 🔹 STEP 1: upload photo to S3 if exists
+      if (formData.photo) {
+        const presignRes = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/uploads/employee-photo`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fileName: formData.photo.name,
+              fileType: formData.photo.type,
+              employeeId: formData.employeeId,
+            }),
+          }
+        );
+
+        const presignData = await presignRes.json();
+        if (!presignData.success) {
+          throw new Error('Failed to get upload URL');
+        }
+
+        await fetch(presignData.uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': formData.photo.type },
+          body: formData.photo,
+        });
+
+        photoUrl = presignData.fileUrl;
+      }
+
       // Create the employee with the specified role
       const employeeData = {
         name: formData.employeeName.trim(),
@@ -96,7 +139,8 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
         salary: formData.salary ? parseFloat(formData.salary) : undefined,
         address: formData.address.trim() || undefined,
         aadharCard: formData.aadharCard.trim() || undefined,
-        panCard: formData.panCard.trim() || undefined
+        panCard: formData.panCard.trim() || undefined,
+        photoUrl
       }
 
       const employeeResponse = await createEmployee(employeeData)
@@ -138,24 +182,19 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
   }
 
   const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        setError('Please select an image file')
-        return
-      }
-
-      // Validate file size (5MB max)
-      if (file.size > 5 * 1024 * 1024) {
-        setError('File size must be less than 5MB')
-        return
-      }
-
-      setError(null) // Clear any previous errors
-      setFormData(prev => ({ ...prev, photo: file }))
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file');
+      return;
     }
-  }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('File size must be less than 5MB');
+      return;
+    }
+    setError(null);
+    setFormData(prev => ({ ...prev, photo: file }));
+  };
 
   return (
     <div className="min-h-screen bg-gray-50/30">
@@ -222,28 +261,20 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {/* Photo Upload Section */}
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium text-green-800">
-                        Employee Photo (Optional)
-                      </Label>
+                      <Label className="text-sm font-medium text-green-800">Employee Photo (Optional)</Label>
                       <div className="border-2 border-dashed border-green-300 rounded-lg p-6 text-center hover:border-green-400 transition-colors">
-                        {formData.photo ? (
+                        {previewUrl ? (
                           <div className="space-y-3">
                             <div className="w-20 h-20 mx-auto rounded-full overflow-hidden bg-gray-100 relative">
-                              <Image
-                                src={URL.createObjectURL(formData.photo)}
-                                alt="Employee preview"
-                                fill
-                                className="object-cover"
-                              />
+                              <img src={previewUrl} alt="Employee preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                             </div>
-                            <p className="text-sm text-green-700 font-medium">{formData.photo.name}</p>
+                            <p className="text-sm text-green-700 font-medium">{formData.photo?.name}</p>
                             <Button
                               type="button"
                               variant="outline"
                               size="sm"
-                              onClick={() => setFormData(prev => ({ ...prev, photo: null }))}
+                              onClick={() => setFormData((prev) => ({ ...prev, photo: null }))}
                               className="border-green-300 text-green-600 hover:bg-green-100"
                             >
                               Remove Photo
@@ -254,22 +285,14 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
                             <Camera className="h-12 w-12 text-green-400 mx-auto" />
                             <div>
                               <p className="text-green-700 font-medium mb-1">Upload Employee Photo</p>
-                              <p className="text-xs text-green-600 mb-4">
-                                Supported formats: JPG, PNG (Max 5MB)
-                              </p>
+                              <p className="text-xs text-green-600 mb-4">Supported formats: JPG, PNG (Max 5MB)</p>
                             </div>
                             <div>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                onChange={handlePhotoUpload}
-                                className="hidden"
-                                id="photo-upload"
-                              />
+                              <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" id="photo-upload" />
                               <Button
                                 type="button"
                                 variant="outline"
-                                onClick={() => document.getElementById('photo-upload')?.click()}
+                                onClick={() => document.getElementById("photo-upload")?.click()}
                                 className="border-green-300 text-green-600 hover:bg-green-100"
                               >
                                 <Upload className="h-4 w-4 mr-2" />
@@ -378,9 +401,9 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
                             const value = e.target.value
                             // Only update if it's a valid number or empty
                             if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
-                              setFormData(prev => ({ 
-                                ...prev, 
-                                sickLeaveBalance: value === '' ? 0 : parseInt(value) || 0 
+                              setFormData(prev => ({
+                                ...prev,
+                                sickLeaveBalance: value === '' ? 0 : parseInt(value) || 0
                               }))
                             }
                           }}
@@ -407,9 +430,9 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
                             const value = e.target.value
                             // Only update if it's a valid number or empty
                             if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0)) {
-                              setFormData(prev => ({ 
-                                ...prev, 
-                                casualLeaveBalance: value === '' ? 0 : parseInt(value) || 0 
+                              setFormData(prev => ({
+                                ...prev,
+                                casualLeaveBalance: value === '' ? 0 : parseInt(value) || 0
                               }))
                             }
                           }}
@@ -486,7 +509,7 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
                         </div>
                       </div>
                     </div>
-                    
+
                   </CardContent>
                 </Card>
 

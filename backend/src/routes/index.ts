@@ -12,7 +12,6 @@ import notificationRoutes from '../modules/notifications/notification.routes';
 import tenderRoutes from '../modules/tenders/tender.route';
 import ticketRoutes from '../modules/tickets/ticket.route';
 import ticketCategoryRoutes from '../modules/tickets/ticketCategory.route';
-import { ticketUploadRouter } from '../modules/tickets/upload.route';
 import customerRoutes from '../modules/customers/customer.route';
 import customerSupportRoutes from '../modules/customers/customerSupport.route';
 import productRoutes from '../modules/products/product.route';
@@ -26,6 +25,8 @@ import fieldEngineerRoutes from './fieldEngineer.route';
 import projectRoutes from './project.route';
 import adminRoutes from './admin.route';
 import { ProjectController } from '../controllers/project.controller';
+import uploadRoutes from '../routes/upload.route';
+
 
 const router = Router();
 
@@ -36,6 +37,9 @@ router.use('/auth', authRouter);
 
 // Mount attendance routes
 router.use('/attendance', attendanceRoutes);
+
+// Mount upload routes (S3 presigned URLs)
+router.use('/uploads', uploadRoutes);
 
 // Mount employee routes
 router.use('/employees', employeeRoutes);
@@ -87,9 +91,6 @@ router.use('/tickets', ticketRoutes);
 
 // Mount ticket category routes
 router.use('/ticket-categories', ticketCategoryRoutes);
-
-// Mount ticket upload routes
-router.use('/ticket-uploads', ticketUploadRouter);
 
 // Mount customer management routes
 router.use('/customers', customerRoutes);

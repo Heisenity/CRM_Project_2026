@@ -129,49 +129,83 @@ export const getAttendanceRecords = async (req: Request, res: Response) => {
     })
 
     // Transform the data to match frontend expectations
-    const records = attendances.map(attendance => ({
-      id: attendance.id,
-      employeeId: attendance.employee.employeeId,
-      employeeName: attendance.employee.name,
-      email: attendance.employee.email,
-      phone: attendance.employee.phone,
-      teamId: attendance.employee.teamId,
-      isTeamLeader: attendance.employee.isTeamLeader,
-      role: attendance.employee.role,
-      date: attendance.date.toISOString().split('T')[0],
-      clockIn: attendance.clockIn?.toISOString(),
-      clockOut: attendance.clockOut?.toISOString(),
-      status: attendance.status,
-      source: attendance.source,
-      location: attendance.location || 'Office Location',
-      latitude: attendance.latitude ? Number(attendance.latitude) : undefined,
-      longitude: attendance.longitude ? Number(attendance.longitude) : undefined,
-      ipAddress: attendance.ipAddress,
-      deviceInfo: attendance.deviceInfo,
-      photo: attendance.photo,
-      locked: attendance.locked,
-      lockedReason: attendance.lockedReason,
-      attemptCount: attendance.attemptCount,
-      // Add approval fields
-      approvalStatus: attendance.approvalStatus,
-      approvedBy: attendance.approvedBy,
-      approvedAt: attendance.approvedAt?.toISOString(),
-      rejectedBy: attendance.rejectedBy,
-      rejectedAt: attendance.rejectedAt?.toISOString(),
-      approvalReason: attendance.approvalReason,
-      // Add sessions data
-      sessions: attendance.sessions.map(session => ({
-        id: session.id,
-        clockIn: session.clockIn.toISOString(),
-        clockOut: session.clockOut?.toISOString(),
-        photo: session.photo,
-        location: session.location,
-        ipAddress: session.ipAddress,
-        deviceInfo: session.deviceInfo,
-        createdAt: session.createdAt.toISOString()
-      })),
-      createdAt: attendance.createdAt.toISOString(),
-      updatedAt: attendance.updatedAt.toISOString()
+    const records = await Promise.all(attendances.map(async (attendance) => {
+      // Generate presigned URL for main attendance photo
+      let photoUrl = null
+      if (attendance.photo) {
+        try {
+          const bucket = process.env.AWS_S3_ATTENDANCE_BUCKET!
+          const region = process.env.AWS_REGION!
+          const { getDownloadUrl } = require('../../../services/s3.service')
+          
+          photoUrl = await getDownloadUrl(bucket, attendance.photo, 3600)
+        } catch (err) {
+          console.error('Error generating presigned URL for attendance photo:', err)
+        }
+      }
+
+      // Generate presigned URLs for session photos
+      const sessionsWithPhotoUrls = await Promise.all(attendance.sessions.map(async (session) => {
+        let sessionPhotoUrl = null
+        if (session.photo) {
+          try {
+            const bucket = process.env.AWS_S3_ATTENDANCE_BUCKET!
+            const region = process.env.AWS_REGION!
+            const { getDownloadUrl } = require('../../../services/s3.service')
+            
+            sessionPhotoUrl = await getDownloadUrl(bucket, session.photo, 3600)
+          } catch (err) {
+            console.error('Error generating presigned URL for session photo:', err)
+          }
+        }
+
+        return {
+          id: session.id,
+          clockIn: session.clockIn.toISOString(),
+          clockOut: session.clockOut?.toISOString(),
+          photo: sessionPhotoUrl,
+          location: session.location,
+          ipAddress: session.ipAddress,
+          deviceInfo: session.deviceInfo,
+          createdAt: session.createdAt.toISOString()
+        }
+      }))
+
+      return {
+        id: attendance.id,
+        employeeId: attendance.employee.employeeId,
+        employeeName: attendance.employee.name,
+        email: attendance.employee.email,
+        phone: attendance.employee.phone,
+        teamId: attendance.employee.teamId,
+        isTeamLeader: attendance.employee.isTeamLeader,
+        role: attendance.employee.role,
+        date: attendance.date.toISOString().split('T')[0],
+        clockIn: attendance.clockIn?.toISOString(),
+        clockOut: attendance.clockOut?.toISOString(),
+        status: attendance.status,
+        source: attendance.source,
+        location: attendance.location || 'Office Location',
+        latitude: attendance.latitude ? Number(attendance.latitude) : undefined,
+        longitude: attendance.longitude ? Number(attendance.longitude) : undefined,
+        ipAddress: attendance.ipAddress,
+        deviceInfo: attendance.deviceInfo,
+        photo: photoUrl, // Use presigned URL
+        locked: attendance.locked,
+        lockedReason: attendance.lockedReason,
+        attemptCount: attendance.attemptCount,
+        // Add approval fields
+        approvalStatus: attendance.approvalStatus,
+        approvedBy: attendance.approvedBy,
+        approvedAt: attendance.approvedAt?.toISOString(),
+        rejectedBy: attendance.rejectedBy,
+        rejectedAt: attendance.rejectedAt?.toISOString(),
+        approvalReason: attendance.approvalReason,
+        // Add sessions data with presigned URLs
+        sessions: sessionsWithPhotoUrls,
+        createdAt: attendance.createdAt.toISOString(),
+        updatedAt: attendance.updatedAt.toISOString()
+      }
     }))
 
     // Log for debugging

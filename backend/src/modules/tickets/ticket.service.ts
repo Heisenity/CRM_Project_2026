@@ -189,6 +189,9 @@ export class TicketService {
         uploaderId = systemEmployee.id;
       }
 
+      // At this point, uploaderId is guaranteed to be a string
+      const finalUploaderId = uploaderId!;
+
       await this.prisma.ticketAttachment.createMany({
         data: data.attachments.map(attachment => ({
           ticketId: ticket.id,
@@ -196,7 +199,7 @@ export class TicketService {
           filePath: attachment.filePath,
           fileSize: attachment.fileSize,
           mimeType: attachment.mimeType,
-          uploadedBy: uploaderId,
+          uploadedBy: finalUploaderId,
         }))
       });
     }
@@ -253,33 +256,7 @@ export class TicketService {
       });
     }
 
-    // Create notification for new ticket
-    try {
-      const notificationService = new NotificationService();
-      await notificationService.createAdminNotification({
-        type: 'TICKET_CREATED',
-        title: 'New Support Ticket Created',
-        message: `New ${data.priority.toLowerCase()} priority ticket "${data.description.substring(0, 50)}..." has been created by ${ticket.reporter?.name || 'Unknown User'}.`,
-        data: {
-          ticketId: ticket.ticketId,
-          ticketInternalId: ticket.id,
-          description: data.description,
-          priority: data.priority,
-          categoryId: data.categoryId,
-          reporterId: data.reporterId,
-          reporterName: ticket.reporter?.name || 'Unknown User',
-          assigneeId: data.assigneeId,
-          assigneeName: ticket.assignee?.name,
-          customerName: data.customerName,
-          customerId: data.customerId,
-          customerPhone: data.customerPhone,
-          createdAt: new Date().toISOString()
-        }
-      });
-    } catch (notificationError) {
-      console.error('Failed to create ticket notification:', notificationError);
-      // Don't fail ticket creation if notification fails
-    }
+
 
     if (ticket.customerId) {
       const customer = await this.prisma.customer.findFirst({

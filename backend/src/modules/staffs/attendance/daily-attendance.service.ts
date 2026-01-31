@@ -192,6 +192,20 @@ export async function dailyClockIn(data: DailyClockInData): Promise<DailyAttenda
       try {
         console.log('Sending admin notification for new attendance:', attendance.id);
         const notificationService = new NotificationService();
+        
+        // Generate presigned URL for the photo if it exists
+        let photoUrl = null
+        if (data.photo) {
+          try {
+            const bucket = process.env.AWS_S3_ATTENDANCE_BUCKET!
+            const { getDownloadUrl } = require('../../../services/s3.service')
+            
+            photoUrl = await getDownloadUrl(bucket, data.photo, 3600) // 1 hour
+          } catch (err) {
+            console.error('Error generating presigned URL for notification photo:', err)
+          }
+        }
+        
         const notificationResult = await notificationService.createAdminNotification({
           type: 'ATTENDANCE_APPROVAL_REQUEST',
           title: 'Attendance Approval Required',
@@ -204,7 +218,7 @@ export async function dailyClockIn(data: DailyClockInData): Promise<DailyAttenda
             checkInTime: now.toISOString(), // Use checkInTime (not clockInTime) to match frontend
             pendingCheckInAt: now.toISOString(),
             location: data.locationText || 'Field Location',
-            photo: data.photo, // Include the clock-in photo
+            photo: photoUrl, // Use presigned URL instead of raw key
             ipAddress: data.ipAddress,
             deviceInfo: deviceString,
             timestamp: now.toISOString(),

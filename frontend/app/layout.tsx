@@ -1,6 +1,6 @@
 "use client"
 
-import { Inter, Geist_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
@@ -23,8 +23,8 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
   subsets: ["latin"],
 });
 
@@ -75,7 +75,7 @@ export default function RootLayout({
         <meta name="description" content="CRM Demo Application" />
       </head>
       <body
-        className={`${inter.variable} ${geistMono.variable} antialiased`}
+        className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
       >
         <AuthProvider>
           <NotificationProvider>

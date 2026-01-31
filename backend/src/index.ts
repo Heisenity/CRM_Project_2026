@@ -67,7 +67,6 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
 // Serve static files from uploads directory
-app.use('/uploads', express.static('uploads'))
 
 // Enable default query string parsing
 app.set('query parser', 'extended')

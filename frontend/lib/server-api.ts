@@ -580,6 +580,8 @@ export type Employee = {
   role?: string
   sickLeaveBalance?: number
   casualLeaveBalance?: number
+  photoKey?: string
+  photoUrl?: string
   createdAt: string
   updatedAt: string
   assignedBy?: string

@@ -9,6 +9,7 @@ import { playNotificationSound } from "@/lib/notification-sound"
 import { Camera, Clock, CheckCircle, XCircle, AlertTriangle } from "lucide-react"
 import { useEffect, useRef, useState, useCallback } from "react"
 import { dailyClockIn, dailyClockOut, getDailyAttendanceStatus, ApprovalStatus, DailyAttendanceStatusResponse } from "@/lib/server-api"
+import { uploadAttendancePhotoToS3 } from "@/lib/s3-upload"
 
 /**
  * =============================================================================
@@ -228,7 +229,7 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
     setCameraError(null)
   }
 
-  const capturePhoto = (): string | null => {
+  const capturePhoto = async (): Promise<Blob | null> => {
     if (!videoRef.current || !cameraActive) return null
 
     const canvas = document.createElement('canvas')
@@ -239,8 +240,16 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
     canvas.height = videoRef.current.videoHeight
     context.drawImage(videoRef.current, 0, 0)
 
-    return canvas.toDataURL('image/jpeg', 0.8)
+    return new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(
+        (blob) => resolve(blob),
+        'image/jpeg',
+        0.8
+      )
+    })
   }
+
+
 
   const handleClockIn = async () => {
     if (!employeeId.trim()) {
@@ -254,21 +263,30 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
     }
 
     setIsLoading(true)
+
     try {
-      const photo = capturePhoto()
+      const photoBlob = await capturePhoto()
+      if (!photoBlob) {
+        showToast.error("Failed to capture photo")
+        return
+      }
+
+      const photoUrl = await uploadAttendancePhotoToS3(
+        photoBlob,
+        employeeId.trim()
+      )
 
       const result = await dailyClockIn({
         employeeId: employeeId.trim(),
-        photo: photo || undefined,
-        locationText: 'Field Location'
+        photo: photoUrl, 
+        locationText: 'Field Location',
       })
 
       if (result.success) {
         showToast.success(result.message)
-        // Play notification sound for successful clock-in
         playNotificationSound()
-        fetchAttendanceStatus() // Refresh status
-        stopCamera() // Stop camera after successful clock-in
+        fetchAttendanceStatus()
+        stopCamera()
       } else {
         showToast.error(result.message || 'Failed to clock in')
       }
@@ -279,6 +297,7 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
       setIsLoading(false)
     }
   }
+
 
   const handleClockOut = async () => {
     if (!employeeId.trim()) {
@@ -443,9 +462,9 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
                 <div>
                   <span className="font-medium">Clocked In:</span>
                   <p className="text-muted-foreground">
-                    {attendanceStatus.clockIn 
+                    {attendanceStatus.clockIn
                       ? formatTime(attendanceStatus.clockIn)
-                      : attendanceStatus.pendingCheckInAt 
+                      : attendanceStatus.pendingCheckInAt
                         ? `${formatTime(attendanceStatus.pendingCheckInAt)} (Pending)`
                         : 'Not set'
                     }

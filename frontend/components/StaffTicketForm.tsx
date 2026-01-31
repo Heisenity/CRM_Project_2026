@@ -7,8 +7,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CategorySelector } from "@/components/CategorySelector"
 import { Badge } from "@/components/ui/badge"
-import { 
-  Ticket, 
+import {
+  Ticket,
   AlertTriangle,
   Clock,
   Save,
@@ -51,7 +51,7 @@ export function StaffTicketForm({ employeeId, onSuccess }: StaffTicketFormProps)
   const getDefaultDueDate = React.useCallback(() => {
     return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   }, [])
-  
+
   const [formData, setFormData] = React.useState({
     description: "",
     categoryId: "",
@@ -64,7 +64,7 @@ export function StaffTicketForm({ employeeId, onSuccess }: StaffTicketFormProps)
   const fetchCustomers = React.useCallback(async () => {
     try {
       setLoadingCustomers(true)
-      
+
       const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/customers?limit=100`)
 
       if (!response.ok) {
@@ -114,8 +114,8 @@ export function StaffTicketForm({ employeeId, onSuccess }: StaffTicketFormProps)
   // Filter customers based on search
   const filteredCustomers = React.useMemo(() => {
     if (!customerSearch) return customers
-    
-    return customers.filter(customer => 
+
+    return customers.filter(customer =>
       customer.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
       customer.customerId.toLowerCase().includes(customerSearch.toLowerCase()) ||
       customer.phone.includes(customerSearch)
@@ -151,38 +151,65 @@ export function StaffTicketForm({ employeeId, onSuccess }: StaffTicketFormProps)
     setUploadedFiles(prev => prev.filter((_, i) => i !== index))
   }
 
-  const uploadFiles = async (files: File[]): Promise<string[]> => {
+  const uploadFilesToS3 = async (files: File[]) => {
     if (files.length === 0) return []
-    
+
     setUploadingFiles(true)
+
     try {
-      const uploadPromises = files.map(async (file) => {
-        const formData = new FormData()
-        formData.append('file', file)
-        
-        const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/ticket-uploads/upload`, {
-          method: 'POST',
-          body: formData
+      const uploaded = await Promise.all(
+        files.map(async (file) => {
+          // 1️⃣ ask backend for presigned URL
+          const presignRes = await authenticatedFetch(
+            `${process.env.NEXT_PUBLIC_BACKEND_URL}/uploads/presigned-url`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                fileName: file.name,
+                fileType: file.type,
+                folder: 'tickets'
+              })
+            }
+          )
+
+          if (!presignRes.ok) {
+            throw new Error('Failed to get upload URL')
+          }
+
+          const { uploadUrl, filePath } = await presignRes.json()
+
+          // 2️⃣ upload directly to S3
+          const uploadRes = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': file.type },
+            body: file
+          })
+
+          if (!uploadRes.ok) {
+            throw new Error(`Failed to upload ${file.name}`)
+          }
+
+          // 3️⃣ return attachment metadata
+          return {
+            fileName: file.name,
+            fileSize: file.size,
+            mimeType: file.type,
+            filePath // ✅ S3 key
+          }
         })
-        
-        if (!response.ok) {
-          throw new Error(`Failed to upload ${file.name}`)
-        }
-        
-        const result = await response.json()
-        return result.data?.url || result.data?.path || null
-      })
-      
-      const uploadedUrls = await Promise.all(uploadPromises)
-      return uploadedUrls.filter(url => url !== null)
-    } catch (error) {
-      console.error('Error uploading files:', error)
-      showToast.error('Failed to upload some files')
+      )
+
+      return uploaded
+    } catch (err) {
+      console.error('S3 upload failed:', err)
+      showToast.error('Failed to upload attachments')
       return []
     } finally {
       setUploadingFiles(false)
     }
   }
+
 
   const resetForm = () => {
     setFormData({
@@ -199,28 +226,28 @@ export function StaffTicketForm({ employeeId, onSuccess }: StaffTicketFormProps)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!formData.description.trim()) {
       showToast.error('Please enter a description')
       return
     }
-    
+
     if (!formData.categoryId) {
       showToast.error('Please select a problem type')
       return
     }
-    
+
     if (!formData.priority) {
       showToast.error('Please select a priority')
       return
     }
-    
+
     setIsSubmitting(true)
 
     try {
       // Upload files first if any
-      const attachmentUrls = await uploadFiles(uploadedFiles)
-      
+      const attachments = await uploadFilesToS3(uploadedFiles)
+
       const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/tickets`, {
         method: 'POST',
         body: JSON.stringify({
@@ -231,12 +258,7 @@ export function StaffTicketForm({ employeeId, onSuccess }: StaffTicketFormProps)
           estimatedHours: formData.estimatedHours ? parseFloat(formData.estimatedHours) : undefined,
           reporterId: employeeId, // Send employee ID as reporterId
           // Add uploaded files information with URLs
-          attachments: uploadedFiles.map((file, index) => ({
-            fileName: file.name,
-            fileSize: file.size,
-            mimeType: file.type,
-            filePath: attachmentUrls[index] || null
-          })),
+          attachments,
           // Add customer information if selected
           ...(selectedCustomer && {
             customerName: selectedCustomer.name,
@@ -284,7 +306,7 @@ export function StaffTicketForm({ employeeId, onSuccess }: StaffTicketFormProps)
           <p className="text-sm text-green-600 mt-4">
             You will receive updates about your ticket via email.
           </p>
-          <Button 
+          <Button
             onClick={() => setShowSuccess(false)}
             className="mt-6 bg-green-600 hover:bg-green-700"
           >
@@ -324,17 +346,17 @@ export function StaffTicketForm({ employeeId, onSuccess }: StaffTicketFormProps)
                   className="pl-10"
                 />
               </div>
-              
-              <Select 
-                value={formData.customerId} 
+
+              <Select
+                value={formData.customerId}
                 onValueChange={(value) => handleInputChange("customerId", value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder={
-                    loadingCustomers 
-                      ? "Loading customers..." 
-                      : customers.length === 0 
-                        ? "No customers available (login required)" 
+                    loadingCustomers
+                      ? "Loading customers..."
+                      : customers.length === 0
+                        ? "No customers available (login required)"
                         : "Select a customer (optional)"
                   } />
                 </SelectTrigger>
@@ -367,7 +389,7 @@ export function StaffTicketForm({ employeeId, onSuccess }: StaffTicketFormProps)
                   )}
                 </SelectContent>
               </Select>
-              
+
               {customers.length === 0 && !loadingCustomers && (
                 <div className="bg-amber-50 border border-amber-200 rounded-md p-3 mt-2">
                   <div className="flex items-center justify-between">
@@ -390,7 +412,7 @@ export function StaffTicketForm({ employeeId, onSuccess }: StaffTicketFormProps)
                   </p>
                 </div>
               )}
-              
+
               {selectedCustomer && (
                 <div className="bg-white border border-blue-200 rounded-md p-3">
                   <div className="flex items-center gap-3">
@@ -508,7 +530,7 @@ export function StaffTicketForm({ employeeId, onSuccess }: StaffTicketFormProps)
                 </span>
               </label>
             </div>
-            
+
             {uploadedFiles.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium text-foreground">Attached Files ({uploadedFiles.length})</p>
@@ -584,15 +606,15 @@ export function StaffTicketForm({ employeeId, onSuccess }: StaffTicketFormProps)
               * Required fields must be filled out
             </div>
             <div className="flex items-center gap-3">
-              <Button 
+              <Button
                 type="button"
-                variant="outline" 
+                variant="outline"
                 onClick={resetForm}
               >
                 <X className="h-4 w-4 mr-2" />
                 Clear Form
               </Button>
-              <Button 
+              <Button
                 type="submit"
                 disabled={!isFormValid || isSubmitting || uploadingFiles}
                 className="shadow-sm min-w-[120px] bg-blue-600 hover:bg-blue-700 text-white"

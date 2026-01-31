@@ -116,6 +116,20 @@ export async function fieldEngineerCheckIn(data: {
   // Notify admin for approval
   try {
     const notificationService = new NotificationService()
+    
+    // Generate presigned URL for the photo if it exists
+    let photoUrl = null
+    if (attendance.photo) {
+      try {
+        const bucket = process.env.AWS_S3_ATTENDANCE_BUCKET!
+        const { getDownloadUrl } = require('../../../services/s3.service')
+        
+        photoUrl = await getDownloadUrl(bucket, attendance.photo, 3600) // 1 hour
+      } catch (err) {
+        console.error('Error generating presigned URL for notification photo:', err)
+      }
+    }
+    
     await notificationService.createAdminNotification({
       type: 'ATTENDANCE_APPROVAL_REQUEST',
       title: 'Attendance Approval Required',
@@ -127,7 +141,7 @@ export async function fieldEngineerCheckIn(data: {
         employeeRole: employee.role,
         checkInTime: now.toISOString(),
         location: locationText,
-        photo: attendance.photo,
+        photo: photoUrl, // Use presigned URL instead of raw key
         status: 'PRESENT'
       }
     })
@@ -442,22 +456,38 @@ export async function getPendingAttendanceApprovals(): Promise<{ success: boolea
       }
     })
 
-    const formattedData = pendingAttendances.map(attendance => ({
-      id: attendance.id,
-      employeeId: attendance.employee.employeeId,
-      employeeName: attendance.employee.name,
-      email: attendance.employee.email,
-      phone: attendance.employee.phone,
-      role: attendance.employee.role,
-      teamId: attendance.employee.teamId,
-      isTeamLeader: attendance.employee.isTeamLeader,
-      date: attendance.date.toISOString().split('T')[0],
-      pendingCheckInAt: attendance.pendingCheckInAt?.toISOString(),
-      status: attendance.status,
-      location: attendance.location || 'Office Location',
-      photo: attendance.photo,
-      approvalStatus: attendance.approvalStatus,
-      createdAt: attendance.createdAt.toISOString()
+    const formattedData = await Promise.all(pendingAttendances.map(async (attendance) => {
+      let photoUrl = null
+      if (attendance.photo) {
+        try {
+          const bucket = process.env.AWS_S3_ATTENDANCE_BUCKET!
+          const region = process.env.AWS_REGION!
+          const { getDownloadUrl } = require('../../../services/s3.service')
+          
+          photoUrl = await getDownloadUrl(bucket, attendance.photo, 3600) // 1 hour
+        } catch (err) {
+          console.error('Error generating presigned URL for attendance photo:', err)
+          // Continue without photo URL if there's an error
+        }
+      }
+
+      return {
+        id: attendance.id,
+        employeeId: attendance.employee.employeeId,
+        employeeName: attendance.employee.name,
+        email: attendance.employee.email,
+        phone: attendance.employee.phone,
+        role: attendance.employee.role,
+        teamId: attendance.employee.teamId,
+        isTeamLeader: attendance.employee.isTeamLeader,
+        date: attendance.date.toISOString().split('T')[0],
+        pendingCheckInAt: attendance.pendingCheckInAt?.toISOString(),
+        status: attendance.status,
+        location: attendance.location || 'Office Location',
+        photo: photoUrl, // Use presigned URL instead of raw key
+        approvalStatus: attendance.approvalStatus,
+        createdAt: attendance.createdAt.toISOString()
+      }
     }))
 
     return {

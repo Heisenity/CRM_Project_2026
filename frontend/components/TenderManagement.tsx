@@ -205,48 +205,15 @@ export default function TenderManagement() {
     }
   }
 
-  const handleDownloadDocument = async (documentId: string, fileName: string) => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/tenders/documents/${documentId}/download`, {
-        headers: {
-          'Authorization': `Bearer ${(session?.user as any)?.sessionToken}`
-        }
-      })
+  const handleDownloadDocument = (documentId: string) => {
+  const token = (session?.user as any)?.sessionToken
 
-      if (!response.ok) {
-        throw new Error('Failed to download document')
-      }
+  const downloadUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/tenders/documents/${documentId}/download?token=${token}`
 
-      // Get the blob from response
-      const blob = await response.blob()
-      
-      // Create a temporary URL for the blob
-      const url = window.URL.createObjectURL(blob)
-      
-      // Create a temporary anchor element and trigger download
-      const a = document.createElement('a')
-      a.href = url
-      a.download = fileName
-      document.body.appendChild(a)
-      a.click()
-      
-      // Cleanup
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-      
-      toast({
-        title: "Success",
-        description: "Document downloaded successfully"
-      })
-    } catch (error) {
-      console.error('Error downloading document:', error)
-      toast({
-        title: "Error",
-        description: "Failed to download document",
-        variant: "destructive"
-      })
-    }
-  }
+  // Let browser handle redirect → S3
+  window.open(downloadUrl, "_blank")
+}
+
 
   const handleCreateTender = async () => {
     try {
@@ -787,7 +754,7 @@ export default function TenderManagement() {
                           <Button 
                             variant="ghost" 
                             size="sm"
-                            onClick={() => handleDownloadDocument(doc.id, doc.originalName)}
+                            onClick={() => handleDownloadDocument(doc.id)}
                           >
                             <Download className="h-4 w-4" />
                           </Button>

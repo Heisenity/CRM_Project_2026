@@ -6,7 +6,7 @@ export const checkInSchema = z.object({
   location: z.string().optional(),
   ipAddress: z.string().optional(),
   deviceInfo: z.string().optional(),
-  photo: z.url().optional()
+  photo: z.string().optional()
 })
 
 export const checkOutSchema = z.object({

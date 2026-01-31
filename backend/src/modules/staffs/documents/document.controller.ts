@@ -1,37 +1,10 @@
 import { Request, Response } from 'express'
 import { DocumentService } from './document.service'
-import { UploadDocumentRequest } from './document.types'
-import multer from 'multer'
-import path from 'path'
+import { CreateDocumentRequest } from './document.types'
+import { getEmployeeDocumentUploadUrl } from '@/services/s3.service'
+import { prisma } from '@/lib/prisma'
+import { getDownloadUrl } from '@/services/s3.service'
 
-// Configure multer for file uploads
-const storage = multer.memoryStorage()
-const upload = multer({
-  storage,
-  limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    // Allow common document types
-    const allowedTypes = [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'text/plain',
-      'image/jpeg',
-      'image/png',
-      'image/gif'
-    ]
-    
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true)
-    } else {
-      cb(new Error('Invalid file type. Only PDF, Word, Excel, text, and image files are allowed.'))
-    }
-  }
-})
 
 export class DocumentController {
   private documentService: DocumentService
@@ -40,32 +13,40 @@ export class DocumentController {
     this.documentService = new DocumentService()
   }
 
-  // Multer middleware
-  uploadMiddleware = upload.single('file')
-
   // Upload document
   uploadDocument = async (req: Request, res: Response) => {
     try {
-      const { employeeId, title, description, uploadedBy } = req.body
-      const file = req.file
+      const {
+        employeeId,
+        title,
+        description,
+        uploadedBy,
+        fileName,
+        filePath,
+        fileSize,
+        mimeType,
+      } = req.body
 
-      // Validate required fields
-      if (!employeeId || !title || !uploadedBy || !file) {
+      // ✅ Validate required metadata (NO file)
+      if (!employeeId || !title || !uploadedBy || !fileName || !filePath) {
         return res.status(400).json({
           success: false,
-          error: 'Missing required fields: employeeId, title, uploadedBy, and file'
+          error: 'Missing required fields'
         })
       }
 
-      const requestData: UploadDocumentRequest = {
+      const requestData: CreateDocumentRequest = {
         employeeId,
         title: title.trim(),
         description: description?.trim(),
-        file,
-        uploadedBy
+        fileName,
+        filePath,
+        fileSize,
+        mimeType,
+        uploadedBy,
       }
 
-      const result = await this.documentService.uploadDocument(requestData)
+      const result = await this.documentService.createDocument(requestData)
 
       if (result.success) {
         return res.status(201).json(result)
@@ -79,6 +60,50 @@ export class DocumentController {
         error: 'Internal server error'
       })
     }
+  }
+
+
+  createDocument = async (req: Request, res: Response) => {
+    const {
+      employeeId,
+      title,
+      description,
+      uploadedBy,
+      fileName,
+      filePath,
+      fileSize,
+      mimeType,
+    } = req.body
+
+    if (!employeeId || !title || !fileName || !filePath) {
+      return res.status(400).json({ success: false, error: 'Missing fields' })
+    }
+
+    const employee = await prisma.employee.findUnique({
+      where: { employeeId }
+    })
+
+    if (!employee) {
+      return res.status(400).json({
+        success: false,
+        error: 'Employee not found'
+      })
+    }
+
+    const document = await prisma.employeeDocument.create({
+      data: {
+        employeeId: employee.id,
+        title,
+        description,
+        uploadedBy,
+        fileName,
+        filePath,
+        fileSize,
+        mimeType,
+      }
+    })
+
+    res.json({ success: true, data: document })
   }
 
   // Get employee documents
@@ -130,33 +155,24 @@ export class DocumentController {
 
   // Download document
   downloadDocument = async (req: Request, res: Response) => {
-    try {
-      const { documentId } = req.params
+    const { documentId } = req.params
 
-      if (!documentId) {
-        return res.status(400).json({
-          success: false,
-          error: 'Document ID is required'
-        })
-      }
+    const doc = await prisma.employeeDocument.findUnique({
+      where: { id: documentId },
+    })
 
-      const result = await this.documentService.downloadDocument(documentId)
-
-      if (result.success && result.filePath && result.fileName) {
-        return res.download(result.filePath, result.fileName)
-      } else {
-        return res.status(404).json({
-          success: false,
-          error: result.error || 'Document not found'
-        })
-      }
-    } catch (error) {
-      console.error('Error in downloadDocument:', error)
-      return res.status(500).json({
-        success: false,
-        error: 'Internal server error'
-      })
+    if (!doc) {
+      return res.status(404).json({ success: false, error: 'Not found' })
     }
+
+    const bucket = process.env.AWS_S3_MISCELLANEOUS_BUCKET!
+
+    const signedUrl = await getDownloadUrl(bucket, doc.filePath, 60)
+
+    res.json({
+      success: true,
+      data: { url: signedUrl }
+    })
   }
 
   // Delete document (admin only)
@@ -186,4 +202,22 @@ export class DocumentController {
       })
     }
   }
+
+  getPresignedUploadUrl = async (req: Request, res: Response) => {
+    const { fileName, fileType, employeeId } = req.body
+
+    if (!fileName || !fileType || !employeeId) {
+      return res.status(400).json({ success: false, error: 'Missing fields' })
+    }
+
+    const { uploadUrl, fileUrl } =
+      await getEmployeeDocumentUploadUrl(fileName, fileType, employeeId)
+
+    res.json({
+      success: true,
+      data: { uploadUrl, fileUrl }
+    })
+  }
+
 }
+

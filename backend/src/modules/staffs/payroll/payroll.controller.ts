@@ -3,6 +3,7 @@ import { prisma } from '../../../lib/prisma'
 import PDFDocument from 'pdfkit'
 import fs from 'fs'
 import path from 'path'
+import { uploadPayslipToS3 } from '../../../services/s3.service'
 
 export const getPayrollRecords = async (req: Request, res: Response) => {
   try {
@@ -125,13 +126,30 @@ export const updatePayrollRecord = async (req: Request, res: Response) => {
       
       const pdfBuffer = await generatePayslipPDF(existingRecord.employee, updatedRecord, enhancedPayslipDetails)
       
-      // Update the PDF file
-      const uploadsDir = path.join(process.cwd(), 'uploads', 'documents')
+      // Upload updated PDF to S3
       const fileName = `${existingRecord.employee.employeeId}_payslip_${updatedRecord.month}_${updatedRecord.year}.pdf`
-      const filePath = path.join(uploadsDir, fileName)
+      const s3Key = await uploadPayslipToS3(pdfBuffer, fileName, existingRecord.employee.employeeId)
       
-      fs.writeFileSync(filePath, pdfBuffer)
-      console.log('PDF updated at:', filePath)
+      // Update the existing document record with new S3 key
+      const existingDocument = await prisma.employeeDocument.findFirst({
+        where: {
+          employeeId: existingRecord.employeeId,
+          fileName: fileName
+        }
+      })
+      
+      if (existingDocument) {
+        await prisma.employeeDocument.update({
+          where: { id: existingDocument.id },
+          data: {
+            filePath: s3Key, // Update with new S3 key
+            fileSize: pdfBuffer.length,
+            updatedAt: new Date()
+          }
+        })
+      }
+      
+      console.log('PDF updated and uploaded to S3:', s3Key)
     }
 
     console.log('=== PAYROLL UPDATE SUCCESS ===')
@@ -307,25 +325,18 @@ export const generatePayslip = async (req: Request, res: Response) => {
     }
     const pdfBuffer = await generatePayslipPDF(employee, payrollRecord, enhancedPayslipDetails)
     
-    // Save PDF to employee documents
-    const uploadsDir = path.join(process.cwd(), 'uploads', 'documents')
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true })
-    }
-
+    // Upload PDF to S3
     const fileName = `${employee.employeeId}_payslip_${month}_${year}.pdf`
-    const filePath = path.join(uploadsDir, fileName)
-    
-    fs.writeFileSync(filePath, pdfBuffer)
+    const s3Key = await uploadPayslipToS3(pdfBuffer, fileName, employee.employeeId)
 
-    // Create document record
+    // Create document record with S3 key
     await prisma.employeeDocument.create({
       data: {
         employeeId,
         title: `Payslip - ${getMonthName(month)} ${year}`,
         description: `Payslip for ${employee.name} for ${getMonthName(month)} ${year}`,
         fileName,
-        filePath: fileName,
+        filePath: s3Key, // Store S3 key instead of local path
         fileSize: pdfBuffer.length,
         mimeType: 'application/pdf',
         uploadedBy: processedBy

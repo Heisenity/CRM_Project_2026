@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { tenderController, upload } from './tender.controller';
+import { tenderController } from './tender.controller';
 import { authenticateToken } from '../../middleware/auth.middleware';
 import { Request, Response, NextFunction } from 'express';
 
@@ -48,9 +48,26 @@ router.patch('/:id/status', tenderController.updateTenderStatus.bind(tenderContr
 router.delete('/:id', tenderController.deleteTender.bind(tenderController));
 
 // Document management
-router.post('/:tenderId/documents', upload.single('document'), tenderController.uploadDocument.bind(tenderController));
-router.patch('/documents/:documentId/status', tenderController.updateDocumentStatus.bind(tenderController));
-router.get('/documents/:documentId/download', tenderController.downloadDocument.bind(tenderController));
+router.post(
+  "/:tenderId/documents",
+  tenderController.uploadDocument.bind(tenderController)
+)
+
+// Download & delete
+router.get(
+  "/documents/:documentId/download",
+  tenderController.downloadDocument.bind(tenderController)
+)
+
+router.delete(
+  "/documents/:documentId",
+  tenderController.deleteDocument.bind(tenderController)
+)
+
+router.post(
+  "/:tenderId/documents/presign",
+  tenderController.getTenderDocumentPresign.bind(tenderController)
+);
 
 // EMD management
 router.post('/:tenderId/emd', tenderController.addEMDRecord.bind(tenderController));

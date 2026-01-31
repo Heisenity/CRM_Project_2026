@@ -6,21 +6,25 @@ export interface EmployeeDocument {
   description?: string
   fileName: string
   filePath: string
-  fileSize: number
-  mimeType: string
+  fileSize: number | null
+  mimeType: string | null
   uploadedBy: string
   uploadedAt: string
   createdAt: string
   updatedAt: string
 }
 
-export interface UploadDocumentRequest {
-  employeeId: string
+export interface CreateDocumentRequest {
+  employeeId: string        
   title: string
   description?: string
-  file: Express.Multer.File
+  fileName: string
+  filePath: string          
+  fileSize?: number
+  mimeType?: string
   uploadedBy: string
 }
+
 
 export interface DocumentResponse {
   success: boolean

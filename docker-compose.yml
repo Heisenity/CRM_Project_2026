@@ -1,0 +1,86 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: crm-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: prisma_db
+      POSTGRES_USER: TRIDIP
+      POSTGRES_PASSWORD: prisma_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - crm-network
+
+  redis:
+    image: redis:7
+    container_name: crm-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - crm-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: crm-backend
+    restart: unless-stopped
+    ports:
+      - "3001:5000"
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DATABASE_URL: postgresql://TRIDIP:prisma_password@postgres:5432/prisma_db
+      REDIS_URL: redis://redis:6379
+      FRONTEND_URL: http://frontend:3000
+      APP_TIMEZONE: Asia/Kolkata
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION}
+      AWS_S3_EMPLOYEE_BUCKET: ${AWS_S3_EMPLOYEE_BUCKET}
+      AWS_S3_ATTENDANCE_BUCKET: ${AWS_S3_ATTENDANCE_BUCKET}
+      AWS_S3_MISCELLANEOUS_BUCKET: ${AWS_S3_MISCELLANEOUS_BUCKET}
+      CALENDLY_API_TOKEN: ${CALENDLY_API_TOKEN}
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - crm-network
+    command: >
+      sh -c "
+        echo 'Waiting for database to be ready...' &&
+        sleep 10 &&
+        npx prisma migrate deploy &&
+        node scripts/nuclear-fix.js &&
+        node scripts/seed-deployment-admin.js &&
+        npm start
+      "
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: crm-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://backend:5000
+    depends_on:
+      - backend
+    networks:
+      - crm-network
+
+networks:
+  crm-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
