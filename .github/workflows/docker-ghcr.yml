@@ -4,30 +4,29 @@ on:
   push:
     branches: ["main"]
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Login to GHCR
         run: |
-          echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-      - name: Build Docker Backend Image
-        run: |
-          docker build -t ghcr.io/heisenity/crm:latest ./backend
+      - name: Build Backend Image
+        run: docker build -t ghcr.io/heisenity/crm-backend:latest ./backend
 
-      - name: Push Docker Backend Image
-        run: |
-          docker push ghcr.io/heisenity/crm:latest
+      - name: Push Backend Image
+        run: docker push ghcr.io/heisenity/crm-backend:latest
 
-      - name: Build Docker Frontend Image
-        run: |
-          docker build -t ghcr.io/heisenity/crm:latest ./frontend
+      - name: Build Frontend Image
+        run: docker build -t ghcr.io/heisenity/crm-frontend:latest ./frontend
 
-      - name: Push Docker Frontend Image
-        run: |
-          docker push ghcr.io/heisenity/crm:latest
+      - name: Push Frontend Image
+        run: docker push ghcr.io/heisenity/crm-frontend:latest
