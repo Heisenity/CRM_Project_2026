@@ -16,10 +16,18 @@ jobs:
         run: |
           echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-      - name: Build Docker Image
+      - name: Build Docker Backend Image
         run: |
-          docker build -t ghcr.io/heisenity/crm:latest .
+          docker build -t ghcr.io/heisenity/crm:latest ./backend
 
-      - name: Push Docker Image
+      - name: Push Docker Backend Image
+        run: |
+          docker push ghcr.io/heisenity/crm:latest
+
+      - name: Build Docker Frontend Image
+        run: |
+          docker build -t ghcr.io/heisenity/crm:latest ./frontend
+
+      - name: Push Docker Frontend Image
         run: |
           docker push ghcr.io/heisenity/crm:latest
