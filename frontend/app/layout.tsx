@@ -1,75 +1,90 @@
 "use client"
 
-import { Inter } from "next/font/google";
-import "./globals.css";
-import { AppSidebar } from "@/components/AppSidebar";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { AuthProvider } from "@/components/providers/session-provider";
-import { NotificationProvider } from "@/lib/notification-context";
-import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react";
-import { Toaster } from "@/components/ui/toaster";
+import "./globals.css"
+import { Inter } from "next/font/google"
+import { usePathname } from "next/navigation"
+import { useSession } from "next-auth/react"
+
+import { AppSidebar } from "@/components/AppSidebar"
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
+import { AuthProvider } from "@/components/providers/session-provider"
+import { NotificationProvider } from "@/lib/notification-context"
+import { Toaster } from "@/components/ui/toaster"
 
 interface CustomUser {
   id: string
   email: string
   name: string
-  userType: string
+  userType: "ADMIN" | "EMPLOYEE" | "CUSTOMER"
   employeeId?: string
 }
 
 const inter = Inter({
-  variable: "--font-sans",
   subsets: ["latin"],
-});
+  variable: "--font-sans",
+})
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const { data: session } = useSession()
-  
-  // Pages that should not show sidebar (public/auth pages and customer portal)
-  const isAuthPage = pathname === '/' || pathname === '/landing' || pathname === '/admin-login'
-  const isEmployeePage = pathname === '/employee-attendance' || pathname === '/staff-portal'
-  const isCustomerPage = pathname === '/customer-portal'
-  
-  // Check if user is employee
-  const isEmployee = session?.user && (session.user as CustomUser).userType === 'EMPLOYEE'
+  const { data: session, status } = useSession()
 
-  // For auth pages, employee attendance page, or customer portal, don't show sidebar
-  if (isAuthPage || isEmployeePage || isCustomerPage) {
+  /**
+   * 🔴 CRITICAL FIX
+   * Prevent layout logic from running before auth is resolved
+   */
+  if (status === "loading") {
+    return <div className="min-h-screen" />
+  }
+
+  const userType = (session?.user as CustomUser | undefined)?.userType
+
+  /**
+   * Pages that should NEVER show sidebar
+   */
+  const noSidebarPages = [
+    "/",
+    "/landing",
+    "/admin-login",
+    "/employee-attendance",
+    "/staff-portal",
+    "/customer-portal",
+  ]
+
+  if (noSidebarPages.includes(pathname)) {
     return <div className="min-h-screen">{children}</div>
   }
 
-  // For employees, only show sidebar on allowed pages (but not on staff-portal or employee-attendance)
-  if (isEmployee && pathname !== '/landing' && pathname !== '/attendance' && pathname !== '/staff-portal' && pathname !== '/employee-attendance') {
+  /**
+   * Employees never get sidebar (unless you explicitly want them to)
+   */
+  if (userType === "EMPLOYEE") {
     return <div className="min-h-screen">{children}</div>
   }
 
-  // For admins or allowed employee pages, show sidebar
+  /**
+   * Admin / allowed users get sidebar
+   */
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
-        {children}
-      </SidebarInset>
+      <SidebarInset>{children}</SidebarInset>
     </SidebarProvider>
   )
 }
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: {
+  children: React.ReactNode
+}) {
   return (
-    <html lang="en">
+    <html lang="en" className="light">
       <head>
         <title>Mediainfotech</title>
         <meta name="description" content="CRM Demo Application" />
       </head>
-      <body
-        className={`${inter.variable} font-sans antialiased`}
-      >
+
+      <body className={`${inter.variable} font-sans antialiased`}>
         <AuthProvider>
           <NotificationProvider>
             <LayoutContent>{children}</LayoutContent>
@@ -78,5 +93,5 @@ export default function RootLayout({
         </AuthProvider>
       </body>
     </html>
-  );
+  )
 }
