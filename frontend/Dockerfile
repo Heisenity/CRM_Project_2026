@@ -9,7 +9,7 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-ENV NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production NEXT_PUBLIC_BASE_URL=https://mediainfotech.org
 RUN rm -rf .next
 RUN npm run build
 
