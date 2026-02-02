@@ -745,7 +745,7 @@ export function TaskPage() {
                           </span>
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-48">
+                      <DropdownMenuContent align="start" className="">
                         <DropdownMenuItem onClick={() => setFilters(prev => ({ ...prev, teamId: '' }))}>
                           All Teams
                         </DropdownMenuItem>

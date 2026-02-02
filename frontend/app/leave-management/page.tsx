@@ -108,8 +108,11 @@ export default function HRCenterPage() {
             <h1 className="text-3xl font-bold text-gray-900">HR Center</h1>
 
             <div className="flex gap-3">
-              {/* Only show ReEnable if admin or permitted staff */}
-              {canUseHr && <ReEnableClockInDialog adminId={adminId} />}
+              {/* Always show ReEnable for admins */}
+              {isAdmin && <ReEnableClockInDialog adminId={adminId} />}
+              
+              {/* Also show for staff with HR_CENTER permission */}
+              {!isAdmin && canUseHr && <ReEnableClockInDialog adminId={adminId} />}
 
               {/* leave-management navigation: visible to admin or permitted staff */}
               {canUseHr && (
