@@ -1,6 +1,6 @@
 "use client"
 
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
@@ -19,12 +19,7 @@ interface CustomUser {
 }
 
 const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains-mono",
+  variable: "--font-sans",
   subsets: ["latin"],
 });
 
@@ -55,9 +50,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <main className="flex-1">
-          {children}
-        </main>
+        {children}
       </SidebarInset>
     </SidebarProvider>
   )
@@ -75,7 +68,7 @@ export default function RootLayout({
         <meta name="description" content="CRM Demo Application" />
       </head>
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
+        className={`${inter.variable} font-sans antialiased`}
       >
         <AuthProvider>
           <NotificationProvider>

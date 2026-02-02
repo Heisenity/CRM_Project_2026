@@ -462,97 +462,119 @@ export function ProjectManagement() {
                   New Project
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg border border-slate-200 shadow-xl">
+              <DialogContent className="max-w-2xl">
                 <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2 text-slate-900">
+                  <DialogTitle className="flex items-center gap-3">
                     <Plus className="h-5 w-5" />
                     Create New Project
                   </DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleAddProject} className="space-y-6 p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="md:col-span-2">
-                      <Label htmlFor="name" className="text-xs font-medium text-slate-600">Project Name *</Label>
+                
+                <div className="px-8 pb-8">
+                  <form onSubmit={handleAddProject} className="space-y-6">
+                    {/* Project Name */}
+                    <div>
+                      <Label htmlFor="name" className="text-sm font-medium text-gray-600 mb-2 block">
+                        Project Name *
+                      </Label>
                       <Input
                         id="name"
                         value={projectForm.name}
                         onChange={(e) => setProjectForm({ ...projectForm, name: e.target.value })}
                         placeholder="Enter project name"
                         required
-                        className="h-9 text-sm border-slate-300"
+                        className="h-12 border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                       />
                     </div>
 
-                    <div className="md:col-span-2">
-                      <Label htmlFor="description" className="text-xs font-medium text-slate-600">Project Description</Label>
+                    {/* Project Description */}
+                    <div>
+                      <Label htmlFor="description" className="text-sm font-medium text-gray-600 mb-2 block">
+                        Project Description
+                      </Label>
                       <Textarea
                         id="description"
                         value={projectForm.description}
                         onChange={(e) => setProjectForm({ ...projectForm, description: e.target.value })}
                         placeholder="Brief description of the project scope and objectives"
-                        className="min-h-[80px] text-sm border-slate-300"
+                        className="min-h-[100px] border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none"
                       />
                     </div>
 
-                    <div>
-                      <Label htmlFor="startDate" className="text-xs font-medium text-slate-600">Start Date *</Label>
-                      <Input
-                        id="startDate"
-                        type="date"
-                        value={projectForm.startDate}
-                        onChange={(e) => setProjectForm({ ...projectForm, startDate: e.target.value })}
-                        required
-                        className="h-9 text-sm border-slate-300"
-                      />
+                    {/* Date Fields */}
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <Label htmlFor="startDate" className="text-sm font-medium text-gray-600 mb-2 block">
+                          Start Date *
+                        </Label>
+                        <Input
+                          id="startDate"
+                          type="date"
+                          value={projectForm.startDate}
+                          onChange={(e) => setProjectForm({ ...projectForm, startDate: e.target.value })}
+                          required
+                          className="h-12 border-gray-300 rounded-lg text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="endDate" className="text-sm font-medium text-gray-600 mb-2 block">
+                          Expected End Date
+                        </Label>
+                        <Input
+                          id="endDate"
+                          type="date"
+                          value={projectForm.endDate}
+                          onChange={(e) => setProjectForm({ ...projectForm, endDate: e.target.value })}
+                          className="h-12 border-gray-300 rounded-lg text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
                     </div>
 
-                    <div>
-                      <Label htmlFor="endDate" className="text-xs font-medium text-slate-600">Expected End Date</Label>
-                      <Input
-                        id="endDate"
-                        type="date"
-                        value={projectForm.endDate}
-                        onChange={(e) => setProjectForm({ ...projectForm, endDate: e.target.value })}
-                        className="h-9 text-sm border-slate-300"
-                      />
+                    {/* Priority and Customer */}
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <Label htmlFor="priority" className="text-sm font-medium text-gray-600 mb-2 block">
+                          Priority
+                        </Label>
+                        <Select value={projectForm.priority} onValueChange={(value: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL') => setProjectForm({ ...projectForm, priority: value })}>
+                          <SelectTrigger className="h-12 border-gray-300 rounded-lg text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="LOW">Low Priority</SelectItem>
+                            <SelectItem value="MEDIUM">Medium Priority</SelectItem>
+                            <SelectItem value="HIGH">High Priority</SelectItem>
+                            <SelectItem value="CRITICAL">Critical Priority</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="customer" className="text-sm font-medium text-gray-600 mb-2 block">
+                          Assign to Customer
+                        </Label>
+                        <Select value={projectForm.customerId || "none"} onValueChange={(value) => setProjectForm({ ...projectForm, customerId: value === "none" ? "" : value })}>
+                          <SelectTrigger className="h-12 border-gray-300 rounded-lg text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                            <SelectValue placeholder="No Customer" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No Customer</SelectItem>
+                            {customers.map((customer) => (
+                              <SelectItem key={customer.id} value={customer.id}>
+                                {customer.name} ({customer.customerId})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
 
-                    <div>
-                      <Label htmlFor="priority" className="text-xs font-medium text-slate-600">Priority</Label>
-                      <Select value={projectForm.priority} onValueChange={(value: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL') => setProjectForm({ ...projectForm, priority: value })}>
-                        <SelectTrigger className="h-9 text-sm border-slate-300">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="LOW">Low Priority</SelectItem>
-                          <SelectItem value="MEDIUM">Medium Priority</SelectItem>
-                          <SelectItem value="HIGH">High Priority</SelectItem>
-                          <SelectItem value="CRITICAL">Critical Priority</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="customer" className="text-xs font-medium text-slate-600">Assign to Customer</Label>
-                      <Select value={projectForm.customerId || "none"} onValueChange={(value) => setProjectForm({ ...projectForm, customerId: value === "none" ? "" : value })}>
-                        <SelectTrigger className="h-9 text-sm border-slate-300">
-                          <SelectValue placeholder="Select a customer (optional)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">No Customer</SelectItem>
-                          {customers.map((customer) => (
-                            <SelectItem key={customer.id} value={customer.id}>
-                              {customer.name} ({customer.customerId})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="status" className="text-xs font-medium text-slate-600">Initial Status</Label>
+                    {/* Initial Status */}
+                    <div className="w-1/2">
+                      <Label htmlFor="status" className="text-sm font-medium text-gray-600 mb-2 block">
+                        Initial Status
+                      </Label>
                       <Select value={projectForm.status} onValueChange={(value: 'ONGOING' | 'COMPLETED' | 'ON_HOLD') => setProjectForm({ ...projectForm, status: value })}>
-                        <SelectTrigger className="h-9 text-sm border-slate-300">
+                        <SelectTrigger className="h-12 border-gray-300 rounded-lg text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -561,18 +583,27 @@ export function ProjectManagement() {
                         </SelectContent>
                       </Select>
                     </div>
-                  </div>
 
-                  <div className="flex gap-3 pt-4 border-t border-slate-100">
-                    <Button type="submit" className="flex-1 h-10 bg-slate-900 hover:bg-slate-800 text-white">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Project
-                    </Button>
-                    <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)} className="h-10 border-slate-200 text-slate-700">
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
+                    {/* Action Buttons */}
+                    <div className="flex gap-4 pt-6">
+                      <Button 
+                        type="submit"
+                        className="flex-1 h-12 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-lg"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Project
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        onClick={() => setIsAddDialogOpen(false)} 
+                        className="h-12 text-gray-600 hover:text-gray-800 hover:bg-gray-50 font-medium rounded-lg px-6"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </form>
+                </div>
               </DialogContent>
             </Dialog>
           </div>

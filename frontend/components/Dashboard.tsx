@@ -312,7 +312,7 @@ export function Dashboard() {
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="bg-white shadow-sm border-gray-200">
+          <Card className="bg-white shadow-sm ">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Total Employees</CardTitle>

@@ -3,7 +3,6 @@
 import * as React from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Bell, BellRing } from "lucide-react"
 import { playAlertSound } from "@/lib/notification-sound";
 import { AdminNotifications } from "./AdminNotifications"
@@ -11,8 +10,26 @@ import { AdminNotifications } from "./AdminNotifications"
 export function NotificationBell() {
   const [unreadCount, setUnreadCount] = React.useState(0)
   const [isOpen, setIsOpen] = React.useState(false)
+  const buttonRef = React.useRef<HTMLButtonElement>(null)
   // Keep track of the previous unread count so we only play sounds for new notifications
   const prevCountRef = React.useRef<number | null>(null)
+
+  // Close popover when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (buttonRef.current && !buttonRef.current.contains(event.target as Node)) {
+        const popoverElement = document.querySelector('[data-notification-popover]')
+        if (popoverElement && !popoverElement.contains(event.target as Node)) {
+          setIsOpen(false)
+        }
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isOpen])
 
   // Fetch unread count
   React.useEffect(() => {
@@ -63,38 +80,49 @@ export function NotificationBell() {
     }
   }
 
+  const handleToggle = () => {
+    setIsOpen(!isOpen)
+  }
+
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="relative"
-          onClick={() => setIsOpen(!isOpen)}
-        >
-          {unreadCount > 0 ? (
-            <BellRing className="h-5 w-5 text-blue-600" />
-          ) : (
-            <Bell className="h-5 w-5" />
-          )}
-          {unreadCount > 0 && (
-            <Badge 
-              variant="destructive" 
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
-            >
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </Badge>
-          )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent 
-        className="w-96 p-0" 
-        align="end"
-        side="bottom"
-        sideOffset={5}
+    <div className="relative">
+      <Button
+        ref={buttonRef}
+        variant="ghost"
+        size="sm"
+        className="relative"
+        type="button"
+        onClick={handleToggle}
       >
-        <AdminNotifications onClose={() => setIsOpen(false)} />
-      </PopoverContent>
-    </Popover>
+        {unreadCount > 0 ? (
+          <BellRing className="h-5 w-5 text-blue-600" />
+        ) : (
+          <Bell className="h-5 w-5" />
+        )}
+        {unreadCount > 0 && (
+          <Badge 
+            variant="destructive" 
+            className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+          >
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </Badge>
+        )}
+      </Button>
+      
+      {isOpen && (
+        <div 
+          data-notification-popover
+          className="absolute right-0 top-full mt-2 w-96 bg-white border border-gray-200 rounded-lg shadow-lg z-[9999]"
+          style={{ 
+            position: 'absolute',
+            right: 0,
+            top: '100%',
+            marginTop: '8px'
+          }}
+        >
+          <AdminNotifications onClose={() => setIsOpen(false)} />
+        </div>
+      )}
+    </div>
   )
 }

@@ -30,7 +30,8 @@ import {
     FileText,
     FolderOpen,
     Bell,
-    UserCog
+    UserCog,
+    Settings
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -211,8 +212,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
 
     return (
-        <Sidebar {...props} className="border-r border-border bg-background">
-            <SidebarHeader className="border-b border-border p-6">
+        <Sidebar {...props} className="border-r border-r-stone-300 bg-background">
+            <SidebarHeader className="border-b border-b-stone-300 p-6">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-lg overflow-hidden">
@@ -307,7 +308,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </SidebarContent>
 
             {/* User Profile Footer */}
-            <SidebarFooter className="border-t border-border p-4">
+            <SidebarFooter className="border-t border-t-stone-300 p-4">
                 {session?.user ? (
                     <div className="flex items-center gap-3 p-3 rounded-lg bg-muted hover:bg-accent transition-colors">
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-linear-to-br from-gray-600 to-gray-700 text-white font-semibold text-sm">

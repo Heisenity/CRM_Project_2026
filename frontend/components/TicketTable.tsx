@@ -703,20 +703,20 @@ export function TicketTable() {
     <div className="min-h-screen bg-background">
       <div className="p-8 space-y-8">
         {/* Header Section */}
-        <div className="bg-card rounded-xl shadow-sm border border-border p-8">
+        <div className="bg-card rounded-xl shadow-sm border p-8">
           <div className="flex items-center justify-between mb-6">
             <div className="space-y-2">
               <h1 className="text-3xl font-bold text-foreground">Support Tickets</h1>
             </div>
             <div className="flex items-center gap-3">
-              <Button 
-                variant="outline" 
+              <Button  
+                variant="outline"
                 onClick={() => {
                   fetchTickets()
                   fetchCategories()
                 }}
                 disabled={loading}
-                className="border-border hover:bg-accent px-4"
+                className="hover:bg-accent px-4"
               >
                 {loading ? (
                   <>
@@ -734,7 +734,7 @@ export function TicketTable() {
                 <DropdownMenuTrigger asChild>
                   <Button 
                     variant="outline" 
-                    className="border-border hover:bg-accent px-4"
+                    className=" hover:bg-accent px-4"
                     disabled={exporting}
                   >
                     {exporting ? (
@@ -803,7 +803,7 @@ export function TicketTable() {
 
         {/* Analytics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="bg-card shadow-sm border-border">
+          <Card className="bg-card shadow-sm">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Open Tickets</CardTitle>
@@ -822,7 +822,7 @@ export function TicketTable() {
             </CardContent>
           </Card>
 
-          <Card className="bg-card shadow-sm border-border">
+          <Card className="bg-card shadow-sm">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Resolved</CardTitle>
@@ -841,7 +841,7 @@ export function TicketTable() {
             </CardContent>
           </Card>
 
-          <Card className="bg-card shadow-sm border-border">
+          <Card className="bg-card shadow-sm">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">High Priority</CardTitle>
@@ -860,7 +860,7 @@ export function TicketTable() {
             </CardContent>
           </Card>
 
-          <Card className="bg-card shadow-sm border-border">
+          <Card className="bg-card shadow-sm">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Resolved Today</CardTitle>
@@ -881,7 +881,7 @@ export function TicketTable() {
         </div>
 
         {/* Filters and Actions */}
-        <Card className="bg-card shadow-sm border-border">
+        <Card className="bg-card shadow-sm ">
           <CardContent className="p-6">
             <div className="flex items-center justify-between gap-6">
               <div className="flex items-center gap-4 flex-1">
@@ -917,7 +917,7 @@ export function TicketTable() {
                   </DropdownMenu>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" className="border-border hover:bg-accent px-4 h-10">
+                      <Button variant="outline" className="hover:bg-accent px-4 h-10">
                         <Filter className="h-4 w-4 mr-2" />
                         Priority
                         <ChevronDown className="h-4 w-4 ml-2" />
@@ -953,11 +953,11 @@ export function TicketTable() {
         </Card>
 
         {/* Tickets Table */}
-        <Card className="bg-card shadow-sm border-border overflow-hidden">
+        <Card className="bg-card shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <Table className="table-fixed min-w-[1200px]">
               <TableHeader>
-                <TableRow className="bg-muted/50 border-b border-border">
+                <TableRow className="bg-muted/50 border-b">
                   <TableHead className="w-[350px] py-3 px-4 font-semibold text-foreground text-left">Ticket Details</TableHead>
                   <TableHead className="w-[200px] py-3 px-4 font-semibold text-foreground text-left">Customer Info</TableHead>
                   <TableHead className="w-[100px] py-3 px-4 font-semibold text-foreground text-center">Status</TableHead>
