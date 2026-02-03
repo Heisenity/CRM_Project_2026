@@ -2,7 +2,8 @@
 import type { AuthOptions } from "next-auth"
 
 //  Backend URL for server-side NextAuth
-
+const BACKEND_URL =
+  process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL
 
 interface CustomUser {
   id: string
@@ -35,7 +36,7 @@ export const authOptions: AuthOptions = {
         const { email, password, adminId } = credentials
 
         try {
-          const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/login`, {
+          const response = await fetch(`${BACKEND_URL}/api/v1/auth/login`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -55,7 +56,7 @@ export const authOptions: AuthOptions = {
 
           const user = await response.json()
 
-          // MUST return an object for successful login
+          // âœ… MUST return an object for successful login
           return {
             id: user.id,
             email: user.email,
@@ -111,5 +112,4 @@ export const authOptions: AuthOptions = {
     signOut: "/",
   },
 }
-
 
