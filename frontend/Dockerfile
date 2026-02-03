@@ -2,7 +2,7 @@
 FROM node:20-slim AS deps
 WORKDIR /app
 # Copy only package files to install deps (speed)
-COPY package.json package-lock.json* ./ 
+COPY package.json ./ 
 # If you use pnpm/yarn, adjust accordingly
 RUN npm ci --legacy-peer-deps --no-audit --no-fund
 
