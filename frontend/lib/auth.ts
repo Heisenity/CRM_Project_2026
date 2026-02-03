@@ -35,7 +35,7 @@ export const authOptions: AuthOptions = {
         const { email, password, adminId } = credentials
 
         try {
-          const response = await fetch(`${BACKEND_URL}/auth/login`, {
+          const response = await fetch(`${BACKEND_URL}/api/v1/auth/login`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
