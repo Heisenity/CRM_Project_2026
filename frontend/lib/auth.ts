@@ -1,9 +1,8 @@
 ﻿import CredentialsProvider from "next-auth/providers/credentials"
 import type { AuthOptions } from "next-auth"
 
-// âœ… Backend URL for server-side NextAuth
-const BACKEND_URL =
-  process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL
+//  Backend URL for server-side NextAuth
+
 
 interface CustomUser {
   id: string
@@ -27,7 +26,7 @@ export const authOptions: AuthOptions = {
         password: { label: "Password", type: "password" },
       },
 
-      // âœ… ONLY ONE authorize() â€” THIS IS THE REAL FIX
+      // ONLY ONE authorize() THIS IS THE REAL FIX
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
           return null
@@ -36,7 +35,7 @@ export const authOptions: AuthOptions = {
         const { email, password, adminId } = credentials
 
         try {
-          const response = await fetch(`${BACKEND_URL}/api/v1/auth/login`, {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/login`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -45,7 +44,7 @@ export const authOptions: AuthOptions = {
               email,
               password,
               adminId,
-              userType: "ADMIN", // force admin login
+              userType: "admin", // force admin login
             }),
           })
 
@@ -56,7 +55,7 @@ export const authOptions: AuthOptions = {
 
           const user = await response.json()
 
-          // âœ… MUST return an object for successful login
+          // MUST return an object for successful login
           return {
             id: user.id,
             email: user.email,
@@ -112,4 +111,5 @@ export const authOptions: AuthOptions = {
     signOut: "/",
   },
 }
+
 
