@@ -70,7 +70,7 @@ const authOptions: AuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         const customUser = user as CustomUser
-        token.userType = customUser.userType
+        token.userType = customUser.userType ? customUser.userType.toUpperCase() : customUser.userType
         token.employeeId = customUser.employeeId
         token.adminId = customUser.adminId
         token.sessionToken = customUser.sessionToken
@@ -80,7 +80,7 @@ const authOptions: AuthOptions = {
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.sub!
-        ;(session.user as CustomUser).userType = token.userType as string
+        ;(session.user as CustomUser).userType = typeof token.userType === "string" ? token.userType.toUpperCase() : (token.userType as string)
         ;(session.user as CustomUser).employeeId = token.employeeId as string
         ;(session.user as CustomUser).adminId = token.adminId as string
         ;(session.user as CustomUser).sessionToken = token.sessionToken as string
