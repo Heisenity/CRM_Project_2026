@@ -3,8 +3,8 @@ FROM node:20-slim AS deps
 WORKDIR /app
 # Copy only package files to install deps (speed)
 COPY package.json ./ 
-# If you use pnpm/yarn, adjust accordingly
-RUN npm ci --legacy-peer-deps --no-audit --no-fund
+# Use npm install since package-lock.json is not available
+RUN npm install --legacy-peer-deps --no-audit --no-fund
 
 # ---------- Stage 2: builder (build the Next app) ----------
 FROM node:20-slim AS builder
