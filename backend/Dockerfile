@@ -41,5 +41,5 @@ RUN npm prune --production
 RUN addgroup --system app && adduser --system --ingroup app app
 USER app
 
-EXPOSE 5000
+EXPOSE 3000
 CMD ["npm", "start"]
