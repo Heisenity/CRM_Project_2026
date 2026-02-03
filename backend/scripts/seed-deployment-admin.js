@@ -15,19 +15,33 @@ const path = require('path');
 // Load environment variables
 require('dotenv').config();
 
-// Initialize Prisma client with PostgreSQL adapter (same as existing seed files)
-const pool = new Pool({
-  host: process.env.DATABASE_HOST,
-  user: process.env.DATABASE_USER,
-  password: process.env.DATABASE_PASSWORD,
-  database: process.env.DATABASE_NAME,
-  port: parseInt(process.env.DATABASE_PORT || '5432'),
-  max: 5,
-  ssl: false
-});
+// Initialize Prisma client - use DATABASE_URL if available, otherwise use individual env vars
+let prisma;
 
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+if (process.env.DATABASE_URL) {
+  // Use DATABASE_URL for production deployment
+  prisma = new PrismaClient({
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL
+      }
+    }
+  });
+} else {
+  // Use individual environment variables for development
+  const pool = new Pool({
+    host: process.env.DATABASE_HOST,
+    user: process.env.DATABASE_USER,
+    password: process.env.DATABASE_PASSWORD,
+    database: process.env.DATABASE_NAME,
+    port: parseInt(process.env.DATABASE_PORT || '5432'),
+    max: 5,
+    ssl: false
+  });
+
+  const adapter = new PrismaPg(pool);
+  prisma = new PrismaClient({ adapter });
+}
 
 // Generate secure random password
 function generateSecurePassword(length = 12) {
@@ -148,8 +162,8 @@ async function seedDeploymentAdmin() {
     
     // Generate secure credentials
     const adminId = generateAdminId();
-    const email = process.env.INITIAL_ADMIN_EMAIL || 'admin@company.com';
-    const password = generateSecurePassword(); // Simple password: admin123456
+    const email = process.env.INITIAL_ADMIN_EMAIL || 'admin@mediainfotech.org';
+    const password = 'Admin@123'; // Use consistent password
     
     // Hash the password
     console.log('🔐 Generating secure password hash...');
