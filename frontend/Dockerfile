@@ -1,14 +1,12 @@
 # ---------- Stage 1: deps ----------
 FROM node:20-slim AS deps
 WORKDIR /app
-
 COPY package.json ./
 RUN npm install --legacy-peer-deps --no-audit --no-fund
 
 # ---------- Stage 2: builder ----------
 FROM node:20-slim AS builder
 WORKDIR /app
-
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
@@ -27,13 +25,22 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-# 🔑 Copy EVERYTHING Next needs (no cherry-picking)
+# Create user
+RUN addgroup --system --gid 1001 nodejs \
+ && adduser --system --uid 1001 nextjs
+
+# Copy app files
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 
+# 🔑 CRITICAL FIX: create writable runtime cache
+RUN mkdir -p /app/.next/cache \
+ && chown -R nextjs:nodejs /app
+
+USER nextjs
+
 EXPOSE 3000
 
-# ✅ CORRECT ENTRYPOINT
 CMD ["node", ".next/standalone/server.js"]
