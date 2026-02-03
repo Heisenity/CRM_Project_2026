@@ -81,7 +81,7 @@ export default function RootLayout({
     <html lang="en" className="light">
       <head>
         <title>Mediainfotech</title>
-        <meta name="description" content="CRM Demo Application" />
+        <meta name="description" content="Mediainfotech" />
       </head>
 
       <body className={`${inter.variable} font-sans antialiased`}>

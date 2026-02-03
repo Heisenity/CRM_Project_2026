@@ -25,17 +25,23 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-# Create user
 RUN addgroup --system --gid 1001 nodejs \
  && adduser --system --uid 1001 nextjs
 
-# Copy app files
-COPY --from=builder /app/.next ./.next
+#  CRITICAL: copy standalone server to root
+COPY --from=builder /app/.next/standalone ./
+
+# CRITICAL: copy static assets separately
+COPY --from=builder /app/.next/static ./.next/static
+
+# Public assets
 COPY --from=builder /app/public ./public
+
+# Required runtime deps
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 
-# 🔑 CRITICAL FIX: create writable runtime cache
+# Cache permissions
 RUN mkdir -p /app/.next/cache \
  && chown -R nextjs:nodejs /app
 
@@ -43,4 +49,4 @@ USER nextjs
 
 EXPOSE 3000
 
-CMD ["node", ".next/standalone/server.js"]
+CMD ["node", "server.js"]
