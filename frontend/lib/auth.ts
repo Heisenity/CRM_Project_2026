@@ -10,7 +10,6 @@ interface CustomUser {
   email: string
   name: string
   userType: string
-  employeeId?: string
   adminId?: string
   sessionToken?: string
 }
@@ -62,7 +61,7 @@ export const authOptions: AuthOptions = {
             email: user.email,
             name: user.name,
             adminId: user.adminId,
-            userType: (user.userType || "ADMIN").toUpperCase(),
+            userType: "admin",
             sessionToken: user.sessionToken,
           }
         } catch (error) {
@@ -82,9 +81,6 @@ export const authOptions: AuthOptions = {
       if (user) {
         const customUser = user as CustomUser
         token.userType = customUser.userType
-          ? customUser.userType.toUpperCase()
-          : customUser.userType
-        token.employeeId = customUser.employeeId
         token.adminId = customUser.adminId
         token.sessionToken = customUser.sessionToken
       }
@@ -92,13 +88,9 @@ export const authOptions: AuthOptions = {
     },
 
     async session({ session, token }) {
-      if (token && session.user) {
-        session.user.id = token.sub!
-        ;(session.user as CustomUser).userType =
-          typeof token.userType === "string"
-            ? token.userType.toUpperCase()
-            : (token.userType as string)
-        ;(session.user as CustomUser).employeeId = token.employeeId as string
+      if (session.user) {
+        session.user.id = token.sub as string
+        ;(session.user as CustomUser).userType = token.userType as string
         ;(session.user as CustomUser).adminId = token.adminId as string
         ;(session.user as CustomUser).sessionToken =
           token.sessionToken as string
