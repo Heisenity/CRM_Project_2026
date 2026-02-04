@@ -18,8 +18,8 @@ app.use(helmet())
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3002',
-  'https://heisenity-mediainfotech-crm-web-portal-dom7.onrender.com',
-  'https://heisenity-mediainfotech-crm-web-portal-azxu.onrender.com',
+  'https://mediainfotech.org',
+  'https://www.mediainfotech.org',
   process.env.FRONTEND_URL
 ].filter(Boolean) // Remove undefined values
 
