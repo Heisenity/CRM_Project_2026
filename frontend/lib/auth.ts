@@ -44,7 +44,7 @@ export const authOptions: AuthOptions = {
               email,
               password,
               adminId,
-              userType: "admin", // force admin login
+              userType: "ADMIN", // force admin login
             }),
           })
 
@@ -55,13 +55,13 @@ export const authOptions: AuthOptions = {
 
           const user = await response.json()
 
-          // âœ… MUST return an object for successful login
+          // MUST return an object for successful login
           return {
             id: user.id,
             email: user.email,
             name: user.name,
             adminId: user.adminId,
-            userType: "admin",
+            userType: "ADMIN",
             sessionToken: user.sessionToken,
           }
         } catch (error) {
