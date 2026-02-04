@@ -471,7 +471,7 @@ export default function BarcodeScanner({ onScan, onInventoryChange, onScanResult
       </SheetTrigger>
 
       <SheetContent side="right" className="w-full sm:max-w-md p-0">
-        <SheetHeader className="px-6 py-4 border-b">
+        <SheetHeader className="px-6 py-4">
           <SheetTitle className="flex items-center gap-2">
             <Package className="h-5 w-5 text-blue-600" />
             Product Scanner
@@ -492,7 +492,7 @@ export default function BarcodeScanner({ onScan, onInventoryChange, onScanResult
                 }}
                 variant="outline"
                 size="sm"
-                className="mt-3"
+                className="mt-3 border-gray-300 text-gray-700 hover:bg-gray-50"
               >
                 Try Again
               </Button>
@@ -548,9 +548,9 @@ export default function BarcodeScanner({ onScan, onInventoryChange, onScanResult
           )}
 
           <div className="flex gap-2">
-            <Button onClick={handleClose} variant="outline" className="flex-1">Close Scanner</Button>
+            <Button onClick={handleClose} variant="outline" className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50">Close Scanner</Button>
             {cameraError && (
-              <Button onClick={() => window.location.reload()} variant="default" size="sm">Refresh Page</Button>
+              <Button onClick={() => window.location.reload()} variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700">Refresh Page</Button>
             )}
           </div>
 

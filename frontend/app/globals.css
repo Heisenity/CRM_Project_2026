@@ -22,18 +22,19 @@
   --secondary-foreground: oklch(0.205 0 0);
 
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.83 0.0001 271);
+  --muted-foreground: oklch(0.5 0.0001 271);
 
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
 
   --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
 
   /* Subtle borders */
-  --border: oklch(0.96 0 0);
-  --input: oklch(0.96 0 0);
+  --border: oklch(0.9 0 0);
+  --input: oklch(0.98 0 0);
 
-  --ring: oklch(0.708 0 0);
+  --ring: oklch(0.205 0 0);
 
   /* Sidebar */
   --sidebar-background: oklch(0.985 0 0);
@@ -60,8 +61,25 @@
   --popover: oklch(0.18 0 0);
   --popover-foreground: oklch(0.985 0 0);
 
-  --border: oklch(0.22 0 0);
+  --primary: oklch(0.708 0 0);
+  --primary-foreground: oklch(0.145 0 0);
+
+  --secondary: oklch(0.22 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+
+  --muted: oklch(0.22 0 0);
+  --muted-foreground: oklch(0.6 0 0);
+
+  --accent: oklch(0.22 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+
+  --border: oklch(0.25 0 0);
   --input: oklch(0.22 0 0);
+
+  --ring: oklch(0.708 0 0);
+
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
 
   --sidebar-background: oklch(0.16 0 0);
   --sidebar-foreground: oklch(0.98 0 0);
@@ -121,12 +139,12 @@
     @apply transition-colors duration-200;
   }
 
-  /* Inputs (NO ring-primary/20 ❌) */
+  /* Inputs */
   input,
   textarea,
   select {
-    @apply border border-input rounded-md bg-background px-3 py-2 text-sm;
-    @apply focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-20;
+    @apply border border-gray-300 rounded-md bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-500;
+    @apply focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20;
   }
 }
 

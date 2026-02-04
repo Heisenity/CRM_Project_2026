@@ -68,7 +68,7 @@ function DialogContent({
         data-slot="dialog-content"
         className={cn(
           // content is above overlay (z-50)
-          "bg-white data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-0 rounded-2xl border-0 shadow-2xl duration-200 outline-none sm:max-w-lg",
+          "bg-white text-gray-900 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-0 rounded-2xl shadow-2xl duration-200 outline-none sm:max-w-lg",
           className
         )}
         {...props}
@@ -77,7 +77,7 @@ function DialogContent({
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            className="absolute top-6 right-6 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none disabled:pointer-events-none text-gray-400 hover:text-gray-600"
+            className="absolute top-6 right-6 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none disabled:pointer-events-none text-gray-500 hover:text-gray-700"
           >
             <XIcon className="h-5 w-5" />
             <span className="sr-only">Close</span>
@@ -110,7 +110,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "flex flex-col-reverse gap-3 sm:flex-row sm:justify-end px-6 py-4 border-t border-gray-100 bg-gray-50",
+        "flex flex-col-reverse gap-3 sm:flex-row sm:justify-end px-6 py-4 border-t border-gray-200 bg-gray-50",
         className
       )}
       {...props}
@@ -145,7 +145,7 @@ function DialogDescription({
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn("text-gray-500 text-sm", className)}
+      className={cn("text-gray-600 text-sm", className)}
       {...props}
     />
   )

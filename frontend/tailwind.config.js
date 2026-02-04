@@ -47,6 +47,10 @@ module.exports = {
           DEFAULT: "oklch(var(--card))",
           foreground: "oklch(var(--card-foreground))",
         },
+        destructive: {
+          DEFAULT: "oklch(var(--destructive))",
+          foreground: "oklch(var(--destructive-foreground))",
+        },
 
         sidebar: {
           DEFAULT: "oklch(var(--sidebar-background))",

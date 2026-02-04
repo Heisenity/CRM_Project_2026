@@ -949,6 +949,7 @@ export function StaffPortal() {
                         <Button
                           onClick={handleDayClockOut}
                           disabled={dayClockOutLoading}
+                          variant="destructive"
                           className="w-full mt-4"
                         >
                           {dayClockOutLoading ? 'Clocking Out...' : 'Day Clock-Out'}
