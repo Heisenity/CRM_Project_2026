@@ -44,7 +44,7 @@ export const authOptions: AuthOptions = {
               email,
               password,
               adminId,
-              userType: "ADMIN", // force admin login
+              userType: adminId ? "ADMIN" : "EMPLOYEE", 
             }),
           })
 
