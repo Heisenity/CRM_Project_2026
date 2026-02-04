@@ -1369,6 +1369,51 @@ function EditEmployeeForm({ employee, teams, onSave, onCancel }: EditEmployeeFor
                 </div>
             </div>
             
+            {/* Photo Upload Section */}
+            <div className="space-y-2">
+                <Label className="text-sm font-medium">Employee Photo</Label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                    {previewUrl ? (
+                        <div className="space-y-3">
+                            <div className="w-20 h-20 mx-auto rounded-full overflow-hidden bg-gray-100 relative">
+                                <img src={previewUrl} alt="Employee preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            </div>
+                            <p className="text-sm text-gray-700 font-medium">{formData.photo?.name}</p>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={handleRemovePhoto}
+                                className="border-gray-300 text-gray-600 hover:bg-gray-100"
+                            >
+                                Remove Photo
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            <Camera className="h-12 w-12 text-gray-400 mx-auto" />
+                            <div>
+                                <p className="text-gray-700 font-medium mb-1">Upload Employee Photo</p>
+                                <p className="text-xs text-gray-600 mb-4">Supported formats: JPG, PNG (Max 5MB)</p>
+                            </div>
+                            <div>
+                                <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" id="photo-upload-edit" />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => document.getElementById("photo-upload-edit")?.click()}
+                                    className="border-gray-300 text-gray-600 hover:bg-gray-100"
+                                    disabled={uploadingPhoto}
+                                >
+                                    <Upload className="h-4 w-4 mr-2" />
+                                    {uploadingPhoto ? 'Uploading...' : 'Choose Photo'}
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+
             {/* Password Section */}
             <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
@@ -1444,8 +1489,8 @@ function EditEmployeeForm({ employee, teams, onSave, onCancel }: EditEmployeeFor
                 <Button type="button" variant="outline" onClick={onCancel}>
                     Cancel
                 </Button>
-                <Button type="submit">
-                    Save Changes
+                <Button type="submit" disabled={uploadingPhoto}>
+                    {uploadingPhoto ? 'Uploading Photo...' : 'Save Changes'}
                 </Button>
             </div>
         </form>

@@ -68,7 +68,7 @@ function DialogContent({
         data-slot="dialog-content"
         className={cn(
           // content is above overlay (z-50)
-          "bg-white text-gray-900 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-0 rounded-2xl shadow-2xl duration-200 outline-none sm:max-w-lg",
+          "bg-white text-gray-900 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-2xl shadow-2xl duration-200 outline-none sm:max-w-lg p-6",
           className
         )}
         {...props}
@@ -92,7 +92,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-2 text-left px-8 pt-8 pb-6", className)}
+      className={cn("flex flex-col gap-3 text-left", className)}
       {...props}
     />
   )
@@ -110,7 +110,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "flex flex-col-reverse gap-3 sm:flex-row sm:justify-end px-6 py-4 border-t border-gray-200 bg-gray-50",
+        "flex flex-col-reverse gap-3 sm:flex-row sm:justify-end pt-4 mt-4 border-t border-gray-200",
         className
       )}
       {...props}

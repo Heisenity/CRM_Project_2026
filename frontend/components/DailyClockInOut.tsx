@@ -487,7 +487,7 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
                 <Button
                   onClick={handleClockOut}
                   disabled={isLoading}
-                  className="w-full"
+                  className="w-full bg-red-600 hover:bg-red-700 text-white"
                   variant="destructive"
                 >
                   <XCircle className="h-4 w-4 mr-2" />
@@ -507,6 +507,7 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
                     disabled={cameraLoading}
                     variant="outline"
                     size="sm"
+                    className="border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
                   >
                     <Camera className="h-4 w-4 mr-2" />
                     {cameraLoading ? 'Loading...' : cameraActive ? 'Stop Camera' : 'Start Camera'}
@@ -565,7 +566,8 @@ export function DailyClockInOut({ employeeId, employeeRole, onAttendanceStatusCh
                   isRejectedStatus(attendanceStatus?.approvalStatus) ||
                   attendanceStatus?.isPendingApproval
                 }
-                className="w-full"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                variant="default"
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
                 {isLoading ? 'Clocking In...' : 'Clock In'}

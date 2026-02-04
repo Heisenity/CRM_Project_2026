@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Clock, Loader2, CheckCircle, AlertCircle, User, Info, ArrowLeft, Save, Plus, Upload, Camera } from "lucide-react"
 import { createEmployee } from "@/lib/server-api"
 import { EmployeeIdGenerator } from "@/components/EmployeeIdGenerator"
+import { uploadEmployeePhotoToS3 } from "@/lib/s3-upload"
 
 interface AddAttendanceRecordProps {
   onRecordAdded?: () => void // Changed to just notify without passing record
@@ -98,31 +99,7 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
 
       // 🔹 STEP 1: upload photo to S3 if exists
       if (formData.photo) {
-        const presignRes = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/uploads/employee-photo`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              fileName: formData.photo.name,
-              fileType: formData.photo.type,
-              employeeId: formData.employeeId,
-            }),
-          }
-        );
-
-        const presignData = await presignRes.json();
-        if (!presignData.success) {
-          throw new Error('Failed to get upload URL');
-        }
-
-        await fetch(presignData.uploadUrl, {
-          method: 'PUT',
-          headers: { 'Content-Type': formData.photo.type },
-          body: formData.photo,
-        });
-
-        photoUrl = presignData.fileUrl;
+        photoUrl = await uploadEmployeePhotoToS3(formData.photo, formData.employeeId);
       }
 
       // Create the employee with the specified role

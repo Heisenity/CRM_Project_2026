@@ -228,7 +228,7 @@ export function TaskCheckInOut({ employeeId, onTaskStatusChange, refreshTrigger 
               <Button 
                 onClick={handleTaskCheckOut}
                 disabled={isLoading}
-                className="w-full"
+                className="w-full bg-red-600 hover:bg-red-700 text-white"
                 variant="destructive"
               >
                 <XCircle className="h-4 w-4 mr-2" />
@@ -265,6 +265,7 @@ export function TaskCheckInOut({ employeeId, onTaskStatusChange, refreshTrigger 
               size="sm"
               onClick={handleRefresh}
               disabled={isLoading || isRefreshing}
+              className="border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
               Refresh
@@ -308,6 +309,7 @@ export function TaskCheckInOut({ employeeId, onTaskStatusChange, refreshTrigger 
                       onClick={() => handleTaskCheckIn(task.id)}
                       disabled={isLoading || taskStatus?.hasActiveTask}
                       size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       <CheckCircle className="h-4 w-4 mr-2" />
                       Check In
