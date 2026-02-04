@@ -95,11 +95,11 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
     setError(null)
 
     try {
-      let photoUrl: string | undefined;
+      let photoKey: string | undefined;
 
       // 🔹 STEP 1: upload photo to S3 if exists
       if (formData.photo) {
-        photoUrl = await uploadEmployeePhotoToS3(formData.photo, formData.employeeId);
+        photoKey = await uploadEmployeePhotoToS3(formData.photo, formData.employeeId);
       }
 
       // Create the employee with the specified role
@@ -117,7 +117,7 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
         address: formData.address.trim() || undefined,
         aadharCard: formData.aadharCard.trim() || undefined,
         panCard: formData.panCard.trim() || undefined,
-        photoUrl
+        photoKey
       }
 
       const employeeResponse = await createEmployee(employeeData)
