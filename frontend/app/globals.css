@@ -5,45 +5,45 @@
 :root {
   --radius: 0.625rem;
 
-  /* Core colors (OKLCH only) */
+  /* Core colors with solid white backgrounds */
   --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --foreground: oklch(0.09 0 0);
 
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.09 0 0);
 
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.09 0 0);
 
   --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
+  --primary-foreground: oklch(1 0 0);
 
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(1 0 0);
+  --secondary-foreground: oklch(0.09 0 0);
 
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.5 0.0001 271);
+  --muted: oklch(1 0 0);
+  --muted-foreground: oklch(51.028% 0.00006 271.152);
 
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --accent: oklch(1 0 0);
+  --accent-foreground: oklch(0.09 0 0);
 
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.985 0 0);
 
-  /* Subtle borders */
-  --border: oklch(0.9 0 0);
-  --input: oklch(0.98 0 0);
+  /* Borders and inputs with solid white */
+  --border: oklch(0.89 0 0);
+  --input: oklch(1 0 0);
 
   --ring: oklch(0.205 0 0);
 
-  /* Sidebar */
-  --sidebar-background: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
+  /* Sidebar with solid white */
+  --sidebar-background: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.09 0 0);
   --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.92 0 0);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(1 0 0);
+  --sidebar-accent-foreground: oklch(0.09 0 0);
+  --sidebar-border: oklch(0.89 0 0);
   --sidebar-ring: oklch(0.708 0 0);
 
   --sidebar-width: 16rem;
@@ -52,38 +52,38 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
+  --background: oklch(0.09 0 0);
+  --foreground: oklch(0.98 0 0);
 
-  --card: oklch(0.18 0 0);
-  --card-foreground: oklch(0.985 0 0);
+  --card: oklch(0.12 0 0);
+  --card-foreground: oklch(0.98 0 0);
 
-  --popover: oklch(0.18 0 0);
-  --popover-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.12 0 0);
+  --popover-foreground: oklch(0.98 0 0);
 
   --primary: oklch(0.708 0 0);
-  --primary-foreground: oklch(0.145 0 0);
+  --primary-foreground: oklch(0.09 0 0);
 
-  --secondary: oklch(0.22 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.15 0 0);
+  --secondary-foreground: oklch(0.98 0 0);
 
-  --muted: oklch(0.22 0 0);
-  --muted-foreground: oklch(0.6 0 0);
+  --muted: oklch(0.15 0 0);
+  --muted-foreground: oklch(0.65 0 0);
 
-  --accent: oklch(0.22 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --accent: oklch(0.15 0 0);
+  --accent-foreground: oklch(0.98 0 0);
 
-  --border: oklch(0.25 0 0);
-  --input: oklch(0.22 0 0);
+  --border: oklch(0.18 0 0);
+  --input: oklch(0.15 0 0);
 
   --ring: oklch(0.708 0 0);
 
   --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
+  --destructive-foreground: oklch(0.98 0 0);
 
-  --sidebar-background: oklch(0.16 0 0);
+  --sidebar-background: oklch(0.12 0 0);
   --sidebar-foreground: oklch(0.98 0 0);
-  --sidebar-border: oklch(0.25 0 0);
+  --sidebar-border: oklch(0.18 0 0);
 }
 
 @layer base {
@@ -139,12 +139,38 @@
     @apply transition-colors duration-200;
   }
 
-  /* Inputs */
+  /* Inputs with proper contrast */
   input,
   textarea,
   select {
-    @apply border border-gray-300 rounded-md bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-500;
+    @apply border border-gray-300 rounded-md bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400;
     @apply focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20;
+  }
+
+  /* Ensure all text elements have proper contrast */
+  .text-muted-foreground {
+    color: oklch(0.35 0 0) !important;
+  }
+
+  /* Fix card text colors and backgrounds */
+  [data-slot="card"] {
+    @apply bg-white text-gray-900 border-gray-200;
+  }
+
+  /* Ensure all dialogs and sheets have solid white backgrounds */
+  [data-slot="dialog-content"],
+  [data-slot="sheet-content"] {
+    @apply bg-white text-gray-900;
+  }
+
+  /* Force all backgrounds to be solid white */
+  .bg-card,
+  .bg-background,
+  .bg-popover,
+  .bg-secondary,
+  .bg-muted,
+  .bg-accent {
+    background-color: white !important;
   }
 }
 
