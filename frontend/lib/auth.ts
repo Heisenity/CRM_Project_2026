@@ -11,6 +11,7 @@ interface CustomUser {
   name: string
   userType: string
   adminId?: string
+  employeeId?: string
   sessionToken?: string
 }
 
@@ -22,6 +23,7 @@ export const authOptions: AuthOptions = {
       // âœ… These fields MUST match your login form
       credentials: {
         adminId: { label: "Admin ID", type: "text" },
+        employeeId: { label: "Employee ID", type: "text" },
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
@@ -32,7 +34,7 @@ export const authOptions: AuthOptions = {
           return null
         }
 
-        const { email, password, adminId } = credentials
+        const { email, password, adminId, employeeId } = credentials
 
         try {
           const response = await fetch(`${BACKEND_URL}/api/v1/auth/login`, {
@@ -44,6 +46,7 @@ export const authOptions: AuthOptions = {
               email,
               password,
               adminId,
+              employeeId,
               userType: adminId ? "ADMIN" : "EMPLOYEE", 
             }),
           })
@@ -61,7 +64,7 @@ export const authOptions: AuthOptions = {
             email: user.email,
             name: user.name,
             adminId: user.adminId,
-            userType: "ADMIN",
+            userType: user.userType,
             sessionToken: user.sessionToken,
           }
         } catch (error) {
@@ -82,6 +85,7 @@ export const authOptions: AuthOptions = {
         const customUser = user as CustomUser
         token.userType = customUser.userType
         token.adminId = customUser.adminId
+        token.employeeId = customUser.employeeId
         token.sessionToken = customUser.sessionToken
       }
       return token
@@ -92,6 +96,7 @@ export const authOptions: AuthOptions = {
         session.user.id = token.sub as string
         ;(session.user as CustomUser).userType = token.userType as string
         ;(session.user as CustomUser).adminId = token.adminId as string
+        ;(session.user as CustomUser).employeeId = token.employeeId as string
         ;(session.user as CustomUser).sessionToken =
           token.sessionToken as string
       }
