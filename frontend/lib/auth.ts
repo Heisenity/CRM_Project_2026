@@ -1,7 +1,7 @@
 ﻿import CredentialsProvider from "next-auth/providers/credentials"
 import type { AuthOptions } from "next-auth"
 
-//  Backend URL for server-side NextAuth
+// Backend URL for server-side NextAuth
 const BACKEND_URL =
   process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL
 
@@ -20,7 +20,6 @@ export const authOptions: AuthOptions = {
     CredentialsProvider({
       name: "credentials",
 
-      // âœ… These fields MUST match your login form
       credentials: {
         adminId: { label: "Admin ID", type: "text" },
         employeeId: { label: "Employee ID", type: "text" },
@@ -28,7 +27,6 @@ export const authOptions: AuthOptions = {
         password: { label: "Password", type: "password" },
       },
 
-      // ONLY ONE authorize() THIS IS THE REAL FIX
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
           return null
@@ -36,19 +34,25 @@ export const authOptions: AuthOptions = {
 
         const { email, password, adminId, employeeId } = credentials
 
+        // decide user type
+        const userType = adminId ? "ADMIN" : "EMPLOYEE"
+
         try {
+          const body: any = {
+            email,
+            password,
+            userType,
+          }
+          // include only the relevant id to avoid backend validation issues
+          if (userType === "ADMIN" && adminId) body.adminId = adminId
+          if (userType === "EMPLOYEE" && employeeId) body.employeeId = employeeId
+
           const response = await fetch(`${BACKEND_URL}/api/v1/auth/login`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-              email,
-              password,
-              adminId,
-              employeeId,
-              userType: adminId ? "ADMIN" : "EMPLOYEE", 
-            }),
+            body: JSON.stringify(body),
           })
 
           if (!response.ok) {
@@ -57,14 +61,15 @@ export const authOptions: AuthOptions = {
           }
 
           const user = await response.json()
+          console.debug("authorize -> backend user:", user)
 
-          // MUST return an object for successful login
           return {
             id: user.id,
             email: user.email,
             name: user.name,
             adminId: user.adminId,
-            userType: user.userType,
+            employeeId: user.employeeId,   
+            userType: user.userType,        
             sessionToken: user.sessionToken,
           }
         } catch (error) {
@@ -83,6 +88,7 @@ export const authOptions: AuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         const customUser = user as CustomUser
+        token.sub = customUser.id // make the token subject explicit
         token.userType = customUser.userType
         token.adminId = customUser.adminId
         token.employeeId = customUser.employeeId
@@ -109,4 +115,3 @@ export const authOptions: AuthOptions = {
     signOut: "/",
   },
 }
-
