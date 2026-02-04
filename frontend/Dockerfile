@@ -12,7 +12,7 @@ COPY . .
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NEXT_PUBLIC_BACKEND_URL=https://mediainfotech.org/api/v1/
+ENV NEXT_PUBLIC_BACKEND_URL=https://mediainfotech.org/api/v1
 
 RUN rm -rf .next
 RUN npm run build
