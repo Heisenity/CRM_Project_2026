@@ -67,7 +67,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>{children}</SidebarInset>
+      <SidebarInset className="overflow-visible">{children}</SidebarInset>
     </SidebarProvider>
   )
 }

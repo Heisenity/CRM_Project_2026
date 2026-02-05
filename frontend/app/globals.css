@@ -172,6 +172,16 @@
   .bg-accent {
     background-color: white !important;
   }
+
+  /* CRITICAL FIX: Ensure dropdown portals are not clipped */
+  [data-radix-popper-content-wrapper] {
+    z-index: 1000 !important;
+  }
+
+  /* Ensure sidebar and main content don't clip dropdowns - more conservative */
+  [data-slot="sidebar-wrapper"] {
+    overflow: visible;
+  }
 }
 
 @layer utilities {
@@ -205,9 +215,17 @@
   }
 
   .table-fixed td {
-    overflow: hidden;
     text-overflow: ellipsis;
     vertical-align: top;
+  }
+
+  .table-fixed td:last-child {
+    overflow: visible;
+  }
+
+  .table-fixed td.relative {
+    overflow: visible;
+    position: relative;
   }
 
   .table-fixed tr:hover {
@@ -225,5 +243,17 @@
     display: -webkit-box;
     -webkit-box-orient: vertical;
     word-break: break-word;
+  }
+
+  /* CRITICAL FIX: Ensure containers don't clip dropdowns - conservative approach */
+  .table-container {
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+
+  /* Specific fix for dropdown cells in tables */
+  .dropdown-cell {
+    overflow: visible;
+    position: relative;
   }
 }

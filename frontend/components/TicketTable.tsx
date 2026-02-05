@@ -953,8 +953,8 @@ export function TicketTable() {
         </Card>
 
         {/* Tickets Table */}
-        <Card className="bg-card shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
+        <Card className="bg-card shadow-sm">
+          <div className="table-container">
             <Table className="table-fixed min-w-[1200px]">
               <TableHeader>
                 <TableRow className="bg-muted/50 border-b">
@@ -1083,7 +1083,7 @@ export function TicketTable() {
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="py-3 px-4 align-top text-center">
+                    <TableCell className="py-3 px-4 align-top text-center dropdown-cell">
                       {ticket.attachments && ticket.attachments.length > 0 ? (
                         <div className="flex justify-center">
                           <DropdownMenu>
@@ -1154,7 +1154,7 @@ export function TicketTable() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="py-4 px-4 align-middle text-center">
+                    <TableCell className="py-4 px-4 align-middle text-center dropdown-cell">
                       <div className="flex justify-center">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
