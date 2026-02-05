@@ -10,7 +10,7 @@ const DropdownMenu = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Root>
 >(({ ...props }, ref) => (
-  <DropdownMenuPrimitive.Root {...props} />
+  <DropdownMenuPrimitive.Root {...props} modal={false} />
 ))
 DropdownMenu.displayName = "DropdownMenu"
 
@@ -81,15 +81,8 @@ const DropdownMenuContent = React.forwardRef<
         "data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
         className
       )}
-      style={{
-        zIndex: 9999,
-        backgroundColor: 'white',
-        border: '1px solid #e5e7eb',
-        borderRadius: '6px',
-        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-        color: '#111827',
-        maxWidth: '300px'
-      }}
+      onCloseAutoFocus={(e) => e.preventDefault()}
+      onEscapeKeyDown={(e) => e.preventDefault()}
       {...props}
     />
   </DropdownMenuPrimitive.Portal>
