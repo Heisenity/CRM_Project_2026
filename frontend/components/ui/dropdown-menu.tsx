@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
 interface DropdownContextType {
   isOpen: boolean
   setIsOpen: (open: boolean) => void
-  align?: "start" | "end"
+  align?: "start" | "end" | "center"
 }
 
 const DropdownContext = React.createContext<DropdownContextType | null>(null)
@@ -60,7 +60,7 @@ DropdownMenuTrigger.displayName = "DropdownMenuTrigger"
 const DropdownMenuContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & {
-    align?: "start" | "end"
+    align?: "start" | "end" | "center"
     sideOffset?: number
   }
 >(({ className, children, align = "start", sideOffset = 4, ...props }, ref) => {
@@ -68,12 +68,14 @@ const DropdownMenuContent = React.forwardRef<
   
   if (!context?.isOpen) return null
   
+  const alignmentClass = align === "end" ? "right-0" : align === "center" ? "left-1/2 transform -translate-x-1/2" : "left-0"
+  
   return (
     <div
       ref={ref}
       className={cn(
         "absolute top-full mt-1 min-w-[8rem] max-w-[300px] bg-white border border-gray-200 rounded-md shadow-lg z-[9999] py-1",
-        align === "end" ? "right-0" : "left-0",
+        alignmentClass,
         className
       )}
       style={{
@@ -250,7 +252,7 @@ const DropdownMenuWrapper = ({
   align = "start" 
 }: { 
   children: React.ReactNode
-  align?: "start" | "end" 
+  align?: "start" | "end" | "center"
 }) => {
   const [isOpen, setIsOpen] = React.useState(false)
   const dropdownRef = React.useRef<HTMLDivElement>(null)
