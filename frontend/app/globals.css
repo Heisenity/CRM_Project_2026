@@ -173,28 +173,100 @@
     background-color: white !important;
   }
 
-  /* CRITICAL FIX: Ensure dropdown portals are not clipped */
-  [data-radix-popper-content-wrapper] {
-    z-index: 9999 !important;
+  /* =====================================================
+     CRITICAL FIX: DROPDOWN VISIBILITY
+     ===================================================== */
+  
+  /* Ensure all parent containers don't clip dropdowns */
+  body,
+  [role="application"],
+  [data-slot="main"],
+  [data-slot="sidebar-wrapper"],
+  .main-content,
+  .content-wrapper,
+  [class*="container"],
+  [class*="wrapper"] {
+    overflow-wrap: break-word;
   }
 
-  /* Fix for Radix dropdown content */
+  /* Fix Radix Dropdown Portal - make it truly visible */
   [data-radix-dropdown-menu-content] {
-    z-index: 9999 !important;
+    position: fixed !important;
+    z-index: 50 !important;
+    min-width: 8rem;
     background-color: white !important;
-    border: 1px solid #e5e7eb !important;
-    border-radius: 6px !important;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    color: #111827;
+    max-width: 300px;
+    overflow: visible;
   }
 
-  /* Ensure all dropdown content is visible */
-  [data-radix-dropdown-menu-content] * {
+  /* Ensure dropdown items are visible */
+  [data-radix-dropdown-menu-item] {
+    color: #111827 !important;
+    padding: 0.375rem 0.5rem;
+    cursor: pointer;
+    overflow: visible;
+  }
+
+  [data-radix-dropdown-menu-item]:hover {
+    background-color: #f3f4f6;
+    color: #111827;
+  }
+
+  [data-radix-dropdown-menu-item]:focus {
+    background-color: #f3f4f6;
+    color: #111827;
+  }
+
+  /* Ensure sub-content is visible */
+  [data-radix-dropdown-menu-sub-content] {
+    position: fixed !important;
+    z-index: 50 !important;
+    background-color: white !important;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    color: #111827;
+    min-width: 8rem;
+    overflow: visible;
+  }
+
+  /* Popover text color override */
+  .bg-popover {
+    background-color: white !important;
+  }
+
+  .text-popover-foreground {
     color: #111827 !important;
   }
 
-  /* Ensure sidebar and main content don't clip dropdowns - more conservative */
-  [data-slot="sidebar-wrapper"] {
-    overflow: visible;
+  .bg-accent {
+    background-color: #f3f4f6 !important;
+  }
+
+  .text-accent-foreground {
+    color: #111827 !important;
+  }
+
+  /* === IMPORTANT: Remove overflow hidden from table containers === */
+  .table-container {
+    overflow-x: auto;
+    overflow-y: visible !important;
+  }
+
+  /* Ensure table cells don't clip dropdowns */
+  td {
+    overflow: visible !important;
+    position: relative;
+  }
+
+  /* Dropdown trigger cell should allow overflow */
+  [data-dropdown-cell] {
+    overflow: visible !important;
+    position: relative !important;
   }
 }
 
@@ -231,6 +303,7 @@
   .table-fixed td {
     text-overflow: ellipsis;
     vertical-align: top;
+    overflow: visible !important;
   }
 
   .table-fixed td:last-child {
@@ -259,15 +332,10 @@
     word-break: break-word;
   }
 
-  /* CRITICAL FIX: Ensure containers don't clip dropdowns - conservative approach */
-  .table-container {
-    overflow-x: auto;
-    overflow-y: visible;
-  }
-
-  /* Specific fix for dropdown cells in tables */
+  /* Dropdown cell utility */
   .dropdown-cell {
-    overflow: visible;
+    overflow: visible !important;
     position: relative;
+    z-index: 40;
   }
 }
