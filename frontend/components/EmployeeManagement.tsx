@@ -1489,7 +1489,7 @@ function EditEmployeeForm({ employee, teams, onSave, onCancel }: EditEmployeeFor
                 <Button type="button" variant="outline" onClick={onCancel}>
                     Cancel
                 </Button>
-                <Button type="submit" disabled={uploadingPhoto}>
+                <Button type="submit" disabled={uploadingPhoto} className="bg-blue-600 hover:bg-blue-700 text-white">
                     {uploadingPhoto ? 'Uploading Photo...' : 'Save Changes'}
                 </Button>
             </div>
@@ -1653,7 +1653,7 @@ function EditAdminForm({ admin, onSave, onCancel }: EditAdminFormProps) {
                 <Button type="button" variant="outline" onClick={onCancel}>
                     Cancel
                 </Button>
-                <Button type="submit">
+                <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">
                     Save Changes
                 </Button>
             </div>

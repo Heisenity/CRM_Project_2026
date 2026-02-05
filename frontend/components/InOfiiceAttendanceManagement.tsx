@@ -581,7 +581,7 @@ export function AttendanceManagementPage() {
                 </DropdownMenu>
                 <Button
                   onClick={() => setShowAddForm(true)}
-                  className="bg-blue-600 hover:bg-blue-700 shadow-sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Office Employee
@@ -1073,7 +1073,7 @@ export function AttendanceManagementPage() {
                 <Button
                   onClick={handleSaveEdit}
                   disabled={editDialog.loading}
-                  className="flex-1"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   {editDialog.loading ? 'Saving...' : 'Save Changes'}
                 </Button>

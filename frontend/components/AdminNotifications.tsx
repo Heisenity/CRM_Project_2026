@@ -506,7 +506,7 @@ export function AdminNotifications({ onClose }: AdminNotificationsProps) {
                                       markAsRead(notification.id)
                                     }
                                   }}
-                                  className="px-3 py-1 text-xs"
+                                  className="px-3 py-1 text-xs bg-red-600 hover:bg-red-700 text-white border-red-600"
                                 >
                                   Reject
                                 </Button>
