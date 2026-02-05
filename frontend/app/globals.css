@@ -178,6 +178,11 @@
     z-index: 1000 !important;
   }
 
+  /* Fix for Radix dropdown content */
+  [data-radix-dropdown-menu-content] {
+    z-index: 1000 !important;
+  }
+
   /* Ensure sidebar and main content don't clip dropdowns - more conservative */
   [data-slot="sidebar-wrapper"] {
     overflow: visible;
