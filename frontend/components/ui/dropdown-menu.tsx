@@ -69,11 +69,11 @@ const DropdownMenuContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       side="bottom"
-      align="end"
-      collisionPadding={8}
+      align="start"
+      collisionPadding={16}
       avoidCollisions={true}
       className={cn(
-        "z-[9999] min-w-[8rem] overflow-hidden rounded-md border bg-white p-1 text-gray-950 shadow-md",
+        "z-[9999] min-w-[8rem] max-w-[300px] overflow-hidden rounded-md border bg-white p-1 text-gray-950 shadow-md",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
         "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
@@ -87,7 +87,8 @@ const DropdownMenuContent = React.forwardRef<
         border: '1px solid #e5e7eb',
         borderRadius: '6px',
         boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-        color: '#111827'
+        color: '#111827',
+        maxWidth: '300px'
       }}
       {...props}
     />
