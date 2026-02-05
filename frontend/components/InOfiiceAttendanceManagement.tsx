@@ -114,7 +114,7 @@ const formatTime = (dateString?: string) => {
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('en-US', {
-    timeZone: 'Asia/Kolkata',
+    timeZone: 'GMT',
     month: 'short',
     day: 'numeric',
     year: 'numeric'

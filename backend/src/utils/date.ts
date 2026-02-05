@@ -1,4 +1,4 @@
-const TIMEZONE = process.env.APP_TIMEZONE || 'Asia/Kolkata';
+const TIMEZONE = process.env.APP_TIMEZONE || 'GMT';
 
 function partsFor(date: Date, timeZone: string) {
   const dtf = new Intl.DateTimeFormat('en-US', {
