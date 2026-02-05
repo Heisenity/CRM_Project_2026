@@ -68,6 +68,10 @@ const DropdownMenuContent = React.forwardRef<
     <DropdownMenuPrimitive.Content
       ref={ref}
       sideOffset={sideOffset}
+      side="bottom"
+      align="end"
+      collisionPadding={8}
+      avoidCollisions={true}
       className={cn(
         "z-[9999] min-w-[8rem] overflow-hidden rounded-md border bg-white p-1 text-gray-950 shadow-md",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
