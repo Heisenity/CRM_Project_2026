@@ -171,7 +171,7 @@ export function StaffTicketList({ employeeId, refreshTrigger }: StaffTicketListP
   }
 
   return (
-    <Card className="bg-card shadow-sm border-border overflow-hidden">
+    <Card className="bg-card shadow-sm border-border">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Ticket className="h-5 w-5 text-blue-600" />

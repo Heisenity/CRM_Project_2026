@@ -804,7 +804,7 @@ export function AttendanceManagementPage() {
           </Card>
 
           {/* Attendance Table */}
-          <Card className="bg-white shadow-sm border-gray-200 overflow-hidden">
+          <Card className="bg-white shadow-sm border-gray-200">
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-600" />

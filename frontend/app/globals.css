@@ -337,3 +337,22 @@
     z-index: 40;
   }
 }
+
+/* Ensure cards maintain visual integrity without overflow-hidden */
+.card-with-table {
+  border-radius: 0.5rem;
+  position: relative;
+}
+
+/* Ensure table content doesn't break card styling */
+.card-with-table table {
+  border-radius: 0;
+}
+
+.card-with-table table thead tr:first-child th:first-child {
+  border-top-left-radius: 0;
+}
+
+.card-with-table table thead tr:first-child th:last-child {
+  border-top-right-radius: 0;
+}

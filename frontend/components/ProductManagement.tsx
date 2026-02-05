@@ -880,7 +880,7 @@ export function ProductManagement() {
         </Card>
 
         {/* Products Table */}
-        <Card className="bg-white shadow-sm border-gray-200 overflow-hidden">
+        <Card className="bg-white shadow-sm border-gray-200">
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-50/80 border-b border-gray-200">
