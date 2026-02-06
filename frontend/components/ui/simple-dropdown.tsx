@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
 
 interface SimpleDropdownProps {
@@ -12,11 +13,23 @@ interface SimpleDropdownProps {
 
 export function SimpleDropdown({ children, trigger, align = "start", className }: SimpleDropdownProps) {
   const [isOpen, setIsOpen] = React.useState(false)
+  const [mounted, setMounted] = React.useState(false)
+  const triggerRef = React.useRef<HTMLDivElement>(null)
   const dropdownRef = React.useRef<HTMLDivElement>(null)
+  const [position, setPosition] = React.useState({ top: 0, left: 0 })
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
 
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current && 
+        !dropdownRef.current.contains(event.target as Node) &&
+        triggerRef.current &&
+        !triggerRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false)
       }
     }
@@ -27,32 +40,56 @@ export function SimpleDropdown({ children, trigger, align = "start", className }
     }
   }, [isOpen])
 
+  React.useEffect(() => {
+    if (isOpen && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect()
+      const dropdownWidth = 200 // approximate width
+      
+      let left = rect.left
+      if (align === "end") {
+        left = rect.right - dropdownWidth
+      } else if (align === "center") {
+        left = rect.left + (rect.width / 2) - (dropdownWidth / 2)
+      }
+      
+      setPosition({
+        top: rect.bottom + window.scrollY + 4,
+        left: left + window.scrollX
+      })
+    }
+  }, [isOpen, align])
+
   return (
-    <div className="relative inline-block" ref={dropdownRef}>
-      <div onClick={() => setIsOpen(!isOpen)}>
-        {trigger}
+    <>
+      <div className="relative inline-block" ref={triggerRef}>
+        <div onClick={() => setIsOpen(!isOpen)}>
+          {trigger}
+        </div>
       </div>
       
-      {isOpen && (
+      {mounted && isOpen && createPortal(
         <div
+          ref={dropdownRef}
           className={cn(
-            "absolute top-full mt-1 min-w-[8rem] max-w-[300px] bg-white border border-gray-200 rounded-md shadow-lg py-1",
-            align === "end" ? "right-0" : align === "center" ? "left-1/2 -translate-x-1/2" : "left-0",
+            "min-w-[8rem] max-w-[300px] bg-white border border-gray-200 rounded-md shadow-lg py-1",
             className
           )}
           style={{
+            position: 'absolute',
+            top: `${position.top}px`,
+            left: `${position.left}px`,
             zIndex: 99999,
             backgroundColor: 'white',
             border: '1px solid #e5e7eb',
             borderRadius: '6px',
-            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-            position: 'absolute'
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
           }}
         >
           {children}
-        </div>
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   )
 }
 
