@@ -5,6 +5,7 @@ export class SessionService {
   // Create a new session
   async createSession(userId: string, userType: 'ADMIN' | 'EMPLOYEE', deviceInfo?: string, ipAddress?: string) {
     const sessionToken = randomBytes(32).toString('hex')
+    // Set expiry to 24 hours as a safety net (actual timeout is based on lastActivity)
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
 
@@ -71,11 +72,20 @@ export class SessionService {
       }
     })
 
-    if (!session || !session.isActive || session.expiresAt < new Date()) {
+    if (!session || !session.isActive) {
       return null
     }
 
-    // Update last activity
+    // Check if 5 minutes have passed since last activity
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
+    
+    if (session.lastActivity < fiveMinutesAgo) {
+      // User was away for more than 5 minutes, invalidate session
+      await this.invalidateSession(sessionToken)
+      return null
+    }
+
+    // User is active, update last activity timestamp
     await this.updateSessionActivity(sessionToken)
 
     return session
