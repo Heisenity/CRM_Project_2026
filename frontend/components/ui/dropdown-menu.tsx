@@ -7,13 +7,9 @@ import { cn } from "@/lib/utils"
 
 // Context for managing dropdown state and collecting children
 interface DropdownContextType {
-  isOpen: boolean
-  setIsOpen: (open: boolean) => void
   triggerElement: React.ReactNode
   setTriggerElement: (element: React.ReactNode) => void
-  contentElement: React.ReactNode
-  setContentElement: (element: React.ReactNode) => void
-  align?: "start" | "end" | "center"
+  align: "start" | "end" | "center"
   setAlign: (align: "start" | "end" | "center") => void
 }
 
@@ -21,19 +17,13 @@ const DropdownContext = React.createContext<DropdownContextType | null>(null)
 
 // Main dropdown root component - collects trigger and content, renders SimpleDropdown
 const DropdownMenu = ({ children }: { children: React.ReactNode }) => {
-  const [isOpen, setIsOpen] = React.useState(false)
   const [triggerElement, setTriggerElement] = React.useState<React.ReactNode>(null)
-  const [contentElement, setContentElement] = React.useState<React.ReactNode>(null)
   const [align, setAlign] = React.useState<"start" | "end" | "center">("start")
   
   return (
     <DropdownContext.Provider value={{ 
-      isOpen, 
-      setIsOpen, 
       triggerElement, 
       setTriggerElement,
-      contentElement,
-      setContentElement,
       align,
       setAlign
     }}>
@@ -42,7 +32,7 @@ const DropdownMenu = ({ children }: { children: React.ReactNode }) => {
   )
 }
 
-// Trigger component - registers itself with context
+// Trigger component - registers itself with context but doesn't render anything
 const DropdownMenuTrigger = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & { asChild?: boolean }
@@ -55,11 +45,8 @@ const DropdownMenuTrigger = React.forwardRef<
     }
   }, [children, context])
   
-  if (asChild && React.isValidElement(children)) {
-    return <>{children}</>
-  }
-  
-  return <>{children}</>
+  // Don't render anything - SimpleDropdown will render the trigger
+  return null
 })
 DropdownMenuTrigger.displayName = "DropdownMenuTrigger"
 
@@ -79,7 +66,7 @@ const DropdownMenuContent = React.forwardRef<
     }
   }, [align, context])
   
-  if (!context) return null
+  if (!context || !context.triggerElement) return null
   
   // Render SimpleDropdown with trigger and content
   return (
