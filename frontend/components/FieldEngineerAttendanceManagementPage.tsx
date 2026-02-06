@@ -112,11 +112,18 @@ const formatTime = (dateString?: string) => {
 }
 
 const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
+  // Extract just the date part (YYYY-MM-DD) without timezone conversion
+  const date = dateString.split('T')[0]; // Get "2026-02-06" from "2026-02-06T00:00:00.000Z"
+  const [year, month, day] = date.split('-');
+  
+  // Create date object from the date parts directly
+  const dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+  
+  return dateObj.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric'
-  })
+  });
 }
 
 const STANDARD_WORK_HOURS = 8

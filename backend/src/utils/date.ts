@@ -1,4 +1,4 @@
-const TIMEZONE = process.env.APP_TIMEZONE || 'GMT';
+const TIMEZONE = process.env.APP_TIMEZONE || 'Asia/Kolkata';
 
 function partsFor(date: Date, timeZone: string) {
   const dtf = new Intl.DateTimeFormat('en-US', {
@@ -51,7 +51,15 @@ export function getDateAtMidnight(date: Date): Date {
 }
 
 export function getTodayDate(): Date {
-  return getDateAtMidnight(new Date());
+  // Get current time
+  const now = new Date();
+  
+  // Get today's date in the configured timezone
+  const { year, month, day } = partsFor(now, TIMEZONE);
+  
+  // Return a Date object representing midnight of that day in UTC
+  // This ensures the date field in DB stores the correct calendar date
+  return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
 }
 
 export function getUtcRangeForLocalDate(localMidnightDate: Date) {
