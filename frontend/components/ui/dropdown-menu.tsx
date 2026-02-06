@@ -1,63 +1,69 @@
 "use client"
 
 import * as React from "react"
-import * as ReactDOM from "react-dom"
 import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react"
 import { SimpleDropdown, SimpleDropdownItem } from "./simple-dropdown"
 import { cn } from "@/lib/utils"
 
-// Context for managing dropdown state
+// Context for managing dropdown state and collecting children
 interface DropdownContextType {
   isOpen: boolean
   setIsOpen: (open: boolean) => void
+  triggerElement: React.ReactNode
+  setTriggerElement: (element: React.ReactNode) => void
+  contentElement: React.ReactNode
+  setContentElement: (element: React.ReactNode) => void
   align?: "start" | "end" | "center"
+  setAlign: (align: "start" | "end" | "center") => void
 }
 
 const DropdownContext = React.createContext<DropdownContextType | null>(null)
 
-// Main dropdown root component
+// Main dropdown root component - collects trigger and content, renders SimpleDropdown
 const DropdownMenu = ({ children }: { children: React.ReactNode }) => {
   const [isOpen, setIsOpen] = React.useState(false)
+  const [triggerElement, setTriggerElement] = React.useState<React.ReactNode>(null)
+  const [contentElement, setContentElement] = React.useState<React.ReactNode>(null)
+  const [align, setAlign] = React.useState<"start" | "end" | "center">("start")
   
   return (
-    <DropdownContext.Provider value={{ isOpen, setIsOpen }}>
+    <DropdownContext.Provider value={{ 
+      isOpen, 
+      setIsOpen, 
+      triggerElement, 
+      setTriggerElement,
+      contentElement,
+      setContentElement,
+      align,
+      setAlign
+    }}>
       {children}
     </DropdownContext.Provider>
   )
 }
 
-// Trigger component
+// Trigger component - registers itself with context
 const DropdownMenuTrigger = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & { asChild?: boolean }
 >(({ className, children, asChild, ...props }, ref) => {
   const context = React.useContext(DropdownContext)
   
+  React.useEffect(() => {
+    if (context) {
+      context.setTriggerElement(children)
+    }
+  }, [children, context])
+  
   if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children as React.ReactElement<any>, {
-      ...children.props,
-      ...props,
-      onClick: (e: React.MouseEvent) => {
-        context?.setIsOpen(!context.isOpen)
-        children.props.onClick?.(e)
-      }
-    })
+    return <>{children}</>
   }
   
-  return (
-    <div
-      ref={ref}
-      className={cn("cursor-pointer", className)}
-      onClick={() => context?.setIsOpen(!context.isOpen)}
-      {...props}
-    >
-      {children}
-    </div>
-  )
+  return <>{children}</>
 })
 DropdownMenuTrigger.displayName = "DropdownMenuTrigger"
 
-// Content wrapper that uses SimpleDropdown
+// Content component - registers itself and renders SimpleDropdown
 const DropdownMenuContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & {
@@ -67,39 +73,28 @@ const DropdownMenuContent = React.forwardRef<
 >(({ className, children, align = "start", sideOffset = 4, ...props }, ref) => {
   const context = React.useContext(DropdownContext)
   
-  if (!context?.isOpen) return null
+  React.useEffect(() => {
+    if (context) {
+      context.setAlign(align)
+    }
+  }, [align, context])
   
-  const alignmentClass = align === "end" ? "right-0" : align === "center" ? "left-1/2 transform -translate-x-1/2" : "left-0"
+  if (!context) return null
   
-  // Use React Portal to render dropdown outside of parent DOM hierarchy
-  if (typeof document !== 'undefined') {
-    return ReactDOM.createPortal(
-      <div
-        ref={ref}
-        className={cn(
-          "fixed z-[9999] min-w-[8rem] max-w-[300px] bg-white border border-gray-200 rounded-md shadow-lg py-1",
-          className
-        )}
-        style={{
-          zIndex: 9999,
-          backgroundColor: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '6px',
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-        }}
-        {...props}
-      >
-        {children}
-      </div>,
-      document.body
-    )
-  }
-  
-  return null
+  // Render SimpleDropdown with trigger and content
+  return (
+    <SimpleDropdown
+      trigger={context.triggerElement}
+      align={align}
+      className={className}
+    >
+      {children}
+    </SimpleDropdown>
+  )
 })
 DropdownMenuContent.displayName = "DropdownMenuContent"
 
-// Menu item component
+// Menu item component - uses SimpleDropdownItem
 const DropdownMenuItem = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & {
@@ -107,28 +102,18 @@ const DropdownMenuItem = React.forwardRef<
     disabled?: boolean
   }
 >(({ className, children, inset, disabled, onClick, ...props }, ref) => {
-  const context = React.useContext(DropdownContext)
-  
-  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (disabled) return
-    onClick?.(e)
-    context?.setIsOpen(false)
-  }
-  
   return (
-    <div
-      ref={ref}
+    <SimpleDropdownItem
+      onClick={onClick as (() => void) | undefined}
       className={cn(
-        "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-gray-100 focus:bg-gray-100 focus:text-gray-900",
+        "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors",
         inset && "pl-8",
         disabled && "pointer-events-none opacity-50",
         className
       )}
-      onClick={handleClick}
-      {...props}
     >
       {children}
-    </div>
+    </SimpleDropdownItem>
   )
 })
 DropdownMenuItem.displayName = "DropdownMenuItem"
@@ -141,30 +126,20 @@ const DropdownMenuCheckboxItem = React.forwardRef<
     disabled?: boolean
   }
 >(({ className, children, checked, disabled, onClick, ...props }, ref) => {
-  const context = React.useContext(DropdownContext)
-  
-  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (disabled) return
-    onClick?.(e)
-    context?.setIsOpen(false)
-  }
-  
   return (
-    <div
-      ref={ref}
+    <SimpleDropdownItem
+      onClick={onClick as (() => void) | undefined}
       className={cn(
-        "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors hover:bg-gray-100 focus:bg-gray-100 focus:text-gray-900",
+        "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors",
         disabled && "pointer-events-none opacity-50",
         className
       )}
-      onClick={handleClick}
-      {...props}
     >
       <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
         {checked && <CheckIcon className="h-4 w-4" />}
       </span>
       {children}
-    </div>
+    </SimpleDropdownItem>
   )
 })
 DropdownMenuCheckboxItem.displayName = "DropdownMenuCheckboxItem"
@@ -177,30 +152,20 @@ const DropdownMenuRadioItem = React.forwardRef<
     disabled?: boolean
   }
 >(({ className, children, disabled, onClick, ...props }, ref) => {
-  const context = React.useContext(DropdownContext)
-  
-  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (disabled) return
-    onClick?.(e)
-    context?.setIsOpen(false)
-  }
-  
   return (
-    <div
-      ref={ref}
+    <SimpleDropdownItem
+      onClick={onClick as (() => void) | undefined}
       className={cn(
-        "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors hover:bg-gray-100 focus:bg-gray-100 focus:text-gray-900",
+        "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors",
         disabled && "pointer-events-none opacity-50",
         className
       )}
-      onClick={handleClick}
-      {...props}
     >
       <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
         <CircleIcon className="h-2 w-2 fill-current" />
       </span>
       {children}
-    </div>
+    </SimpleDropdownItem>
   )
 })
 DropdownMenuRadioItem.displayName = "DropdownMenuRadioItem"
@@ -251,39 +216,6 @@ const DropdownMenuShortcut = ({
 }
 DropdownMenuShortcut.displayName = "DropdownMenuShortcut"
 
-// Wrapper component that combines trigger and content
-const DropdownMenuWrapper = ({ 
-  children, 
-  align = "start" 
-}: { 
-  children: React.ReactNode
-  align?: "start" | "end" | "center"
-}) => {
-  const [isOpen, setIsOpen] = React.useState(false)
-  const dropdownRef = React.useRef<HTMLDivElement>(null)
-  
-  React.useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false)
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [isOpen])
-  
-  return (
-    <DropdownContext.Provider value={{ isOpen, setIsOpen, align }}>
-      <div className="relative inline-block" ref={dropdownRef}>
-        {children}
-      </div>
-    </DropdownContext.Provider>
-  )
-}
-
 // Legacy compatibility - these are no-ops but maintain API compatibility
 const DropdownMenuGroup = ({ children }: { children: React.ReactNode }) => <>{children}</>
 const DropdownMenuPortal = ({ children }: { children: React.ReactNode }) => <>{children}</>
@@ -325,9 +257,8 @@ const DropdownMenuSubContent = React.forwardRef<
 ))
 DropdownMenuSubContent.displayName = "DropdownMenuSubContent"
 
-// Export the wrapper as the main DropdownMenu for new usage
 export {
-  DropdownMenuWrapper as DropdownMenu,
+  DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,

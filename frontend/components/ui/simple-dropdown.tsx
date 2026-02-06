@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 interface SimpleDropdownProps {
   children: React.ReactNode
   trigger: React.ReactNode
-  align?: "start" | "end"
+  align?: "start" | "end" | "center"
   className?: string
 }
 
@@ -37,7 +37,7 @@ export function SimpleDropdown({ children, trigger, align = "start", className }
         <div
           className={cn(
             "absolute top-full mt-1 min-w-[8rem] max-w-[300px] bg-white border border-gray-200 rounded-md shadow-lg py-1",
-            align === "end" ? "right-0" : "left-0",
+            align === "end" ? "right-0" : align === "center" ? "left-1/2 -translate-x-1/2" : "left-0",
             className
           )}
           style={{
