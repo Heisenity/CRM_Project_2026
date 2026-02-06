@@ -89,6 +89,28 @@ class AuthController {
     }
   }
 
+  async validateSession(req: Request, res: Response) {
+    try {
+      const authHeader = req.headers.authorization
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : null
+
+      if (!token) {
+        return res.status(401).json({ error: 'Session token is required' })
+      }
+
+      const session = await sessionService.validateSession(token)
+
+      if (!session) {
+        return res.status(401).json({ error: 'Invalid or expired session' })
+      }
+
+      res.json({ valid: true, session })
+    } catch (error) {
+      console.error('Validate session error:', error)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  }
+
   // Admin registration removed - admin credentials are now hardcoded
   // Employee registration disabled for public access
   // This method is kept for potential admin-only employee creation in the future

@@ -82,11 +82,12 @@ export const authOptions: AuthOptions = {
 
   session: {
     strategy: "jwt",
-    maxAge: 24 * 60 * 60, // 24 hours (actual timeout handled by backend based on activity)
+    maxAge: 5 * 60, // 5 minutes - frontend JWT expires with backend session
+    updateAge: 0, // Check session validity on every request
   },
 
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         const customUser = user as CustomUser
         token.sub = customUser.id // make the token subject explicit
@@ -95,6 +96,28 @@ export const authOptions: AuthOptions = {
         token.employeeId = customUser.employeeId
         token.sessionToken = customUser.sessionToken
       }
+
+      // Validate backend session on every request (except during sign-in)
+      if (token.sessionToken && trigger !== 'signIn') {
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/v1/auth/validate-session`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token.sessionToken}`
+            }
+          })
+
+          if (!response.ok) {
+            // Backend session expired or invalid
+            return null as any // This will force logout
+          }
+        } catch (error) {
+          console.error('Session validation error:', error)
+          return null as any // Force logout on error
+        }
+      }
+
       return token
     },
 
