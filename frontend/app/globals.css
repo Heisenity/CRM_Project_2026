@@ -266,6 +266,27 @@
     overflow: visible !important;
     position: relative !important;
   }
+
+  /* Make table wrappers allow overflow for dropdowns */
+  table {
+    position: relative;
+  }
+
+  /* Ensure Card components containing tables don't clip dropdowns */
+  [data-slot="card"]:has(table) {
+    overflow: visible !important;
+  }
+
+  /* Specific fix for table rows with dropdowns */
+  tr:has([role="button"]) {
+    position: relative;
+  }
+
+  /* Allow ScrollArea to show dropdowns */
+  [data-radix-scroll-area-viewport] {
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+  }
 }
 
 @layer utilities {

@@ -3,6 +3,7 @@
 import * as React from "react"
 import * as ReactDOM from "react-dom"
 import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react"
+import { SimpleDropdown, SimpleDropdownItem } from "./simple-dropdown"
 import { cn } from "@/lib/utils"
 
 // Context for managing dropdown state
@@ -10,7 +11,6 @@ interface DropdownContextType {
   isOpen: boolean
   setIsOpen: (open: boolean) => void
   align?: "start" | "end" | "center"
-  triggerRef: React.RefObject<HTMLDivElement>
 }
 
 const DropdownContext = React.createContext<DropdownContextType | null>(null)
@@ -18,28 +18,9 @@ const DropdownContext = React.createContext<DropdownContextType | null>(null)
 // Main dropdown root component
 const DropdownMenu = ({ children }: { children: React.ReactNode }) => {
   const [isOpen, setIsOpen] = React.useState(false)
-  const triggerRef = React.useRef<HTMLDivElement>(null)
-  
-  // Close dropdown when clicking outside
-  React.useEffect(() => {
-    if (!isOpen) return
-    
-    const handleClickOutside = (event: MouseEvent) => {
-      if (triggerRef.current && !triggerRef.current.contains(event.target as Node)) {
-        // Check if click is on dropdown content
-        const dropdownContent = document.querySelector('[data-dropdown-content="true"]')
-        if (dropdownContent && !dropdownContent.contains(event.target as Node)) {
-          setIsOpen(false)
-        }
-      }
-    }
-    
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [isOpen])
   
   return (
-    <DropdownContext.Provider value={{ isOpen, setIsOpen, triggerRef }}>
+    <DropdownContext.Provider value={{ isOpen, setIsOpen }}>
       {children}
     </DropdownContext.Provider>
   )
@@ -65,14 +46,8 @@ const DropdownMenuTrigger = React.forwardRef<
   
   return (
     <div
-      ref={(node) => {
-        if (context?.triggerRef) {
-          (context.triggerRef as React.MutableRefObject<HTMLDivElement | null>).current = node
-        }
-        if (typeof ref === 'function') ref(node)
-        else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node
-      }}
-      className={cn("cursor-pointer inline-block", className)}
+      ref={ref}
+      className={cn("cursor-pointer", className)}
       onClick={() => context?.setIsOpen(!context.isOpen)}
       {...props}
     >
@@ -82,7 +57,7 @@ const DropdownMenuTrigger = React.forwardRef<
 })
 DropdownMenuTrigger.displayName = "DropdownMenuTrigger"
 
-// Content wrapper with portal and positioning
+// Content wrapper that uses SimpleDropdown
 const DropdownMenuContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & {
@@ -91,61 +66,36 @@ const DropdownMenuContent = React.forwardRef<
   }
 >(({ className, children, align = "start", sideOffset = 4, ...props }, ref) => {
   const context = React.useContext(DropdownContext)
-  const [position, setPosition] = React.useState({ top: 0, left: 0, width: 0 })
   
-  React.useEffect(() => {
-    if (context?.isOpen && context.triggerRef.current) {
-      const updatePosition = () => {
-        const rect = context.triggerRef.current!.getBoundingClientRect()
-        
-        let left = rect.left
-        if (align === "end") {
-          left = rect.right
-        } else if (align === "center") {
-          left = rect.left + rect.width / 2
-        }
-        
-        setPosition({
-          top: rect.bottom + sideOffset + window.scrollY,
-          left: left + window.scrollX,
-          width: rect.width
-        })
-      }
-      
-      updatePosition()
-      window.addEventListener('scroll', updatePosition, true)
-      window.addEventListener('resize', updatePosition)
-      
-      return () => {
-        window.removeEventListener('scroll', updatePosition, true)
-        window.removeEventListener('resize', updatePosition)
-      }
-    }
-  }, [context?.isOpen, align, sideOffset, context?.triggerRef])
+  if (!context?.isOpen) return null
   
-  if (!context?.isOpen || typeof document === 'undefined') return null
+  const alignmentClass = align === "end" ? "right-0" : align === "center" ? "left-1/2 transform -translate-x-1/2" : "left-0"
   
-  return ReactDOM.createPortal(
-    <div
-      ref={ref}
-      data-dropdown-content="true"
-      className={cn(
-        "absolute z-[9999] min-w-[8rem] max-w-[300px] bg-white border border-gray-200 rounded-md shadow-lg py-1",
-        align === "center" && "-translate-x-1/2",
-        align === "end" && "-translate-x-full",
-        className
-      )}
-      style={{
-        top: `${position.top}px`,
-        left: `${position.left}px`,
-        zIndex: 9999,
-      }}
-      {...props}
-    >
-      {children}
-    </div>,
-    document.body
-  )
+  // Use React Portal to render dropdown outside of parent DOM hierarchy
+  if (typeof document !== 'undefined') {
+    return ReactDOM.createPortal(
+      <div
+        ref={ref}
+        className={cn(
+          "fixed z-[9999] min-w-[8rem] max-w-[300px] bg-white border border-gray-200 rounded-md shadow-lg py-1",
+          className
+        )}
+        style={{
+          zIndex: 9999,
+          backgroundColor: 'white',
+          border: '1px solid #e5e7eb',
+          borderRadius: '6px',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+        }}
+        {...props}
+      >
+        {children}
+      </div>,
+      document.body
+    )
+  }
+  
+  return null
 })
 DropdownMenuContent.displayName = "DropdownMenuContent"
 
@@ -301,6 +251,39 @@ const DropdownMenuShortcut = ({
 }
 DropdownMenuShortcut.displayName = "DropdownMenuShortcut"
 
+// Wrapper component that combines trigger and content
+const DropdownMenuWrapper = ({ 
+  children, 
+  align = "start" 
+}: { 
+  children: React.ReactNode
+  align?: "start" | "end" | "center"
+}) => {
+  const [isOpen, setIsOpen] = React.useState(false)
+  const dropdownRef = React.useRef<HTMLDivElement>(null)
+  
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isOpen])
+  
+  return (
+    <DropdownContext.Provider value={{ isOpen, setIsOpen, align }}>
+      <div className="relative inline-block" ref={dropdownRef}>
+        {children}
+      </div>
+    </DropdownContext.Provider>
+  )
+}
+
 // Legacy compatibility - these are no-ops but maintain API compatibility
 const DropdownMenuGroup = ({ children }: { children: React.ReactNode }) => <>{children}</>
 const DropdownMenuPortal = ({ children }: { children: React.ReactNode }) => <>{children}</>
@@ -342,8 +325,9 @@ const DropdownMenuSubContent = React.forwardRef<
 ))
 DropdownMenuSubContent.displayName = "DropdownMenuSubContent"
 
+// Export the wrapper as the main DropdownMenu for new usage
 export {
-  DropdownMenu,
+  DropdownMenuWrapper as DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,

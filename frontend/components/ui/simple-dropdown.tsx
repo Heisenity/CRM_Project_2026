@@ -36,16 +36,17 @@ export function SimpleDropdown({ children, trigger, align = "start", className }
       {isOpen && (
         <div
           className={cn(
-            "absolute top-full mt-1 min-w-[8rem] max-w-[300px] bg-white border border-gray-200 rounded-md shadow-lg z-[9999] py-1",
+            "absolute top-full mt-1 min-w-[8rem] max-w-[300px] bg-white border border-gray-200 rounded-md shadow-lg py-1",
             align === "end" ? "right-0" : "left-0",
             className
           )}
           style={{
-            zIndex: 9999,
+            zIndex: 99999,
             backgroundColor: 'white',
             border: '1px solid #e5e7eb',
             borderRadius: '6px',
-            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+            position: 'absolute'
           }}
         >
           {children}
