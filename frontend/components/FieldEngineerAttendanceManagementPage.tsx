@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { AddAttendanceRecord } from "@/components/AddAttendanceRecord"
+import { EmployeeAvatar } from "@/components/EmployeeAvatar"
 import { showToast } from "@/lib/toast-utils"
 
 import {
@@ -44,6 +45,8 @@ interface AttendanceSessionRow {
   phone?: string
   teamId?: string
   isTeamLeader: boolean
+  photoUrl?: string
+  photoKey?: string
   date: string
   sessionId?: string
   sessionNumber?: number
@@ -246,6 +249,8 @@ export function AttendanceManagementPage() {
                 phone: attendanceRecord.phone,
                 teamId: attendanceRecord.teamId,
                 isTeamLeader: attendanceRecord.isTeamLeader,
+                photoUrl: employee.photoUrl,
+                photoKey: employee.photoKey,
                 date: attendanceRecord.date,
                 sessionId: session.id,
                 sessionNumber: index + 1,
@@ -283,6 +288,8 @@ export function AttendanceManagementPage() {
               phone: attendanceRecord.phone,
               teamId: attendanceRecord.teamId,
               isTeamLeader: attendanceRecord.isTeamLeader,
+              photoUrl: employee.photoUrl,
+              photoKey: employee.photoKey,
               date: attendanceRecord.date,
               clockIn: attendanceRecord.clockIn,
               clockOut: attendanceRecord.clockOut,
@@ -854,23 +861,12 @@ export function AttendanceManagementPage() {
                       >
                         <TableCell className="py-4 px-6">
                           <div className="flex items-center gap-4">
-                            <div className="relative">
-                              <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-sm ${record.hasAttendance
-                                ? 'bg-gradient-to-br from-blue-500 to-blue-600'
-                                : 'bg-gradient-to-br from-gray-400 to-gray-500'
-                                }`}>
-                                {record.employeeName.split(' ').map(n => n[0]).join('').toUpperCase()}
-                              </div>
-                              {record.hasAttendance ? (
-                                <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5">
-                                  {getStatusIcon(record.status)}
-                                </div>
-                              ) : (
-                                <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5">
-                                  <XCircle className="h-4 w-4 text-gray-400" />
-                                </div>
-                              )}
-                            </div>
+                            <EmployeeAvatar 
+                              photoUrl={record.photoUrl}
+                              photoKey={record.photoKey}
+                              name={record.employeeName}
+                              size="lg"
+                            />
                             <div className="min-w-0 flex-1">
                               <p className="font-semibold text-gray-900 truncate">{record.employeeName}</p>
                               <p className="text-xs text-gray-500 font-medium">{record.employeeId}</p>

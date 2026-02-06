@@ -1433,13 +1433,13 @@ function EditEmployeeForm({ employee, teams, onSave, onCancel }: EditEmployeeFor
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-gray-100"
                                 onClick={() => setShowPassword(!showPassword)}
                             >
                                 {showPassword ? (
-                                    <EyeOff className="h-4 w-4 text-gray-400" />
+                                    <EyeOff className="h-4 w-4 text-gray-600" />
                                 ) : (
-                                    <Eye className="h-4 w-4 text-gray-400" />
+                                    <Eye className="h-4 w-4 text-gray-600" />
                                 )}
                             </Button>
                         )}
@@ -1447,7 +1447,7 @@ function EditEmployeeForm({ employee, teams, onSave, onCancel }: EditEmployeeFor
                     {!passwordEditable && (
                         <AlertDialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
                             <AlertDialogTrigger asChild>
-                                <Button type="button" variant="destructive" size="sm">
+                                <Button type="button" variant="destructive" size="sm" className="bg-red-600 hover:bg-red-700 !text-white">
                                     Reset
                                 </Button>
                             </AlertDialogTrigger>
