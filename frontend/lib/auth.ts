@@ -95,10 +95,15 @@ export const authOptions: AuthOptions = {
         token.adminId = customUser.adminId
         token.employeeId = customUser.employeeId
         token.sessionToken = customUser.sessionToken
+        token.lastValidated = Date.now() // Track when we last validated
       }
 
-      // Validate backend session on every request (except during sign-in)
-      if (token.sessionToken && trigger !== 'signIn') {
+      // Only validate backend session periodically (every 30 seconds) to avoid blocking
+      const shouldValidate = token.sessionToken && 
+                            trigger === 'update' && 
+                            (!token.lastValidated || Date.now() - (token.lastValidated as number) > 30000)
+
+      if (shouldValidate) {
         try {
           const response = await fetch(`${BACKEND_URL}/api/v1/auth/validate-session`, {
             method: 'POST',
@@ -110,11 +115,14 @@ export const authOptions: AuthOptions = {
 
           if (!response.ok) {
             // Backend session expired or invalid
-            return null as any // This will force logout
+            console.log('Backend session expired, forcing logout')
+            return {} as any // Return empty object to force logout
           }
+          
+          token.lastValidated = Date.now()
         } catch (error) {
           console.error('Session validation error:', error)
-          return null as any // Force logout on error
+          // Don't force logout on network errors, just skip validation
         }
       }
 
@@ -122,6 +130,11 @@ export const authOptions: AuthOptions = {
     },
 
     async session({ session, token }) {
+      // If token is empty, session is invalid
+      if (!token.sub) {
+        return null as any
+      }
+
       if (session.user) {
         session.user.id = token.sub as string
         ;(session.user as CustomUser).userType = token.userType as string
