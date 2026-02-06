@@ -82,7 +82,7 @@ export const authOptions: AuthOptions = {
 
   session: {
     strategy: "jwt",
-    maxAge: 24 * 60 * 60, // 24 hours - long expiry, actual timeout handled by backend
+    maxAge: 24 * 60 * 60, // 24 hours JWT expiry (but backend validates actual session)
   },
 
   callbacks: {
@@ -94,11 +94,40 @@ export const authOptions: AuthOptions = {
         token.adminId = customUser.adminId
         token.employeeId = customUser.employeeId
         token.sessionToken = customUser.sessionToken
+        token.loginTime = Date.now() // Track when user logged in
       }
+      
+      // Validate session with backend on every request
+      if (token.sessionToken) {
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/v1/auth/validate-session`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token.sessionToken}`
+            }
+          })
+          
+          if (!response.ok) {
+            // Session is invalid on backend (expired after 5 min of browser being closed)
+            console.log('Backend session expired, clearing token')
+            return {} // Return empty token to force logout
+          }
+        } catch (error) {
+          console.error('Session validation error:', error)
+          return {} // Return empty token on error
+        }
+      }
+      
       return token
     },
 
     async session({ session, token }) {
+      // If token is empty (session invalidated), return null session
+      if (!token.sub || !token.sessionToken) {
+        return { ...session, user: undefined } as any
+      }
+      
       if (session.user) {
         session.user.id = token.sub as string
         ;(session.user as CustomUser).userType = token.userType as string
@@ -114,5 +143,15 @@ export const authOptions: AuthOptions = {
   pages: {
     signIn: "/",
     signOut: "/",
+  },
+
+  events: {
+    async signOut() {
+      // Clear any client-side storage
+      if (typeof window !== 'undefined') {
+        localStorage.clear()
+        sessionStorage.clear()
+      }
+    }
   },
 }

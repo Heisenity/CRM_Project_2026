@@ -10,6 +10,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AuthProvider } from "@/components/providers/session-provider"
 import { NotificationProvider } from "@/lib/notification-context"
 import { Toaster } from "@/components/ui/toaster"
+import { useSessionHeartbeat } from "@/hooks/useSessionHeartbeat"
 
 interface CustomUser {
   id: string
@@ -27,6 +28,9 @@ const inter = Inter({
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { data: session, status } = useSession()
+  
+  // Keep session alive while browser is open
+  useSessionHeartbeat()
 
   /**
    * 🔴 CRITICAL FIX

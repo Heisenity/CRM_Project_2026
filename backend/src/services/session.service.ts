@@ -76,16 +76,23 @@ export class SessionService {
       return null
     }
 
-    // Check if 5 minutes have passed since last activity
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
-    
-    if (session.lastActivity < fiveMinutesAgo) {
-      // User was away for more than 5 minutes, invalidate session
+    // Check if session has expired (24 hours absolute expiry)
+    if (session.expiresAt < new Date()) {
       await this.invalidateSession(sessionToken)
       return null
     }
 
-    // User is active, update last activity timestamp
+    // Check if 5 minutes have passed since last activity
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
+    
+    if (session.lastActivity < fiveMinutesAgo) {
+      // More than 5 minutes since last activity
+      // This means browser was likely closed - invalidate session
+      await this.invalidateSession(sessionToken)
+      return null
+    }
+
+    // Session is valid and user is active, update last activity timestamp
     await this.updateSessionActivity(sessionToken)
 
     return session
