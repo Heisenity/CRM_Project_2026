@@ -507,14 +507,14 @@ export default function CustomerManagement() {
                             size="sm"
                             onClick={() => openViewDialog(customer)}
                           >
-                            <Eye className="w-4 h-4" />
+                            <Eye className="w-5 h-5" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => openEditDialog(customer)}
                           >
-                            <Edit className="w-4 h-4" />
+                            <Edit className="w-5 h-5" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -522,14 +522,14 @@ export default function CustomerManagement() {
                             onClick={() => openMeetingScheduler(customer)}
                             title="Schedule Meeting"
                           >
-                            <CalendarDays className="w-4 h-4 text-blue-600" />
+                            <CalendarDays className="w-5 h-5 text-blue-600" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDeleteCustomer(customer.id)}
                           >
-                            <Trash2 className="w-4 h-4 text-red-500" />
+                            <Trash2 className="w-5 h-5 text-red-500" />
                           </Button>
                         </div>
                       </TableCell>

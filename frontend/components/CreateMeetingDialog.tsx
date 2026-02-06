@@ -336,7 +336,7 @@ export default function CreateMeetingDialog({
             <form onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Information */}
           <div className="space-y-4">
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="title">Meeting Title *</Label>
               <Input
                 id="title"
@@ -347,7 +347,7 @@ export default function CreateMeetingDialog({
               />
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
@@ -361,7 +361,7 @@ export default function CreateMeetingDialog({
 
           {/* Date and Time */}
           <div className="grid grid-cols-2 gap-4">
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="startTime">Start Time *</Label>
               <Input
                 id="startTime"
@@ -376,7 +376,7 @@ export default function CreateMeetingDialog({
 
           {/* Meeting Details */}
           <div className="grid grid-cols-2 gap-4">
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="meetingType">Meeting Type</Label>
               <Select value={formData.meetingType} onValueChange={(value: string) => handleInputChange('meetingType', value)}>
                 <SelectTrigger>
@@ -393,7 +393,7 @@ export default function CreateMeetingDialog({
               </Select>
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="priority">Priority</Label>
               <Select value={formData.priority} onValueChange={(value: string) => handleInputChange('priority', value)}>
                 <SelectTrigger>
@@ -410,7 +410,7 @@ export default function CreateMeetingDialog({
           </div>
 
           {/* Meeting Link */}
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="meetingLink">Meeting Link</Label>
             <div className="relative">
               <Video className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -426,7 +426,7 @@ export default function CreateMeetingDialog({
 
               {/* Customer Selection */}
           {formData.meetingType === 'CLIENT' && (
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="customerId">Customer</Label>
               {customersLoading ? (
                 <div className="flex items-center justify-center h-10 px-3 py-2 border border-input bg-background rounded-md">
@@ -459,7 +459,7 @@ export default function CreateMeetingDialog({
           )}
 
           {/* Agenda */}
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="agenda">Agenda</Label>
             <div className="relative">
               <FileText className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -634,7 +634,7 @@ export default function CreateMeetingDialog({
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Customer Selection */}
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="calendly-customer">Select Customer</Label>
                 {customersLoading ? (
                   <div className="flex items-center justify-center h-10 px-3 py-2 border border-input bg-background rounded-md">
@@ -708,7 +708,7 @@ export default function CreateMeetingDialog({
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Meeting Title */}
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="calendly-title">Meeting Title</Label>
                 <Input
                   id="calendly-title"
@@ -719,7 +719,7 @@ export default function CreateMeetingDialog({
               </div>
 
               {/* Quick Attendee Selection */}
-              <div>
+              <div className="space-y-2">
                 <Label>Quick Attendee Selection</Label>
                 {employeesLoading ? (
                   <div className="flex items-center justify-center h-10 px-3 py-2 border border-input bg-background rounded-md">
