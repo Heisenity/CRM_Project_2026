@@ -582,7 +582,7 @@ export default function CustomerManagement() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
+            <div className="space-y-1.5">
               <Label htmlFor="customPrefix">Customer ID Prefix</Label>
               <div className="flex gap-2">
                 <select
@@ -612,7 +612,7 @@ export default function CustomerManagement() {
                 Customer ID will be generated as: {formData.customPrefix || 'CUS'}0001, {formData.customPrefix || 'CUS'}0002, etc.
               </p>
             </div>
-            <div>
+            <div className="space-y-1.5">
               <Label htmlFor="name">Name *</Label>
               <Input
                 id="name"
@@ -621,7 +621,7 @@ export default function CustomerManagement() {
                 placeholder="Enter customer name"
               />
             </div>
-            <div>
+            <div className="space-y-1.5">
               <Label htmlFor="phone">Phone *</Label>
               <Input
                 id="phone"
@@ -630,7 +630,7 @@ export default function CustomerManagement() {
                 placeholder="Enter phone number"
               />
             </div>
-            <div>
+            <div className="space-y-1.5">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
@@ -640,7 +640,7 @@ export default function CustomerManagement() {
                 placeholder="Enter email address"
               />
             </div>
-            <div>
+            <div className="space-y-1.5">
               <Label htmlFor="address">Address</Label>
               <Input
                 id="address"
@@ -667,7 +667,7 @@ export default function CustomerManagement() {
             <DialogDescription>Update customer information</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
+            <div className="space-y-1.5">
               <Label htmlFor="edit-name">Name *</Label>
               <Input
                 id="edit-name"
@@ -675,7 +675,7 @@ export default function CustomerManagement() {
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
             </div>
-            <div>
+            <div className="space-y-1.5">
               <Label htmlFor="edit-phone">Phone *</Label>
               <Input
                 id="edit-phone"
@@ -683,7 +683,7 @@ export default function CustomerManagement() {
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               />
             </div>
-            <div>
+            <div className="space-y-1.5">
               <Label htmlFor="edit-email">Email</Label>
               <Input
                 id="edit-email"
@@ -692,7 +692,7 @@ export default function CustomerManagement() {
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
             </div>
-            <div>
+            <div className="space-y-1.5">
               <Label htmlFor="edit-address">Address</Label>
               <Input
                 id="edit-address"

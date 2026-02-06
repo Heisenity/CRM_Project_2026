@@ -551,7 +551,7 @@ export class CustomerSupportController {
         const notificationService = new NotificationService();
         await notificationService.createCustomerNotification(request.customer.id, {
           type: 'ACCESS_GRANTED',
-          title: 'Your support ticket has been created',
+          title: 'Your support ticket has been accepted',
           message: `Ticket ${ticket.ticketId} is now open and assigned to our support team.`,
           data: {
             ticketId: ticket.ticketId,

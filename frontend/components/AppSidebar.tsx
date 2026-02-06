@@ -311,7 +311,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarFooter className="border-t border-t-stone-300 p-4">
                 {session?.user ? (
                     <div className="flex items-center gap-3 p-3 rounded-lg bg-muted hover:bg-accent transition-colors">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-linear-to-br from-gray-600 to-gray-700 text-white font-semibold text-sm">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-gray-600 to-gray-700 text-white font-semibold text-sm">
                             {getUserInitials(session.user.name || 'User')}
                         </div>
                         <div className="flex flex-col flex-1 min-w-0">

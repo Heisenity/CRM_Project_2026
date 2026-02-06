@@ -242,13 +242,13 @@ export function AttendanceApprovalPopup({ isOpen, onClose, data, onActionComplet
                 <Button
                   onClick={handleApprove}
                   disabled={isApproving}
-                  className="flex-1 bg-green-600 hover:bg-green-700 !text-white border-0"
+                  className="flex-1 bg-green-600 hover:bg-green-700"
                 >
                   {isApproving ? 'Approving...' : 'Approve'}
                 </Button>
                 <Button
                   onClick={() => setShowRejectForm(true)}
-                  className="flex-1 bg-red-600 hover:bg-red-700 !text-white border-0"
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white"
                 >
                   Reject
                 </Button>
@@ -268,7 +268,7 @@ export function AttendanceApprovalPopup({ isOpen, onClose, data, onActionComplet
                 <Button
                   onClick={handleReject}
                   disabled={isRejecting || !rejectionReason.trim()}
-                  className="flex-1 bg-red-600 hover:bg-red-700 !text-white border-0 disabled:!bg-gray-400 disabled:!text-gray-200"
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white disabled:bg-gray-400"
                 >
                   {isRejecting ? 'Rejecting...' : 'Confirm Reject'}
                 </Button>

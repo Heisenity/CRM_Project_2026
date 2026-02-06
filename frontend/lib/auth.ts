@@ -82,59 +82,23 @@ export const authOptions: AuthOptions = {
 
   session: {
     strategy: "jwt",
-    maxAge: 5 * 60, // 5 minutes - frontend JWT expires with backend session
-    updateAge: 0, // Check session validity on every request
+    maxAge: 24 * 60 * 60, // 24 hours - long expiry, actual timeout handled by backend
   },
 
   callbacks: {
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user }) {
       if (user) {
         const customUser = user as CustomUser
-        token.sub = customUser.id // make the token subject explicit
+        token.sub = customUser.id
         token.userType = customUser.userType
         token.adminId = customUser.adminId
         token.employeeId = customUser.employeeId
         token.sessionToken = customUser.sessionToken
-        token.lastValidated = Date.now() // Track when we last validated
       }
-
-      // Only validate backend session periodically (every 30 seconds) to avoid blocking
-      const shouldValidate = token.sessionToken && 
-                            trigger === 'update' && 
-                            (!token.lastValidated || Date.now() - (token.lastValidated as number) > 30000)
-
-      if (shouldValidate) {
-        try {
-          const response = await fetch(`${BACKEND_URL}/api/v1/auth/validate-session`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token.sessionToken}`
-            }
-          })
-
-          if (!response.ok) {
-            // Backend session expired or invalid
-            console.log('Backend session expired, forcing logout')
-            return {} as any // Return empty object to force logout
-          }
-          
-          token.lastValidated = Date.now()
-        } catch (error) {
-          console.error('Session validation error:', error)
-          // Don't force logout on network errors, just skip validation
-        }
-      }
-
       return token
     },
 
     async session({ session, token }) {
-      // If token is empty, session is invalid
-      if (!token.sub) {
-        return null as any
-      }
-
       if (session.user) {
         session.user.id = token.sub as string
         ;(session.user as CustomUser).userType = token.userType as string
