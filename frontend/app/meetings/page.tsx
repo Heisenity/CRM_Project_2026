@@ -476,7 +476,7 @@ export default function MeetingsPage() {
                             className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
                             onClick={(e) => handleEditMeeting(meeting, e)}
                           >
-                            <Edit className="h-4 w-4" />
+                            <Edit className="h-5 w-5" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -484,7 +484,7 @@ export default function MeetingsPage() {
                             className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
                             onClick={(e) => handleDeleteMeeting(meeting, e)}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-5 w-5" />
                           </Button>
                         </div>
                       </div>
@@ -565,7 +565,7 @@ export default function MeetingsPage() {
                             className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
                             onClick={(e) => handleEditMeeting(meeting, e)}
                           >
-                            <Edit className="h-4 w-4" />
+                            <Edit className="h-5 w-5" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -573,7 +573,7 @@ export default function MeetingsPage() {
                             className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
                             onClick={(e) => handleDeleteMeeting(meeting, e)}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-5 w-5" />
                           </Button>
                         </div>
                       </div>
@@ -642,7 +642,7 @@ export default function MeetingsPage() {
                             className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
                             onClick={(e) => handleEditMeeting(meeting, e)}
                           >
-                            <Edit className="h-4 w-4" />
+                            <Edit className="h-5 w-5" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -650,7 +650,7 @@ export default function MeetingsPage() {
                             className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
                             onClick={(e) => handleDeleteMeeting(meeting, e)}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-5 w-5" />
                           </Button>
                         </div>
                       </div>
@@ -822,7 +822,7 @@ export default function MeetingsPage() {
                             className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
                             onClick={(e) => handleEditMeeting(meeting, e)}
                           >
-                            <Edit className="h-4 w-4" />
+                            <Edit className="h-5 w-5" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -830,7 +830,7 @@ export default function MeetingsPage() {
                             className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
                             onClick={(e) => handleDeleteMeeting(meeting, e)}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-5 w-5" />
                           </Button>
                         </div>
                       </div>

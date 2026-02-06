@@ -56,7 +56,7 @@ export default function MeetingScheduler({ customer, isOpen, onClose }: MeetingS
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="!max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <CalendarDays className="h-6 w-6 text-blue-600" />
