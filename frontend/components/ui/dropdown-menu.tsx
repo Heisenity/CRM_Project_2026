@@ -5,38 +5,51 @@ import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react"
 import { SimpleDropdown, SimpleDropdownItem } from "./simple-dropdown"
 import { cn } from "@/lib/utils"
 
-// Context for managing dropdown state and collecting children
+// Context for managing dropdown state
 interface DropdownContextType {
   triggerElement: React.ReactNode
   setTriggerElement: (element: React.ReactNode) => void
   align: "start" | "end" | "center"
   setAlign: (align: "start" | "end" | "center") => void
+  contentElement: React.ReactNode
+  setContentElement: (element: React.ReactNode) => void
 }
 
 const DropdownContext = React.createContext<DropdownContextType | null>(null)
 
-// Main dropdown root component - collects trigger and content, renders SimpleDropdown
+// Main dropdown root - only renders the SimpleDropdown when both trigger and content are set
 const DropdownMenu = ({ children }: { children: React.ReactNode }) => {
   const [triggerElement, setTriggerElement] = React.useState<React.ReactNode>(null)
+  const [contentElement, setContentElement] = React.useState<React.ReactNode>(null)
   const [align, setAlign] = React.useState<"start" | "end" | "center">("start")
   
   return (
     <DropdownContext.Provider value={{ 
       triggerElement, 
       setTriggerElement,
+      contentElement,
+      setContentElement,
       align,
       setAlign
     }}>
-      {children}
+      {/* Render children to collect trigger and content */}
+      <div style={{ display: 'none' }}>{children}</div>
+      
+      {/* Only render SimpleDropdown when we have both trigger and content */}
+      {triggerElement && contentElement && (
+        <SimpleDropdown trigger={triggerElement} align={align}>
+          {contentElement}
+        </SimpleDropdown>
+      )}
     </DropdownContext.Provider>
   )
 }
 
-// Trigger component - registers itself with context but doesn't render anything
+// Trigger component - only registers with context, doesn't render
 const DropdownMenuTrigger = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & { asChild?: boolean }
->(({ className, children, asChild, ...props }, ref) => {
+>(({ children, ...props }, ref) => {
   const context = React.useContext(DropdownContext)
   
   React.useEffect(() => {
@@ -45,39 +58,28 @@ const DropdownMenuTrigger = React.forwardRef<
     }
   }, [children, context])
   
-  // Don't render anything - SimpleDropdown will render the trigger
   return null
 })
 DropdownMenuTrigger.displayName = "DropdownMenuTrigger"
 
-// Content component - registers itself and renders SimpleDropdown
+// Content component - only registers with context, doesn't render
 const DropdownMenuContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & {
     align?: "start" | "end" | "center"
     sideOffset?: number
   }
->(({ className, children, align = "start", sideOffset = 4, ...props }, ref) => {
+>(({ className, children, align = "start", ...props }, ref) => {
   const context = React.useContext(DropdownContext)
   
   React.useEffect(() => {
     if (context) {
       context.setAlign(align)
+      context.setContentElement(<div className={className}>{children}</div>)
     }
-  }, [align, context])
+  }, [align, children, className, context])
   
-  if (!context || !context.triggerElement) return null
-  
-  // Render SimpleDropdown with trigger and content
-  return (
-    <SimpleDropdown
-      trigger={context.triggerElement}
-      align={align}
-      className={className}
-    >
-      {children}
-    </SimpleDropdown>
-  )
+  return null
 })
 DropdownMenuContent.displayName = "DropdownMenuContent"
 
