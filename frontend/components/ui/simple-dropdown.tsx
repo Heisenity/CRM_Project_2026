@@ -17,6 +17,7 @@ export function SimpleDropdown({ children, trigger, align = "start", className }
   const triggerRef = React.useRef<HTMLDivElement>(null)
   const dropdownRef = React.useRef<HTMLDivElement>(null)
   const [position, setPosition] = React.useState({ top: 0, left: 0 })
+  const [isPositioned, setIsPositioned] = React.useState(false)
 
   React.useEffect(() => {
     setMounted(true)
@@ -40,22 +41,35 @@ export function SimpleDropdown({ children, trigger, align = "start", className }
     }
   }, [isOpen])
 
+  // Calculate position when dropdown opens
   React.useEffect(() => {
     if (isOpen && triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect()
-      const dropdownWidth = 200 // approximate width
+      setIsPositioned(false)
       
-      let left = rect.left
-      if (align === "end") {
-        left = rect.right - dropdownWidth
-      } else if (align === "center") {
-        left = rect.left + (rect.width / 2) - (dropdownWidth / 2)
-      }
-      
-      setPosition({
-        top: rect.bottom + window.scrollY + 4,
-        left: left + window.scrollX
+      // Use requestAnimationFrame to ensure dropdown is rendered
+      requestAnimationFrame(() => {
+        if (!triggerRef.current) return
+        
+        const rect = triggerRef.current.getBoundingClientRect()
+        const dropdownWidth = dropdownRef.current?.offsetWidth || 200
+        
+        let left = rect.left
+        if (align === "end") {
+          left = rect.right - dropdownWidth
+        } else if (align === "center") {
+          left = rect.left + (rect.width / 2) - (dropdownWidth / 2)
+        }
+        
+        setPosition({
+          top: rect.bottom + window.scrollY + 4,
+          left: left + window.scrollX
+        })
+        
+        // Show dropdown after position is set
+        setIsPositioned(true)
       })
+    } else {
+      setIsPositioned(false)
     }
   }, [isOpen, align])
 
@@ -82,7 +96,9 @@ export function SimpleDropdown({ children, trigger, align = "start", className }
             backgroundColor: 'white',
             border: '1px solid #e5e7eb',
             borderRadius: '6px',
-            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+            opacity: isPositioned ? 1 : 0,
+            transition: 'opacity 0.1s ease-in-out'
           }}
         >
           {children}
