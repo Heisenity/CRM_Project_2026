@@ -150,8 +150,9 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned, 
   }, [searchParams, tickets, taskData.title])
 
   React.useEffect(() => {
-    if (!isEdit || !editTask || tickets.length === 0) return
+    if (!isEdit || !editTask) return
 
+    // Always set task data immediately
     setTaskData({
       title: editTask.title,
       description: editTask.description,
@@ -159,34 +160,37 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned, 
       location: editTask.location || ""
     })
 
-    if (editTask.relatedTicketId) {
-      const exists = tickets.find(
-        t => t.id === editTask.relatedTicketId
-      )
-
-      setSelectedTicket(editTask.relatedTicketId)
-    } else {
-      setSelectedTicket('none')
-    }
-
-    if (editTask.employeeId) {
+    // Set employee/team if data is loaded
+    if (editTask.employeeId && employees.length > 0) {
       setAssignmentType("individual")
       setSelectedEmployee(editTask.employeeId)
     }
 
-    if (editTask.teamId) {
+    if (editTask.teamId && teams.length > 0) {
       setAssignmentType("team")
       setSelectedTeam(editTask.teamId)
     }
 
-    if (editTask.vehicleId) {
-      setOriginalVehicleId(editTask.vehicleId)
-      setSelectedVehicle(editTask.vehicleId)
-    } else {
-      setOriginalVehicleId(null)
-      setSelectedVehicle("none")
+    // Set vehicle if data is loaded
+    if (vehicles.length > 0) {
+      if (editTask.vehicleId) {
+        setOriginalVehicleId(editTask.vehicleId)
+        setSelectedVehicle(editTask.vehicleId)
+      } else {
+        setOriginalVehicleId(null)
+        setSelectedVehicle("none")
+      }
     }
-  }, [isEdit, editTask, tickets])
+
+    // Set ticket if data is loaded
+    if (tickets.length > 0) {
+      if (editTask.relatedTicketId) {
+        setSelectedTicket(editTask.relatedTicketId)
+      } else {
+        setSelectedTicket('none')
+      }
+    }
+  }, [isEdit, editTask, employees, teams, vehicles, tickets])
 
 
   // Filter employees based on search term and selected team (only for individual assignment)
