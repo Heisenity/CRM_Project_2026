@@ -1,18 +1,20 @@
 "use client"
 
 import { useSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useEffect } from "react"
 import LandingPage from "@/components/LandingPage"
 
 export default function RootPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   // Handle authenticated users - redirect them
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
       const userType = String((session.user as any)?.userType || "").toUpperCase()
+      const callbackUrl = searchParams?.get("callbackUrl")
       console.log('Root page - User type:', userType)
       
       if (userType === 'ADMIN') {
@@ -21,9 +23,18 @@ export default function RootPage() {
       } else if (userType === 'EMPLOYEE') {
         console.log('Root page - Redirecting employee to staff-portal')
         router.replace('/staff-portal')
+      } else if (callbackUrl) {
+        try {
+          const safeUrl = new URL(callbackUrl, window.location.origin)
+          if (safeUrl.origin === window.location.origin) {
+            router.replace(safeUrl.pathname + safeUrl.search + safeUrl.hash)
+          }
+        } catch {
+          // ignore invalid callbackUrl
+        }
       }
     }
-  }, [session, status, router])
+  }, [session, status, router, searchParams])
 
   // Show loading state while checking authentication
   if (status === "loading") {
