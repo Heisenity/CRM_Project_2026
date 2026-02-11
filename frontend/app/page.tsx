@@ -1,13 +1,12 @@
 "use client"
 
 import { useSession } from "next-auth/react"
-import { useRouter, usePathname } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import LandingPage from "@/components/LandingPage"
 
 export default function RootPage() {
   const { data: session, status } = useSession()
-  const router = useRouter()
   const pathname = usePathname()
   const [hasRedirected, setHasRedirected] = useState(false)
 
@@ -23,15 +22,16 @@ export default function RootPage() {
       if (userType === 'ADMIN') {
         console.log('Root page - Redirecting admin to dashboard')
         setHasRedirected(true)
-        router.push('/dashboard')
+        // Use window.location for hard redirect to avoid Next.js routing issues
+        window.location.href = '/dashboard'
       } else if (userType === 'EMPLOYEE') {
         console.log('Root page - Redirecting employee to staff-portal')
         setHasRedirected(true)
-        router.push('/staff-portal')
+        window.location.href = '/staff-portal'
       }
       // If neither admin nor employee, stay on landing page
     }
-  }, [session, status, router, pathname, hasRedirected])
+  }, [session, status, pathname, hasRedirected])
 
   // For unauthenticated users or unknown user types, show landing page directly
   const isLoggedIn = !!session?.user
@@ -43,18 +43,39 @@ export default function RootPage() {
     employeeId: (session.user as any).employeeId
   } : undefined
 
-  const handleGetStarted = (type?: string) => {
+  const handleGetStarted = () => {
     if (isLoggedIn) {
       const userType = (session?.user as any)?.userType
       if (userType === 'ADMIN') {
-        router.push("/dashboard")
+        window.location.href = "/dashboard"
       } else if (userType === 'EMPLOYEE') {
-        router.push("/staff-portal")
+        window.location.href = "/staff-portal"
       }
     } else {
       // If not logged in, stay on root page (landing page handles login)
       // The landing page will show login forms for unauthenticated users
     }
+  }
+
+  // Show loading state while redirecting authenticated users
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  // Show loading state if logged in and redirecting
+  if (pathname === "/" && session?.user && hasRedirected) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Redirecting...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
