@@ -1,10 +1,11 @@
 import { prisma } from '../lib/prisma';
 import { randomBytes } from 'crypto';
+const SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 hours
 export class SessionService {
     // Create a new session
     async createSession(userId, userType, deviceInfo, ipAddress) {
         const sessionToken = randomBytes(32).toString('hex');
-        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+        const expiresAt = new Date(Date.now() + SESSION_TIMEOUT_MS);
         const sessionData = {
             sessionToken,
             userType,
@@ -62,6 +63,11 @@ export class SessionService {
             }
         });
         if (!session || !session.isActive || session.expiresAt < new Date()) {
+            return null;
+        }
+        const inactivityCutoff = new Date(Date.now() - SESSION_TIMEOUT_MS);
+        if (session.lastActivity < inactivityCutoff) {
+            await this.invalidateSession(sessionToken);
             return null;
         }
         // Update last activity

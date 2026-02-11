@@ -1,12 +1,14 @@
 import { prisma } from '../lib/prisma'
 import { randomBytes } from 'crypto'
 
+const SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000 // 2 hours
+
 export class SessionService {
   // Create a new session
   async createSession(userId: string, userType: 'ADMIN' | 'EMPLOYEE', deviceInfo?: string, ipAddress?: string) {
     const sessionToken = randomBytes(32).toString('hex')
-    // Set expiry to 24 hours as a safety net (actual timeout is based on lastActivity)
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+    // Absolute session expiry is 2 hours.
+    const expiresAt = new Date(Date.now() + SESSION_TIMEOUT_MS)
 
 
     const sessionData: any = {
@@ -76,18 +78,16 @@ export class SessionService {
       return null
     }
 
-    // Check if session has expired (24 hours absolute expiry)
+    // Check absolute expiry.
     if (session.expiresAt < new Date()) {
       await this.invalidateSession(sessionToken)
       return null
     }
 
-    // Check if 5 minutes have passed since last activity
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
+    // Check inactivity timeout (2 hours since last activity).
+    const inactivityCutoff = new Date(Date.now() - SESSION_TIMEOUT_MS)
     
-    if (session.lastActivity < fiveMinutesAgo) {
-      // More than 5 minutes since last activity
-      // This means browser was likely closed - invalidate session
+    if (session.lastActivity < inactivityCutoff) {
       await this.invalidateSession(sessionToken)
       return null
     }
