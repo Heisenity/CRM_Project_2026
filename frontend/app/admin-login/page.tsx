@@ -1,59 +1,73 @@
 "use client"
 
 import { useSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 import AdminLoginPage from "@/components/AdminLoginPage"
 
 export default function AdminLogin() {
   const { data: session, status } = useSession()
-  const router = useRouter()
 
-  // Handle authenticated admin users - redirect them to dashboard
+  // Handle authenticated admin users - redirect them to dashboard immediately
   useEffect(() => {
     if (status === "loading") return // Still loading
 
     if (session?.user) {
       const userType = (session.user as any)?.userType
-      console.log('Admin login page - User type:', userType)
+      console.log('[AdminLogin] User type:', userType)
+      console.log('[AdminLogin] Session:', session)
       
       if (userType === 'ADMIN') {
-        console.log('Admin login page - Redirecting admin to dashboard')
-        // Use window.location for more reliable redirect in production
-        window.location.href = '/dashboard'
-      } else {
-        // If not admin but logged in as something else, redirect to appropriate page
-        if (userType === 'EMPLOYEE') {
+        console.log('[AdminLogin] Redirecting admin to dashboard')
+        // Force immediate redirect
+        setTimeout(() => {
+          window.location.href = '/dashboard'
+        }, 100)
+      } else if (userType === 'EMPLOYEE') {
+        console.log('[AdminLogin] Redirecting employee to staff portal')
+        setTimeout(() => {
           window.location.href = '/staff-portal'
-        } else {
+        }, 100)
+      } else {
+        console.log('[AdminLogin] Unknown user type, redirecting to home')
+        setTimeout(() => {
           window.location.href = '/'
-        }
+        }, 100)
       }
     }
   }, [session, status])
 
-  // For unauthenticated users, show admin login page
-  const isLoggedIn = !!session?.user
-  const userProfile = session?.user ? {
-    name: session.user.name || "User",
-    email: session.user.email || "",
-    role: 'Administrator',
-    avatar: "/api/placeholder/40/40",
-    employeeId: (session.user as any).employeeId
-  } : undefined
+  // Show loading state while checking session
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
 
+  // If logged in, show loading while redirecting
+  if (session?.user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Redirecting to dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // For unauthenticated users, show admin login page
   const handleGetStarted = () => {
-    if (isLoggedIn) {
-      window.location.href = "/dashboard"
-    }
+    window.location.href = "/dashboard"
   }
 
   return (
     <div>
       <AdminLoginPage 
         onGetStarted={handleGetStarted}
-        isLoggedIn={isLoggedIn}
-        userProfile={userProfile}
+        isLoggedIn={false}
+        userProfile={undefined}
       />
     </div>
   )

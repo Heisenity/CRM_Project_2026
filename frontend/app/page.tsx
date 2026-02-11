@@ -1,32 +1,37 @@
 "use client"
 
 import { useSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+import { useRouter, usePathname } from "next/navigation"
+import { useEffect, useState } from "react"
 import LandingPage from "@/components/LandingPage"
 
 export default function RootPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const pathname = usePathname()
+  const [hasRedirected, setHasRedirected] = useState(false)
 
-  // Handle authenticated users - redirect them to their appropriate dashboards
+  // Handle authenticated users - redirect them ONLY if they're on the root page
   useEffect(() => {
-    if (status === "loading") return // Still loading
+    if (status === "loading" || hasRedirected) return // Still loading or already redirected
 
-    if (session?.user) {
+    // Only redirect if we're actually on the root path
+    if (pathname === "/" && session?.user) {
       const userType = (session.user as any)?.userType
       console.log('Root page - User type:', userType)
       
       if (userType === 'ADMIN') {
         console.log('Root page - Redirecting admin to dashboard')
+        setHasRedirected(true)
         router.push('/dashboard')
       } else if (userType === 'EMPLOYEE') {
         console.log('Root page - Redirecting employee to staff-portal')
+        setHasRedirected(true)
         router.push('/staff-portal')
       }
       // If neither admin nor employee, stay on landing page
     }
-  }, [session, status, router])
+  }, [session, status, router, pathname, hasRedirected])
 
   // For unauthenticated users or unknown user types, show landing page directly
   const isLoggedIn = !!session?.user
