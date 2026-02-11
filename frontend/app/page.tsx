@@ -12,7 +12,7 @@ export default function RootPage() {
   // Handle authenticated users - redirect them
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
-      const userType = (session.user as any)?.userType
+      const userType = String((session.user as any)?.userType || "").toUpperCase()
       console.log('Root page - User type:', userType)
       
       if (userType === 'ADMIN') {
@@ -39,14 +39,14 @@ export default function RootPage() {
   const userProfile = session?.user ? {
     name: session.user.name || "User",
     email: session.user.email || "",
-    role: (session.user as any).userType === 'ADMIN' ? 'Administrator' : 'Employee',
+    role: String((session.user as any)?.userType || "").toUpperCase() === 'ADMIN' ? 'Administrator' : 'Employee',
     avatar: "/api/placeholder/40/40",
     employeeId: (session.user as any).employeeId
   } : undefined
 
   const handleGetStarted = () => {
     if (isLoggedIn) {
-      const userType = (session?.user as any)?.userType
+      const userType = String((session?.user as any)?.userType || "").toUpperCase()
       if (userType === 'ADMIN') {
         router.push("/dashboard")
       } else if (userType === 'EMPLOYEE') {
