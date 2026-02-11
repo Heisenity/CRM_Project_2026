@@ -19,17 +19,18 @@ export default function AdminLogin() {
       
       if (userType === 'ADMIN') {
         console.log('Admin login page - Redirecting admin to dashboard')
-        router.push('/dashboard')
+        // Use window.location for more reliable redirect in production
+        window.location.href = '/dashboard'
       } else {
         // If not admin but logged in as something else, redirect to appropriate page
         if (userType === 'EMPLOYEE') {
-          router.push('/staff-portal')
+          window.location.href = '/staff-portal'
         } else {
-          router.push('/')
+          window.location.href = '/'
         }
       }
     }
-  }, [session, status, router])
+  }, [session, status])
 
   // For unauthenticated users, show admin login page
   const isLoggedIn = !!session?.user
@@ -43,7 +44,7 @@ export default function AdminLogin() {
 
   const handleGetStarted = () => {
     if (isLoggedIn) {
-      router.push("/dashboard")
+      window.location.href = "/dashboard"
     }
   }
 
