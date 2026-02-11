@@ -630,7 +630,9 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned, 
                                       {ticket.priority}
                                     </span>
                                   </div>
-                                  <p className="text-sm text-gray-600 truncate mt-0.5">{ticket.ticketId}</p>
+                                  <p className="text-sm text-gray-600 truncate mt-0.5">
+                                    {ticket.category?.name || truncateText(ticket.description, 60) || 'Unknown Problem'}
+                                  </p>
                                 </div>
                               </div>
                             </SelectItem>
