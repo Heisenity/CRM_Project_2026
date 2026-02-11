@@ -209,3 +209,35 @@ export async function uploadPayslipToS3(
     throw new Error("Failed to upload payslip to S3")
   }
 }
+
+export async function getPetrolBillUploadUrl(
+  fileName: string,
+  fileType: string,
+  employeeId: string
+) {
+  const bucket = process.env.AWS_S3_MISCELLANEOUS_BUCKET
+  const region = process.env.AWS_REGION
+
+  if (!bucket || !region) {
+    throw new Error("Missing AWS_S3_MISCELLANEOUS_BUCKET or AWS_REGION")
+  }
+
+  const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "")
+  const key = `petrol-bills/${employeeId}/${Date.now()}-${safeName}`
+
+  try {
+    const command = new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      ContentType: fileType,
+    })
+
+    const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 300 })
+    const fileUrl = `https://${bucket}.s3.${region}.amazonaws.com/${encodeURIComponent(key)}`
+
+    return { uploadUrl, fileUrl, fileKey: key }
+  } catch (err: any) {
+    console.error("getPetrolBillUploadUrl error:", err)
+    throw new Error("Failed to create petrol bill upload URL")
+  }
+}

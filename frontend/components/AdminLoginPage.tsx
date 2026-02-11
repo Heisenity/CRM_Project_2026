@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { signIn } from "next-auth/react"
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { 
   ShieldCheck,
@@ -37,7 +36,6 @@ function AdminLoginCard() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [showPassword, setShowPassword] = useState(false)
-  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -49,6 +47,8 @@ function AdminLoginCard() {
     const password = formData.get("password") as string
     const adminId = formData.get("adminId") as string
 
+    console.log('Login attempt with:', { email, adminId })
+
     try {
       // Handle admin login
       const result = await signIn("credentials", {
@@ -56,15 +56,37 @@ function AdminLoginCard() {
         password,
         adminId,
         userType: "ADMIN",
-        redirect: false
+        redirect: false,
+        callbackUrl: "/dashboard"
       })
 
+      console.log('SignIn result:', result)
+
       if (result?.error) {
+        console.error('SignIn error:', result.error)
         setError("Invalid credentials")
+      } else if (result?.ok) {
+        console.log('Login successful, getting session token')
+        
+        // Get the session to extract the token
+        const { getSession } = await import("next-auth/react")
+        const session = await getSession()
+        
+        if (session?.user) {
+          const customUser = session.user as any
+          if (customUser.sessionToken) {
+            localStorage.setItem('token', customUser.sessionToken)
+            console.log('Token stored in localStorage')
+          }
+        }
+        
+        // Force a hard redirect to ensure session is loaded
+        window.location.href = "/dashboard"
       } else {
-        router.push("/dashboard")
+        setError("Login failed")
       }
-    } catch {
+    } catch (err) {
+      console.error('Login exception:', err)
       setError("An error occurred")
     } finally {
       setIsLoading(false)
@@ -218,10 +240,10 @@ export default function AdminLoginPage({ onGetStarted, isLoggedIn = false, userP
                   </div>
                   <h3 className="text-2xl font-bold text-gray-900 mb-2">Admin Access Granted</h3>
                   <p className="text-gray-600 mb-4">Welcome back, {userProfile.name}!</p>
-                  <div className="flex justify-center gap-2 mb-6">
+                  <div className="flex justify-center gap-2 mb-6 flex-wrap">
                     <Badge variant="secondary" className="bg-blue-100 text-blue-700">Administrator</Badge>
                     {userProfile.employeeId && (
-                      <Badge variant="outline">ID: {userProfile.employeeId}</Badge>
+                      <Badge variant="outline" className="text-xs sm:text-sm whitespace-nowrap">ID: {userProfile.employeeId}</Badge>
                     )}
                   </div>
                   <Button 

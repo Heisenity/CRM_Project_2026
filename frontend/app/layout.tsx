@@ -9,8 +9,9 @@ import { AppSidebar } from "@/components/AppSidebar"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AuthProvider } from "@/components/providers/session-provider"
 import { NotificationProvider } from "@/lib/notification-context"
+import { GlobalNotificationSound } from "@/components/GlobalNotificationSound"
 import { Toaster } from "@/components/ui/toaster"
-import { useSessionHeartbeat } from "@/hooks/useSessionHeartbeat"
+import { useSessionPersistence } from "@/hooks/useSessionPersistence"
 
 interface CustomUser {
   id: string
@@ -29,8 +30,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { data: session, status } = useSession()
   
-  // Keep session alive while browser is open
-  useSessionHeartbeat()
+  // Use session persistence hook to prevent logout on tab switch
+  useSessionPersistence()
 
   /**
    * 🔴 CRITICAL FIX
@@ -54,6 +55,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     "/customer-portal",
   ]
 
+  // Show notification sound for ADMIN users on all pages except login/landing
+  const showNotificationSound = userType === "ADMIN" && !noSidebarPages.includes(pathname)
+
   if (noSidebarPages.includes(pathname)) {
     return <div className="min-h-screen">{children}</div>
   }
@@ -62,7 +66,13 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
    * Employees never get sidebar (unless you explicitly want them to)
    */
   if (userType === "EMPLOYEE") {
-    return <div className="min-h-screen">{children}</div>
+    return (
+      <div className="min-h-screen">
+        {/* Global notification sound - invisible, just plays sound */}
+        {showNotificationSound && <GlobalNotificationSound />}
+        {children}
+      </div>
+    )
   }
 
   /**
@@ -71,7 +81,11 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset className="overflow-visible">{children}</SidebarInset>
+      <SidebarInset className="overflow-visible">
+        {/* Global notification sound - invisible, just plays sound */}
+        {showNotificationSound && <GlobalNotificationSound />}
+        {children}
+      </SidebarInset>
     </SidebarProvider>
   )
 }

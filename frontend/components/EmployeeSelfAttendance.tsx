@@ -105,14 +105,20 @@ export function EmployeeSelfAttendance() {
     if (employeeRole === 'FIELD_ENGINEER') {
       return (
         <Tabs defaultValue="daily" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="daily" className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              Daily Clock-in/out
+          <TabsList className="grid w-full grid-cols-2 h-auto">
+            <TabsTrigger value="daily" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 text-xs sm:text-sm">
+              <Clock className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="text-center leading-tight">
+                <span className="hidden sm:inline">Daily Clock-in/out</span>
+                <span className="sm:hidden">Daily<br/>Clock-in/out</span>
+              </span>
             </TabsTrigger>
-            <TabsTrigger value="tasks" className="flex items-center gap-2">
-              <CheckSquare className="h-4 w-4" />
-              Task Check-in/out
+            <TabsTrigger value="tasks" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 text-xs sm:text-sm">
+              <CheckSquare className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="text-center leading-tight">
+                <span className="hidden sm:inline">Task Check-in/out</span>
+                <span className="sm:hidden">Task<br/>Check-in/out</span>
+              </span>
             </TabsTrigger>
           </TabsList>
           
@@ -177,14 +183,14 @@ export function EmployeeSelfAttendance() {
       {/* Employee Info Header */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div>
+          <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex-1 min-w-0">
               <h1 className="text-2xl font-bold">Employee Attendance</h1>
-              <p className="text-muted-foreground">Welcome, {employeeName}</p>
+              <p className="text-muted-foreground text-sm sm:text-base truncate">Welcome, {employeeName}</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {getRoleDisplay()}
-              <Badge variant="outline">ID: {employeeId}</Badge>
+              <Badge variant="outline" className="text-xs sm:text-sm whitespace-nowrap">ID: {employeeId}</Badge>
             </div>
           </CardTitle>
         </CardHeader>

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { createTask, getEmployeeTasks, updateTaskStatus, updateTaskDetails, getAllTasks, CreateTaskData, UpdateTaskData, TaskStatus, resetAttendanceAttempts } from './task.service';
+import { createTask, getEmployeeTasks, updateTaskStatus, updateTaskDetails, getAllTasks, getAllTaskHistory, CreateTaskData, UpdateTaskData, TaskStatus, resetAttendanceAttempts } from './task.service';
 import { createTeamTask } from '../teams/team.service';
 
 // Assign a new task to an employee or team
@@ -30,7 +30,9 @@ export const assignTask = async (req: Request, res: Response) => {
       });
     }
 
-    const assignedBy = 'admin'; // This should be replaced with actual admin ID from auth
+    // Get the authenticated user's ID from the request
+    // This could be either an admin or an employee with task assignment permissions
+    const assignedBy = (req as any).user?.employeeId || (req as any).user?.adminId || null;
 
     // Team assignment
     if (teamId) {
@@ -142,7 +144,10 @@ export const updateTask = async (req: Request, res: Response) => {
       });
     }
 
-    const task = await updateTaskStatus(taskId, status);
+    // Get the authenticated user's ID
+    const changedBy = (req as any).user?.employeeId || (req as any).user?.adminId || undefined;
+
+    const task = await updateTaskStatus(taskId, status, changedBy);
 
     return res.status(200).json({
       success: true,
@@ -220,6 +225,27 @@ export const getTasks = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get tasks'
+    });
+  }
+};
+
+// Get all task history with pagination
+export const getTaskHistory = async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 1000;
+
+    const result = await getAllTaskHistory(page, limit);
+
+    return res.status(200).json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error getting task history:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get task history'
     });
   }
 };

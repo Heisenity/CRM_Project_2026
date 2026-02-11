@@ -140,13 +140,11 @@ function StaffLoginCard() {
     setError("")
 
     const formData = new FormData(e.currentTarget)
-    const email = formData.get("email") as string
     const password = formData.get("password") as string
     const employeeId = formData.get("employeeId") as string
 
     try {
       const result = await signIn("credentials", {
-        email,
         password,
         employeeId,
         userType: "EMPLOYEE",
@@ -156,6 +154,18 @@ function StaffLoginCard() {
       if (result?.error) {
         setError("Invalid credentials")
       } else {
+        // Get the session to extract the token
+        const { getSession } = await import("next-auth/react")
+        const session = await getSession()
+        
+        if (session?.user) {
+          const customUser = session.user as any
+          if (customUser.sessionToken) {
+            localStorage.setItem('token', customUser.sessionToken)
+            console.log('Token stored in localStorage')
+          }
+        }
+        
         router.push("/landing")
       }
     } catch {
@@ -186,17 +196,6 @@ function StaffLoginCard() {
               type="text"
               required
               placeholder="Enter employee ID"
-              className="w-full"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="staff-email" className="text-sm font-medium">Email</Label>
-            <Input
-              id="staff-email"
-              name="email"
-              type="email"
-              required
-              placeholder="Enter your email"
               className="w-full"
             />
           </div>
@@ -297,10 +296,10 @@ export default function LandingPage({ onGetStarted, isLoggedIn = false, userProf
                   </div>
                   <h3 className="text-2xl font-bold text-gray-900 mb-2">Logged In Successfully</h3>
                   <p className="text-gray-600 mb-4">Welcome back, {userProfile.name}!</p>
-                  <div className="flex justify-center gap-2 mb-6">
+                  <div className="flex justify-center gap-2 mb-6 flex-wrap">
                     <Badge variant="secondary">{userProfile.role}</Badge>
                     {userProfile.employeeId && (
-                      <Badge variant="outline">ID: {userProfile.employeeId}</Badge>
+                      <Badge variant="outline" className="text-xs sm:text-sm whitespace-nowrap">ID: {userProfile.employeeId}</Badge>
                     )}
                   </div>
                   <Button 

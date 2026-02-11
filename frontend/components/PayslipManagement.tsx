@@ -28,6 +28,7 @@ interface Employee {
 
 interface PayrollRecord {
   id: string
+  payslipId: string
   month: number
   year: number
   basicSalary: number | string
@@ -955,7 +956,7 @@ export function PayslipManagement({ adminId }: PayslipManagementProps) {
                     <div>
                       <p className="font-medium">{record.employee.name}</p>
                       <p className="text-sm text-gray-500">
-                        {record.employee.employeeId} | {months.find(m => m.value === record.month)?.label} {record.year}
+                        {record.payslipId} | {record.employee.employeeId} | {months.find(m => m.value === record.month)?.label} {record.year}
                       </p>
                     </div>
                   </div>

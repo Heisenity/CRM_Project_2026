@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { EmployeeAvatar } from "@/components/EmployeeAvatar"
+import EmployeeIdPrefixManagement from "@/components/EmployeeIdPrefixManagement"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { 
@@ -71,6 +72,10 @@ interface Employee {
     panCard?: string
     photoUrl?: string
     photoKey?: string
+    uanNumber?: string
+    esiNumber?: string
+    bankAccountNumber?: string
+    designation?: string
     createdAt: string
     updatedAt: string
 }
@@ -579,12 +584,15 @@ export default function EmployeeManagement() {
             {/* Employee Tables */}
             <div className="space-y-6">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 mb-6">
+                    <TabsList className="grid w-full grid-cols-3 mb-6">
                         <TabsTrigger value="employees" className="text-sm font-medium">
                             Employees ({employees.length})
                         </TabsTrigger>
                         <TabsTrigger value="admins" className="text-sm font-medium">
                             Administrators ({admins.length})
+                        </TabsTrigger>
+                        <TabsTrigger value="prefixes" className="text-sm font-medium">
+                            ID Prefixes
                         </TabsTrigger>
                     </TabsList>
 
@@ -994,6 +1002,10 @@ export default function EmployeeManagement() {
                         </CardContent>
                     </Card>
                 </TabsContent>
+
+                <TabsContent value="prefixes" className="space-y-4">
+                    <EmployeeIdPrefixManagement />
+                </TabsContent>
             </Tabs>
             </div>
 
@@ -1081,6 +1093,24 @@ export default function EmployeeManagement() {
                                     <Label className="text-sm font-semibold text-foreground">PAN Card</Label>
                                     <p className="text-sm text-muted-foreground bg-muted/50 p-2 rounded font-mono">
                                         {selectedEmployee.panCard || 'Not provided'}
+                                    </p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-semibold text-foreground">UAN Number</Label>
+                                    <p className="text-sm text-muted-foreground bg-muted/50 p-2 rounded font-mono">
+                                        {selectedEmployee.uanNumber || 'Not provided'}
+                                    </p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-semibold text-foreground">ESI Number</Label>
+                                    <p className="text-sm text-muted-foreground bg-muted/50 p-2 rounded font-mono">
+                                        {selectedEmployee.esiNumber || 'Not provided'}
+                                    </p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-semibold text-foreground">Bank Account Number</Label>
+                                    <p className="text-sm text-muted-foreground bg-muted/50 p-2 rounded font-mono">
+                                        {selectedEmployee.bankAccountNumber || 'Not provided'}
                                     </p>
                                 </div>
                                 <div className="space-y-2">

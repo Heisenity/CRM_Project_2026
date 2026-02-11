@@ -1,94 +1,47 @@
 /**
  * Notification sound utility
- * Plays a notification sound when called
+ * Plays a notification sound when called using HTML5 Audio
  */
 
-let audioContext: AudioContext | null = null;
-
 /**
- * Initialize audio context (required for web audio)
- */
-function getAudioContext(): AudioContext {
-  if (!audioContext) {
-    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-  }
-  return audioContext;
-}
-
-/**
- * Play a notification sound using Web Audio API
- * This creates a pleasant notification tone without requiring external files
+ * Play a notification sound using HTML5 Audio
+ * Simple implementation that works reliably
  */
 export function playNotificationSound() {
   try {
-    const ctx = getAudioContext();
+    // Create a new audio element each time for reliability
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+    audio.volume = 0.6;
     
-    // Create oscillator for the tone
-    const oscillator = ctx.createOscillator();
-    const gainNode = ctx.createGain();
+    const playPromise = audio.play();
     
-    // Connect nodes
-    oscillator.connect(gainNode);
-    gainNode.connect(ctx.destination);
-    
-    // Configure the sound - a pleasant notification tone
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(800, ctx.currentTime); // First tone at 800Hz
-    oscillator.frequency.setValueAtTime(1000, ctx.currentTime + 0.1); // Second tone at 1000Hz
-    
-    // Envelope for smooth sound
-    gainNode.gain.setValueAtTime(0, ctx.currentTime);
-    gainNode.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.01); // Quick attack
-    gainNode.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.1); // Sustain
-    gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.3); // Decay
-    
-    // Play the sound
-    oscillator.start(ctx.currentTime);
-    oscillator.stop(ctx.currentTime + 0.3);
-    
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          console.log('✅ Notification sound played successfully');
+        })
+        .catch(error => {
+          console.error('❌ Error playing notification sound:', error);
+          if (error.name === 'NotAllowedError') {
+            console.warn('⚠️ Audio playback blocked by browser. User interaction required first.');
+          }
+        });
+    }
   } catch (error) {
-    console.error('Error playing notification sound:', error);
+    console.error('❌ Error creating notification sound:', error);
   }
 }
 
 /**
- * Play a two-tone notification sound (more attention-grabbing)
+ * Play an alert sound (same as notification)
  */
 export function playAlertSound() {
-  try {
-    const ctx = getAudioContext();
-    
-    // First tone
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.connect(gain1);
-    gain1.connect(ctx.destination);
-    
-    osc1.type = 'sine';
-    osc1.frequency.value = 800;
-    gain1.gain.setValueAtTime(0, ctx.currentTime);
-    gain1.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.01);
-    gain1.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.15);
-    
-    osc1.start(ctx.currentTime);
-    osc1.stop(ctx.currentTime + 0.15);
-    
-    // Second tone (slightly delayed)
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.connect(gain2);
-    gain2.connect(ctx.destination);
-    
-    osc2.type = 'sine';
-    osc2.frequency.value = 1000;
-    gain2.gain.setValueAtTime(0, ctx.currentTime + 0.15);
-    gain2.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.16);
-    gain2.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.35);
-    
-    osc2.start(ctx.currentTime + 0.15);
-    osc2.stop(ctx.currentTime + 0.35);
-    
-  } catch (error) {
-    console.error('Error playing alert sound:', error);
-  }
+  playNotificationSound();
+}
+
+/**
+ * Initialize audio (no longer needed but kept for compatibility)
+ */
+export function initializeAudio() {
+  console.log('Audio initialization called (no-op)');
 }

@@ -127,18 +127,13 @@ export function EmployeeIdGenerator({ value, onChange, disabled, role = 'IN_OFFI
     
     setChecking(true)
     try {
-      // First validate format based on role
-      const patterns = {
-        FIELD_ENGINEER: /^FE\d{3}$/,
-        IN_OFFICE: /^IO\d{3}$/
-      }
+      // Validate format: 2-5 uppercase letters followed by 3 digits
+      const customPattern = /^[A-Z]{2,5}\d{3}$/
       
-      const pattern = patterns[role]
-      if (!pattern.test(employeeId)) {
-        const example = role === 'FIELD_ENGINEER' ? 'FE001, FE002, etc.' : 'IO001, IO002, etc.'
+      if (!customPattern.test(employeeId)) {
         setAvailability({
           available: false,
-          message: `Invalid format. Use ${example}`
+          message: `Invalid format. Use format like DEV001, HR001, FE001, etc.`
         })
         return
       }
@@ -297,7 +292,7 @@ export function EmployeeIdGenerator({ value, onChange, disabled, role = 'IN_OFFI
           <div className="relative flex-1">
             <Input
               id="employeeId"
-              placeholder={role === 'FIELD_ENGINEER' ? 'FE001' : 'IO001'}
+              placeholder="e.g., DEV001, HR001, FE001"
               value={value}
               onChange={(e) => onChange(e.target.value.toUpperCase())}
               disabled={disabled}
@@ -354,7 +349,7 @@ export function EmployeeIdGenerator({ value, onChange, disabled, role = 'IN_OFFI
         <div className="flex items-center gap-2 text-xs text-gray-500">
           <Info className="h-3 w-3" />
           <span>
-            Format: {role === 'FIELD_ENGINEER' ? 'FE001, FE002, etc.' : 'IO001, IO002, etc.'} Click the wand to auto-generate.
+            Format: [PREFIX][3-digits] (e.g., DEV001, HR001, FE001). Click the wand to auto-generate.
           </span>
         </div>
       </div>

@@ -28,7 +28,7 @@ export const authOptions: AuthOptions = {
       },
 
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        if (!credentials?.password) {
           return null
         }
 
@@ -37,17 +37,33 @@ export const authOptions: AuthOptions = {
         // decide user type
         const userType = adminId ? "ADMIN" : "EMPLOYEE"
 
+        // For admin, email is required. For employee, only employeeId is required
+        if (userType === "ADMIN" && !email) {
+          return null
+        }
+        if (userType === "EMPLOYEE" && !employeeId) {
+          return null
+        }
+
         try {
           const body: any = {
-            email,
             password,
             userType,
           }
           // include only the relevant id to avoid backend validation issues
-          if (userType === "ADMIN" && adminId) body.adminId = adminId
-          if (userType === "EMPLOYEE" && employeeId) body.employeeId = employeeId
+          if (userType === "ADMIN") {
+            body.email = email
+            body.adminId = adminId
+          }
+          if (userType === "EMPLOYEE") {
+            body.employeeId = employeeId
+            // Only include email if it's provided
+            if (email) {
+              body.email = email
+            }
+          }
 
-          const response = await fetch(`${BACKEND_URL}/api/v1/auth/login`, {
+          const response = await fetch(`${BACKEND_URL}/auth/login`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -61,7 +77,6 @@ export const authOptions: AuthOptions = {
           }
 
           const user = await response.json()
-          console.debug("authorize -> backend user:", user)
 
           return {
             id: user.id,
@@ -82,11 +97,29 @@ export const authOptions: AuthOptions = {
 
   session: {
     strategy: "jwt",
-    maxAge: 24 * 60 * 60, // 24 hours JWT expiry (but backend validates actual session)
+    maxAge: 24 * 60 * 60, // 24 hours
+    updateAge: 60 * 60, // Update session every hour
+  },
+
+  jwt: {
+    maxAge: 24 * 60 * 60, // 24 hours
+  },
+
+  cookies: {
+    sessionToken: {
+      name: `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    },
   },
 
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
+      // Initial sign in
       if (user) {
         const customUser = user as CustomUser
         token.sub = customUser.id
@@ -94,40 +127,18 @@ export const authOptions: AuthOptions = {
         token.adminId = customUser.adminId
         token.employeeId = customUser.employeeId
         token.sessionToken = customUser.sessionToken
-        token.loginTime = Date.now() // Track when user logged in
       }
       
-      // Validate session with backend on every request
-      if (token.sessionToken) {
-        try {
-          const response = await fetch(`${BACKEND_URL}/api/v1/auth/validate-session`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token.sessionToken}`
-            }
-          })
-          
-          if (!response.ok) {
-            // Session is invalid on backend (expired after 5 min of browser being closed)
-            console.log('Backend session expired, clearing token')
-            return {} // Return empty token to force logout
-          }
-        } catch (error) {
-          console.error('Session validation error:', error)
-          return {} // Return empty token on error
-        }
+      // Refresh token on every request to keep it alive
+      if (trigger === "update") {
+        // Token is being updated, keep existing data
+        return token
       }
       
       return token
     },
 
     async session({ session, token }) {
-      // If token is empty (session invalidated), return null session
-      if (!token.sub || !token.sessionToken) {
-        return { ...session, user: undefined } as any
-      }
-      
       if (session.user) {
         session.user.id = token.sub as string
         ;(session.user as CustomUser).userType = token.userType as string
@@ -145,13 +156,17 @@ export const authOptions: AuthOptions = {
     signOut: "/",
   },
 
+  // Prevent session from being cleared on tab switch
   events: {
     async signOut() {
-      // Clear any client-side storage
+      // Clear localStorage on sign out
       if (typeof window !== 'undefined') {
-        localStorage.clear()
-        sessionStorage.clear()
+        localStorage.removeItem('token')
+        localStorage.removeItem('nextauth.session')
       }
-    }
+    },
   },
+
+  // Enable debug mode in development
+  debug: process.env.NODE_ENV === 'development',
 }

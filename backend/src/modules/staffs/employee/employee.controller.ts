@@ -164,14 +164,15 @@ export const createEmployee = async (req: Request, res: Response) => {
       uanNumber,
       esiNumber,
       bankAccountNumber,
-      photoKey
+      photoKey,
+      employeeId // Add this to accept custom employee ID
     } = req.body
 
     // Validate required fields
-    if (!name || !email || !password) {
+    if (!name || !password) {
       return res.status(400).json({
         success: false,
-        error: 'Name, email, and password are required'
+        error: 'Name and password are required'
       })
     }
 
@@ -183,16 +184,18 @@ export const createEmployee = async (req: Request, res: Response) => {
       })
     }
 
-    // Check if email already exists
-    const existingEmployee = await prisma.employee.findUnique({
-      where: { email }
-    })
-
-    if (existingEmployee) {
-      return res.status(400).json({
-        success: false,
-        error: 'Employee with this email already exists'
+    // Check if email already exists (only if email is provided)
+    if (email) {
+      const existingEmployee = await prisma.employee.findUnique({
+        where: { email }
       })
+
+      if (existingEmployee) {
+        return res.status(400).json({
+          success: false,
+          error: 'Employee with this email already exists'
+        })
+      }
     }
 
     // Check if Aadhar card already exists (if provided)
@@ -223,8 +226,68 @@ export const createEmployee = async (req: Request, res: Response) => {
       }
     }
 
-    // Generate role-based employee ID
-    const employeeId = await EmployeeIdGeneratorService.generateNextEmployeeId(role)
+    // Handle employee ID - either provided or auto-generated
+    let finalEmployeeId: string
+    
+    if (employeeId) {
+      // Custom employee ID provided - validate and auto-learn prefix
+      const customPattern = /^([A-Z0-9]+)(\d{3})$/
+      const match = employeeId.match(customPattern)
+      
+      if (!match) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid employee ID format. Use format like DEV001, HR001, FIELD001'
+        })
+      }
+      
+      const prefix = match[1]
+      const number = parseInt(match[2], 10)
+      
+      // Check if employee ID already exists
+      const existingEmployeeId = await prisma.employee.findUnique({
+        where: { employeeId }
+      })
+      
+      if (existingEmployeeId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Employee ID already exists'
+        })
+      }
+      
+      // Auto-learn: Create or update prefix config
+      const existingConfig = await prisma.employeeIdConfig.findUnique({
+        where: { prefix }
+      })
+      
+      if (!existingConfig) {
+        // New prefix - create it
+        await prisma.employeeIdConfig.create({
+          data: {
+            prefix,
+            nextSequence: number + 1,
+            isActive: true,
+            description: `Auto-learned from ${employeeId}`
+          }
+        })
+        console.log(`✨ Auto-learned new prefix: ${prefix}`)
+      } else {
+        // Existing prefix - update sequence if needed
+        if (number >= existingConfig.nextSequence) {
+          await prisma.employeeIdConfig.update({
+            where: { prefix },
+            data: { nextSequence: number + 1 }
+          })
+          console.log(`📈 Updated ${prefix} sequence to ${number + 1}`)
+        }
+      }
+      
+      finalEmployeeId = employeeId
+    } else {
+      // No employee ID provided - generate one
+      finalEmployeeId = await EmployeeIdGeneratorService.generateNextEmployeeId(role)
+    }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12)
@@ -233,8 +296,8 @@ export const createEmployee = async (req: Request, res: Response) => {
     const employee = await prisma.employee.create({
       data: {
         name,
-        employeeId,
-        email,
+        employeeId: finalEmployeeId,
+        email: email || null,
         password: hashedPassword,
         phone: phone || null,
         teamId: teamId || null,
@@ -701,6 +764,177 @@ export const getEmployeePhotoUrl = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to get photo URL'
+    })
+  }
+}
+
+
+// Get all available employee ID prefixes
+export const getAvailablePrefixes = async (req: Request, res: Response) => {
+  try {
+    const prefixes = await EmployeeIdGeneratorService.getAvailablePrefixes()
+    
+    return res.status(200).json({
+      success: true,
+      data: prefixes
+    })
+  } catch (error) {
+    console.error('Error getting available prefixes:', error)
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get available prefixes'
+    })
+  }
+}
+
+// Add custom employee ID prefix
+export const addCustomPrefix = async (req: Request, res: Response) => {
+  try {
+    const { prefix, description, roleType } = req.body
+
+    if (!prefix) {
+      return res.status(400).json({
+        success: false,
+        error: 'Prefix is required'
+      })
+    }
+
+    await EmployeeIdGeneratorService.addCustomPrefix(prefix, description, roleType)
+    
+    return res.status(201).json({
+      success: true,
+      message: 'Prefix added successfully'
+    })
+  } catch (error) {
+    console.error('Error adding custom prefix:', error)
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to add custom prefix'
+    })
+  }
+}
+
+// Update employee ID prefix
+export const updatePrefix = async (req: Request, res: Response) => {
+  try {
+    const { prefix } = req.params
+    const { description, isActive, roleType } = req.body
+
+    await EmployeeIdGeneratorService.updatePrefix(prefix, description, isActive, roleType)
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Prefix updated successfully'
+    })
+  } catch (error) {
+    console.error('Error updating prefix:', error)
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to update prefix'
+    })
+  }
+}
+
+// Delete employee ID prefix
+export const deletePrefix = async (req: Request, res: Response) => {
+  try {
+    const { prefix } = req.params
+
+    await EmployeeIdGeneratorService.deletePrefix(prefix)
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Prefix deleted successfully'
+    })
+  } catch (error) {
+    console.error('Error deleting prefix:', error)
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to delete prefix'
+    })
+  }
+}
+
+// Get next available employee IDs for a prefix (preview)
+export const getNextAvailableIds = async (req: Request, res: Response) => {
+  try {
+    const { prefix, count = '5' } = req.query
+
+    if (!prefix) {
+      return res.status(400).json({
+        success: false,
+        error: 'Prefix is required'
+      })
+    }
+
+    const ids = await EmployeeIdGeneratorService.getNextAvailableIds(
+      prefix as string,
+      parseInt(count as string)
+    )
+    
+    return res.status(200).json({
+      success: true,
+      data: ids
+    })
+  } catch (error) {
+    console.error('Error getting next available IDs:', error)
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get next available IDs'
+    })
+  }
+}
+
+// Generate employee ID with custom prefix
+export const generateEmployeeIdWithPrefix = async (req: Request, res: Response) => {
+  try {
+    const { prefix } = req.body
+
+    if (!prefix) {
+      return res.status(400).json({
+        success: false,
+        error: 'Prefix is required'
+      })
+    }
+
+    const employeeId = await EmployeeIdGeneratorService.generateEmployeeIdWithPrefix(prefix)
+    
+    return res.status(200).json({
+      success: true,
+      data: { employeeId, prefix }
+    })
+  } catch (error) {
+    console.error('Error generating employee ID with prefix:', error)
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to generate employee ID'
+    })
+  }
+}
+
+// Preview next employee ID for a prefix WITHOUT incrementing
+export const previewNextEmployeeId = async (req: Request, res: Response) => {
+  try {
+    const { prefix } = req.params
+
+    if (!prefix) {
+      return res.status(400).json({
+        success: false,
+        error: 'Prefix is required'
+      })
+    }
+
+    const nextId = await EmployeeIdGeneratorService.previewNextEmployeeId(prefix)
+    
+    return res.status(200).json({
+      success: true,
+      data: { nextId, prefix }
+    })
+  } catch (error) {
+    console.error('Error previewing next employee ID:', error)
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to preview employee ID'
     })
   }
 }

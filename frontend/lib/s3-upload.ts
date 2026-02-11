@@ -146,3 +146,48 @@ export async function uploadEmployeePhotoToS3(
   return presignData.fileKey as string
 }
 
+export async function uploadPetrolBillToS3(
+  file: File,
+  employeeId: string
+): Promise<string> {
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL
+
+  if (!backendUrl) {
+    throw new Error("NEXT_PUBLIC_BACKEND_URL is not defined")
+  }
+
+  // 1️⃣ Ask backend for a presigned URL
+  const presignRes = await authenticatedFetch(`${backendUrl}/uploads/petrol-bill`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      fileName: file.name,
+      fileType: file.type,
+      employeeId,
+    }),
+  })
+
+  const presignData = await presignRes.json()
+
+  if (!presignData.success || !presignData.uploadUrl) {
+    throw new Error("Invalid presigned URL response")
+  }
+
+  // 2️⃣ Upload directly to S3
+  const uploadRes = await fetch(presignData.uploadUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": file.type,
+    },
+    body: file,
+  })
+
+  if (!uploadRes.ok) {
+    throw new Error("Failed to upload petrol bill to S3")
+  }
+
+  // 3️⃣ Return file URL
+  return presignData.fileUrl as string
+}

@@ -42,7 +42,7 @@ model Employee {
   id                      String                   @id @default(cuid())
   name                    String
   employeeId              String                   @unique
-  email                   String                   @unique
+  email                   String?                  @unique
   password                String
   phone                   String?
   designation             String? 
@@ -77,7 +77,9 @@ model Employee {
   featureAccess           StaffFeatureAccess[]
   assignedTickets         SupportTicket[]          @relation("TicketAssignee")
   reportedTickets         SupportTicket[]          @relation("TicketReporter")
-  tasks                   Task[]
+  tasks                   Task[]                   @relation("TaskAssignedTo")
+  tasksAssigned           Task[]                   @relation("TaskAssignedBy")
+  taskHistoryChanges      TaskHistory[]            @relation("TaskHistoryChangedBy")
   ticketAttachments       TicketAttachment[]
   ticketComments          TicketComment[]
   ticketHistory           TicketHistory[]
@@ -170,27 +172,52 @@ model AttendanceOverride {
 }
 
 model Task {
-  id              String     @id @default(cuid())
-  employeeId      String
-  title           String
-  description     String
-  category        String?
-  location        String?
-  assignedBy      String
-  assignedAt      DateTime   @default(now())
-  status          TaskStatus @default(PENDING)
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-  checkIn         DateTime?
-  checkOut        DateTime?
-  relatedTicketId String?
-  employee        Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  id                String        @id @default(cuid())
+  employeeId        String
+  title             String
+  description       String
+  category          String?
+  location          String?
+  assignedBy        String?
+  assignedAt        DateTime      @default(now())
+  status            TaskStatus    @default(PENDING)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  checkIn           DateTime?
+  checkOut          DateTime?
+  relatedTicketId   String?
+  vehicleId         String?
+  employee          Employee      @relation("TaskAssignedTo", fields: [employeeId], references: [id], onDelete: Cascade)
+  assignedByEmployee Employee?    @relation("TaskAssignedBy", fields: [assignedBy], references: [id], onDelete: SetNull)
+  vehicle           Vehicle?      @relation("TaskVehicle", fields: [vehicleId], references: [id], onDelete: SetNull)
+  history           TaskHistory[]
 
   @@index([employeeId])
+  @@index([assignedBy])
   @@index([assignedAt])
   @@index([status])
   @@index([relatedTicketId])
+  @@index([vehicleId])
   @@map("tasks")
+}
+
+model TaskHistory {
+  id        String   @id @default(cuid())
+  taskId    String
+  status    TaskStatus
+  changedBy String?
+  changedAt DateTime @default(now())
+  notes     String?
+  vehicleId String?
+  
+  task              Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  changedByEmployee Employee? @relation("TaskHistoryChangedBy", fields: [changedBy], references: [id], onDelete: SetNull)
+  vehicle           Vehicle?  @relation("TaskHistoryVehicle", fields: [vehicleId], references: [id], onDelete: SetNull)
+  
+  @@index([taskId])
+  @@index([changedAt])
+  @@index([vehicleId])
+  @@map("task_history")
 }
 
 model UserSession {
@@ -229,6 +256,8 @@ model Vehicle {
   updatedAt     DateTime      @updatedAt
   petrolBills   PetrolBill[]
   employee      Employee?     @relation(fields: [assignedTo], references: [id])
+  tasks         Task[]        @relation("TaskVehicle")
+  taskHistory   TaskHistory[] @relation("TaskHistoryVehicle")
 
   @@index([assignedTo])
   @@index([status])
@@ -260,6 +289,7 @@ model PetrolBill {
 
 model PayrollRecord {
   id          String        @id @default(cuid())
+  payslipId   String        @unique
   employeeId  String
   month       Int
   year        Int
@@ -727,6 +757,30 @@ model CustomerIdConfig {
   updatedAt    DateTime @updatedAt
 
   @@map("customer_id_configs")
+}
+
+model EmployeeIdConfig {
+  id           String       @id @default(cuid())
+  prefix       String       @unique
+  nextSequence Int          @default(1)
+  isActive     Boolean      @default(true)
+  description  String?
+  roleType     EmployeeRole @default(IN_OFFICE)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@map("employee_id_configs")
+}
+
+model PayslipIdConfig {
+  id           String   @id @default(cuid())
+  prefix       String   @unique @default("MIS")
+  nextSequence Int      @default(1)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("payslip_id_configs")
 }
 
 model CustomerSession {

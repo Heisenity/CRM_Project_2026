@@ -8,17 +8,26 @@ import { Loader2 } from "lucide-react"
 import { getMyFeatures } from "@/lib/server-api"
 
 export default function DashboardPage() {
-  const { data: session, status } = useSession()
+  const { data: session, status } = useSession({
+    required: true,
+    onUnauthenticated() {
+      // Redirect to login if not authenticated
+      window.location.href = '/'
+    },
+  })
   const router = useRouter()
   const [checking, setChecking] = useState(true)
   const [hasAccess, setHasAccess] = useState(false)
 
   useEffect(() => {
     const checkAccess = async () => {
-      if (status === "loading") return
+      // Wait for session to be fully loaded
+      if (status === "loading") {
+        return
+      }
 
+      // Session is authenticated at this point (due to required: true)
       if (!session?.user) {
-        router.push('/landing')
         return
       }
 
@@ -43,10 +52,13 @@ export default function DashboardPage() {
         } catch (error) {
           console.error('Error checking feature access:', error)
         }
+        
+        // Employee without dashboard access - redirect to staff portal
+        router.push('/staff-portal')
+        return
       }
 
-      // No access - redirect
-      router.push('/landing')
+      setChecking(false)
     }
 
     checkAccess()

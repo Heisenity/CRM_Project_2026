@@ -1,5 +1,3 @@
-"use client"
-
 import * as React from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -10,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AssignTaskPage } from "@/components/AssignTaskPage"
 import { VehiclesPage } from "@/components/VehiclesPage"
 import { EmployeeAvatar } from "@/components/EmployeeAvatar"
@@ -33,9 +32,10 @@ import {
   Car,
   Timer,
   Calendar,
-  Edit
+  Edit,
+  History
 } from "lucide-react"
-import { getAttendanceRecords, getAllEmployees, getAllTeams, getAllVehicles, getAllTasks, getEmployeeVehicle, AttendanceRecord, Employee, Team, Vehicle, exportTasksToExcel, ExportParams, getAllTickets, Ticket, updateTaskStatus, unassignVehicle } from "@/lib/server-api"
+import { getAttendanceRecords, getAllEmployees, getAllTeams, getAllVehicles, getAllTasks, getAllTaskHistory, getEmployeeVehicle, AttendanceRecord, Employee, Team, Vehicle, exportTasksToExcel, ExportParams, getAllTickets, Ticket, updateTaskStatus, unassignVehicle } from "@/lib/server-api"
 
 interface ExtendedAttendanceRecord extends AttendanceRecord {
   hasAttendance: boolean
@@ -142,10 +142,13 @@ export function TaskPage() {
   const [showAssignPage, setShowAssignPage] = React.useState(false)
   const [showVehiclePage, setShowVehiclePage] = React.useState(false)
   const [combinedData, setCombinedData] = React.useState<ExtendedAttendanceRecord[]>([])
+  const [allTasksHistory, setAllTasksHistory] = React.useState<any[]>([])
+  const [taskHistoryRecords, setTaskHistoryRecords] = React.useState<any[]>([])
   const [teams, setTeams] = React.useState<Team[]>([])
   const [vehicles, setVehicles] = React.useState<Vehicle[]>([])
   const [tickets, setTickets] = React.useState<Ticket[]>([])
   const [loading, setLoading] = React.useState(true)
+  const [historyLoading, setHistoryLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [pagination, setPagination] = React.useState({
     page: 1,
@@ -230,11 +233,14 @@ export function TaskPage() {
         const tasksResponse = await getAllTasks({ limit: 1000 })
         const allTasks = tasksResponse.success && tasksResponse.data ? tasksResponse.data.tasks : []
 
+        // Store ALL tasks for history view
+        setAllTasksHistory(allTasks)
+
         // Create combined data: all employees with their attendance status and task assignments
         const combined = employees.map(employee => {
           const attendanceRecord = records.find(record => record.employeeId === employee.employeeId)
 
-          // Get the currently IN_PROGRESS task, or the most recent one
+          // Get the currently IN_PROGRESS task, or the most recent one (for Live View only)
           const employeeTasks = allTasks.filter((task: { employeeId: string; status: string }) => task.employeeId === employee.employeeId)
           const assignedTask = employeeTasks.find((task: { status: string }) => task.status === 'IN_PROGRESS') ||
             employeeTasks.sort((a: { assignedAt: string }, b: { assignedAt: string }) => new Date(b.assignedAt).getTime() - new Date(a.assignedAt).getTime())[0]
@@ -322,9 +328,26 @@ export function TaskPage() {
     }
   }, [pagination.page, pagination.limit, filters])
 
+  const fetchTaskHistory = React.useCallback(async () => {
+    try {
+      setHistoryLoading(true)
+      
+      const historyResponse = await getAllTaskHistory({ limit: 1000 })
+      
+      if (historyResponse.success && historyResponse.data) {
+        setTaskHistoryRecords(historyResponse.data.history)
+      }
+    } catch (error) {
+      console.error('Error fetching task history:', error)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }, [])
+
   React.useEffect(() => {
     fetchAttendanceData()
-  }, [fetchAttendanceData])
+    fetchTaskHistory()
+  }, [fetchAttendanceData, fetchTaskHistory])
 
   // Reset pagination when filters change (except page)
   React.useEffect(() => {
@@ -348,6 +371,7 @@ export function TaskPage() {
 
   const handleRefresh = () => {
     fetchAttendanceData()
+    fetchTaskHistory()
   }
 
   const handleAssignTask = (employeeId: string) => {
@@ -825,8 +849,22 @@ export function TaskPage() {
             </CardContent>
           </Card>
 
-          {/* Attendance Table */}
-          <Card className="bg-white shadow-sm border-gray-200">
+          {/* Task Management Tabs */}
+          <Tabs defaultValue="live" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 max-w-md">
+              <TabsTrigger value="live" className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Live View
+              </TabsTrigger>
+              <TabsTrigger value="history" className="flex items-center gap-2">
+                <History className="h-4 w-4" />
+                History
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Live View Tab */}
+            <TabsContent value="live" className="mt-6">
+              <Card className="bg-white shadow-sm border-gray-200">
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
@@ -1155,7 +1193,7 @@ export function TaskPage() {
           {/* Footer */}
           {
             !loading && !error && combinedData.length > 0 && (
-              <div className="flex items-center justify-between text-sm text-gray-500 bg-white rounded-lg p-4 border border-gray-200">
+              <div className="flex items-center justify-between text-sm text-gray-500 bg-white rounded-lg p-4 border border-gray-200 mt-4">
                 <div>
                   Showing {combinedData.length} of {pagination.total} employees
                 </div>
@@ -1211,6 +1249,190 @@ export function TaskPage() {
               </div>
             )
           }
+            </TabsContent>
+
+            {/* History Tab */}
+            <TabsContent value="history" className="mt-6">
+              <Card className="bg-white shadow-sm border-gray-200">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <History className="h-5 w-5" />
+                    Task History - All Status Changes
+                  </CardTitle>
+                  <p className="text-sm text-gray-500">
+                    Complete audit trail showing each status change as a separate record
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  {historyLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                      <span className="ml-2 text-gray-600">Loading task history...</span>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-gray-50/80 border-b border-gray-200">
+                            <TableHead className="py-4 px-2 font-semibold text-gray-700">Employee</TableHead>
+                            <TableHead className="py-4 px-2 font-semibold text-gray-700">Task</TableHead>
+                            <TableHead className="py-4 px-2 font-semibold text-gray-700">Location</TableHead>
+                            <TableHead className="py-4 px-2 font-semibold text-gray-700">Vehicle</TableHead>
+                            <TableHead className="py-4 px-2 font-semibold text-gray-700">Status</TableHead>
+                            <TableHead className="py-4 px-2 font-semibold text-gray-700">Changed By</TableHead>
+                            <TableHead className="py-4 px-2 font-semibold text-gray-700">Changed At</TableHead>
+                            <TableHead className="py-4 px-2 font-semibold text-gray-700">Assigned By</TableHead>
+                            <TableHead className="py-4 px-2 font-semibold text-gray-700">Start Time</TableHead>
+                            <TableHead className="py-4 px-2 font-semibold text-gray-700">End Time</TableHead>
+                            <TableHead className="py-4 px-2 font-semibold text-gray-700">Related Ticket</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {taskHistoryRecords.length > 0 ? (
+                            taskHistoryRecords.map((historyRecord, index) => {
+                              const ticket = historyRecord.relatedTicketId ? getTicketInfo(historyRecord.relatedTicketId, tickets) : null
+                              
+                              // Use historical vehicle data from the task record
+                              const taskVehicle = historyRecord.vehicleId ? {
+                                id: historyRecord.vehicleNumber,
+                                model: `${historyRecord.vehicleMake} ${historyRecord.vehicleModel}${historyRecord.vehicleYear ? ` (${historyRecord.vehicleYear})` : ''}`
+                              } : null
+                              
+                              return (
+                                <TableRow
+                                  key={`${historyRecord.id}-${index}`}
+                                  className={`hover:bg-gray-50/50 border-b border-gray-100 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
+                                >
+                                  <TableCell className="py-4 px-2">
+                                    <div className="flex items-center gap-2">
+                                      <EmployeeAvatar 
+                                        photoKey={historyRecord.employeePhotoKey}
+                                        name={historyRecord.employeeName}
+                                        size="md"
+                                      />
+                                      <div>
+                                        <p className="font-medium text-gray-900">{historyRecord.employeeName}</p>
+                                        <p className="text-xs text-gray-500">{historyRecord.employeeId}</p>
+                                      </div>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-4 px-2">
+                                    <div>
+                                      <p className="font-medium text-gray-900">{historyRecord.taskTitle}</p>
+                                      <p className="text-xs text-gray-500 line-clamp-2">{historyRecord.taskDescription}</p>
+                                      {historyRecord.taskCategory && (
+                                        <Badge variant="outline" className="mt-1 text-xs">
+                                          {historyRecord.taskCategory}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-4 px-2 max-w-[150px]">
+                                    <div className="flex items-start gap-1">
+                                      <MapPin className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" />
+                                      <span className="text-sm text-gray-700 truncate" title={historyRecord.taskLocation || 'Not specified'}>
+                                        {historyRecord.taskLocation || 'Not specified'}
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-4 px-2">
+                                    {taskVehicle ? (
+                                      <div className="space-y-1">
+                                        <div className="flex items-center gap-1">
+                                          <Car className="h-4 w-4 text-green-600" />
+                                          <span className="text-sm font-semibold text-gray-900">
+                                            {taskVehicle.id}
+                                          </span>
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                          {taskVehicle.model}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center gap-1">
+                                        <Car className="h-4 w-4 text-gray-400" />
+                                        <span className="text-sm text-gray-500">
+                                          Not assigned
+                                        </span>
+                                      </div>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="py-4 px-2">
+                                    {getTaskStatusBadge(historyRecord.status)}
+                                  </TableCell>
+                                  <TableCell className="py-4 px-2">
+                                    <div>
+                                      <p className="font-medium text-gray-900">{historyRecord.changedByName || 'System'}</p>
+                                      {historyRecord.changedByEmployeeId && (
+                                        <p className="text-xs text-gray-500">{historyRecord.changedByEmployeeId}</p>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-4 px-2">
+                                    <div className="text-sm text-gray-700">
+                                      {new Date(historyRecord.changedAt).toLocaleDateString()}
+                                      <br />
+                                      <span className="text-xs text-gray-500">
+                                        {new Date(historyRecord.changedAt).toLocaleTimeString()}
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-4 px-2">
+                                    <div>
+                                      <p className="font-medium text-gray-900">{historyRecord.assignedByName || 'System'}</p>
+                                      {historyRecord.assignedByEmployeeId && (
+                                        <p className="text-xs text-gray-500">{historyRecord.assignedByEmployeeId}</p>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-4 px-2">
+                                    <span className="text-sm text-gray-700">
+                                      {historyRecord.startTime ? formatTime(historyRecord.startTime) : '-'}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="py-4 px-2">
+                                    <span className="text-sm text-gray-700">
+                                      {historyRecord.endTime ? formatTime(historyRecord.endTime) : historyRecord.startTime ? 'In Progress' : '-'}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="py-4 px-2">
+                                    {ticket ? (
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-sm font-medium text-blue-600">{ticket.ticketId}</span>
+                                        <Badge className={`text-xs ${
+                                          ticket.priority === 'HIGH' || ticket.priority === 'CRITICAL' 
+                                            ? 'bg-red-100 text-red-700' 
+                                            : ticket.priority === 'MEDIUM' 
+                                              ? 'bg-yellow-100 text-yellow-700' 
+                                              : 'bg-green-100 text-green-700'
+                                        }`}>
+                                          {ticket.priority}
+                                        </Badge>
+                                      </div>
+                                    ) : (
+                                      <span className="text-sm text-gray-500">No ticket</span>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              )
+                            })
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={11} className="py-12 text-center">
+                                <History className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                                <p className="text-gray-600 font-medium">No task history found</p>
+                                <p className="text-gray-500 text-sm">Task status changes will appear here</p>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div >
       )
       }

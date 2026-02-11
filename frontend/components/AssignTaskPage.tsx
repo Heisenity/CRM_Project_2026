@@ -236,7 +236,32 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned, 
 
     try {
       // -----------------------------
-      // 1. CREATE or UPDATE TASK
+      // 1. DETERMINE TARGET EMPLOYEE
+      // -----------------------------
+      let targetEmployeeId: string | undefined
+
+      if (assignmentType === "individual") {
+        targetEmployeeId = selectedEmployee
+      } else if (
+        assignmentType === "team" &&
+        selectedTeamData?.teamLeader
+      ) {
+        targetEmployeeId = selectedTeamData.teamLeader.employeeId
+      }
+
+      // -----------------------------
+      // 2. ASSIGN VEHICLE FIRST (CREATE MODE)
+      // -----------------------------
+      // This ensures the employee has the vehicle BEFORE task creation
+      // so the backend can capture it in task history
+      if (!isEdit && selectedVehicle !== "none" && targetEmployeeId) {
+        await assignVehicle(selectedVehicle, {
+          employeeId: targetEmployeeId,
+        })
+      }
+
+      // -----------------------------
+      // 3. CREATE or UPDATE TASK
       // -----------------------------
       let createdTaskResponse: any = null
 
@@ -284,25 +309,9 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned, 
       }
 
       // -----------------------------
-      // 2. VEHICLE ASSIGNMENT LOGIC
+      // 4. VEHICLE ASSIGNMENT LOGIC (EDIT MODE)
       // -----------------------------
-      let targetEmployeeId: string | undefined
-
-      if (assignmentType === "individual") {
-        targetEmployeeId = selectedEmployee
-      } else if (
-        assignmentType === "team" &&
-        selectedTeamData?.teamLeader
-      ) {
-        targetEmployeeId = selectedTeamData.teamLeader.employeeId
-      }
-
-      if (!targetEmployeeId) return
-
-      // -----------------------------
-      // EDIT MODE
-      // -----------------------------
-      if (isEdit) {
+      if (isEdit && targetEmployeeId) {
         // REMOVE vehicle
         if (originalVehicleId && selectedVehicle === "none") {
           await unassignVehicle(originalVehicleId)
@@ -321,15 +330,6 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned, 
             employeeId: targetEmployeeId,
           })
         }
-      }
-
-      // -----------------------------
-      // CREATE MODE (ONLY ONCE)
-      // -----------------------------
-      if (!isEdit && selectedVehicle !== "none") {
-        await assignVehicle(selectedVehicle, {
-          employeeId: targetEmployeeId,
-        })
       }
 
 

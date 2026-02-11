@@ -4,7 +4,8 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Shield, Save, User, ChevronDown } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Shield, Save, User, ChevronDown, Search, ChevronLeft, ChevronRight } from "lucide-react"
 import { getAllStaffFeatureAccess, updateStaffFeatureAccess, type StaffPortalFeature } from "@/lib/server-api"
 import { showToast } from "@/lib/toast-utils"
 import {
@@ -74,10 +75,15 @@ const FEATURE_DESCRIPTIONS: Record<StaffPortalFeature, string> = {
 
 export function StaffFeatureAccessManagement() {
   const [staffList, setStaffList] = useState<StaffFeatureData[]>([])
+  const [filteredStaffList, setFilteredStaffList] = useState<StaffFeatureData[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(10)
   const [selectedStaffId, setSelectedStaffId] = useState<string>("")
   const [selectedStaff, setSelectedStaff] = useState<StaffFeatureData | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [showOverviewTable, setShowOverviewTable] = useState(false)
   const [features, setFeatures] = useState<Record<StaffPortalFeature, boolean>>({
     DASHBOARD: false,
     PROJECT: false,
@@ -94,6 +100,28 @@ export function StaffFeatureAccessManagement() {
     TICKETS: false
   })
   const [hasChanges, setHasChanges] = useState(false)
+
+  // Filter staff list based on search query
+  useEffect(() => {
+    if (searchQuery.trim() === "") {
+      setFilteredStaffList(staffList)
+    } else {
+      const query = searchQuery.toLowerCase()
+      const filtered = staffList.filter(staff => 
+        staff.name.toLowerCase().includes(query) ||
+        staff.employeeId.toLowerCase().includes(query) ||
+        staff.email.toLowerCase().includes(query)
+      )
+      setFilteredStaffList(filtered)
+    }
+    setCurrentPage(1) // Reset to first page when search changes
+  }, [searchQuery, staffList])
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredStaffList.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedStaffList = filteredStaffList.slice(startIndex, endIndex)
 
   useEffect(() => {
     fetchStaffFeatureAccess()
@@ -253,7 +281,153 @@ export function StaffFeatureAccessManagement() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
+        <>
+          {/* Collapsible Access Overview Table */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Shield className="h-5 w-5" />
+                  Feature Access Overview
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowOverviewTable(!showOverviewTable)}
+                >
+                  {showOverviewTable ? 'Hide Table' : 'Show Table'}
+                  <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${showOverviewTable ? 'rotate-180' : ''}`} />
+                </Button>
+              </div>
+            </CardHeader>
+            
+            {showOverviewTable && (
+              <CardContent>
+                {/* Search Bar */}
+                <div className="mb-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      type="text"
+                      placeholder="Search by name, employee ID, or email..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                {filteredStaffList.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Search className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+                    <p>No staff members found matching "{searchQuery}"</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left py-3 px-4 font-semibold text-gray-700 bg-gray-50 sticky left-0 z-10">
+                              Employee
+                            </th>
+                            {AVAILABLE_FEATURES.map(feature => (
+                              <th key={feature} className="text-center py-3 px-2 font-medium text-gray-600 bg-gray-50 min-w-[100px]">
+                                <div className="flex flex-col items-center gap-1">
+                                  <span className="text-xs">{FEATURE_LABELS[feature]}</span>
+                                </div>
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paginatedStaffList.map((staff) => (
+                            <tr 
+                              key={staff.id} 
+                              className={`border-b hover:bg-gray-50 transition-colors cursor-pointer ${
+                                selectedStaffId === staff.id ? 'bg-blue-50' : ''
+                              }`}
+                              onClick={() => {
+                                setSelectedStaffId(staff.id)
+                                setShowOverviewTable(false) // Auto-hide table when selecting
+                              }}
+                            >
+                              <td className="py-3 px-4 sticky left-0 bg-white z-10">
+                                <div className="flex flex-col">
+                                  <span className="font-medium text-gray-900">{staff.name}</span>
+                                  <span className="text-xs text-gray-500">{staff.employeeId}</span>
+                                </div>
+                              </td>
+                              {AVAILABLE_FEATURES.map(feature => (
+                                <td key={feature} className="text-center py-3 px-2">
+                                  {staff.features[feature] ? (
+                                    <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-100">
+                                      <span className="text-green-600 text-sm font-bold">✓</span>
+                                    </div>
+                                  ) : (
+                                    <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100">
+                                      <span className="text-gray-400 text-sm">✗</span>
+                                    </div>
+                                  )}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                      <div className="mt-4 flex items-center justify-between">
+                        <div className="text-sm text-gray-600">
+                          Page {currentPage} of {totalPages} • Showing {startIndex + 1}-{Math.min(endIndex, filteredStaffList.length)} of {filteredStaffList.length}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                            Previous
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                          >
+                            Next
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                <div className="mt-4 flex items-center gap-4 text-xs text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+                      <span className="text-green-600 font-bold">✓</span>
+                    </div>
+                    <span>Access Granted</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
+                      <span className="text-gray-400">✗</span>
+                    </div>
+                    <span>Access Denied</span>
+                  </div>
+                </div>
+              </CardContent>
+            )}
+          </Card>
+
+          {/* Existing Edit Section */}
+          <Card>
           <CardHeader>
             <CardTitle className="text-lg">Select Staff Member</CardTitle>
           </CardHeader>
@@ -268,14 +442,30 @@ export function StaffFeatureAccessManagement() {
                   <SelectValue placeholder="Choose an employee..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {staffList.map(staff => (
-                    <SelectItem key={staff.id} value={staff.id}>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{staff.name}</span>
-                        <span className="text-gray-500">({staff.employeeId})</span>
-                      </div>
-                    </SelectItem>
-                  ))}
+                  <div className="px-2 pb-2">
+                    <Input
+                      type="text"
+                      placeholder="Search employees..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="h-8"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                  {filteredStaffList.length === 0 ? (
+                    <div className="px-2 py-4 text-center text-sm text-gray-500">
+                      No employees found
+                    </div>
+                  ) : (
+                    filteredStaffList.map(staff => (
+                      <SelectItem key={staff.id} value={staff.id}>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{staff.name}</span>
+                          <span className="text-gray-500">({staff.employeeId})</span>
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -391,11 +581,12 @@ export function StaffFeatureAccessManagement() {
             {!selectedStaff && (
               <div className="text-center py-8 text-gray-500">
                 <ChevronDown className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                <p>Select an employee from the dropdown above</p>
+                <p>Select an employee from the dropdown above to manage their permissions</p>
               </div>
             )}
           </CardContent>
         </Card>
+        </>
       )}
     </div>
   )

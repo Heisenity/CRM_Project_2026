@@ -9,16 +9,18 @@ class AuthController {
 
       console.log('Login attempt:', { email, employeeId, adminId, userType })
 
-      if (!email || !password || !userType) {
-        return res.status(400).json({ error: 'Missing required fields' })
+      if (!password || !userType) {
+        return res.status(400).json({ error: 'Password and user type are required' })
       }
 
       if (userType?.toLowerCase() === 'employee' && !employeeId) {
         return res.status(400).json({ error: 'Employee ID is required for employee login' })
       }
 
-      if (userType?.toLowerCase() === 'admin' && !adminId) {
-        return res.status(400).json({ error: 'Admin ID is required for admin login' })
+      if (userType?.toLowerCase() === 'admin') {
+        if (!adminId || !email) {
+          return res.status(400).json({ error: 'Admin ID and email are required for admin login' })
+        }
       }
 
       // Get device info and IP
@@ -119,8 +121,8 @@ class AuthController {
     try {
       const { name, employeeId, email, password, phone, teamId } = req.body
 
-      if (!name || !employeeId || !email || !password) {
-        return res.status(400).json({ error: 'Name, employee ID, email, and password are required' })
+      if (!name || !employeeId || !password) {
+        return res.status(400).json({ error: 'Name, employee ID, and password are required' })
       }
 
       const user = await authService.registerEmployee(name, employeeId, email, password, phone, teamId)

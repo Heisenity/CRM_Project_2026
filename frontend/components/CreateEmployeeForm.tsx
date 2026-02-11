@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -29,6 +29,12 @@ export default function CreateEmployeeForm({ onEmployeeCreated }: CreateEmployee
     const [loading, setLoading] = useState(false)
     const [teams, setTeams] = useState<Team[]>([])
     const [nextEmployeeId, setNextEmployeeId] = useState('')
+    const [availablePrefixes, setAvailablePrefixes] = useState<Array<{ prefix: string; description: string | null; roleType: 'FIELD_ENGINEER' | 'IN_OFFICE' }>>([])
+    const [selectedPrefix, setSelectedPrefix] = useState('')
+    const [customEmployeeId, setCustomEmployeeId] = useState('')
+    const [useCustomId, setUseCustomId] = useState(false)
+    const [lastFetchedPrefix, setLastFetchedPrefix] = useState('')
+    const fetchingRef = useRef(false)
 
     const [formData, setFormData] = useState({
         name: '',
@@ -47,7 +53,7 @@ export default function CreateEmployeeForm({ onEmployeeCreated }: CreateEmployee
         casualLeaveBalance: '12'
     })
 
-    // Fetch teams
+    // Fetch teams and prefixes
     useEffect(() => {
         const fetchTeams = async () => {
             try {
@@ -62,11 +68,101 @@ export default function CreateEmployeeForm({ onEmployeeCreated }: CreateEmployee
             }
         }
 
+        const fetchPrefixes = async () => {
+            try {
+                const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees/prefixes`)
+                const result = await response.json()
+
+                if (result.success) {
+                    setAvailablePrefixes(result.data || [])
+                    // Set first available prefix as default if exists
+                    if (result.data && result.data.length > 0) {
+                        setSelectedPrefix(result.data[0].prefix)
+                        // Auto-set role based on prefix
+                        setFormData(prev => ({
+                            ...prev,
+                            role: result.data[0].roleType
+                        }))
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching prefixes:', error)
+            }
+        }
+
         if (isOpen) {
             fetchTeams()
-            fetchNextEmployeeId()
+            fetchPrefixes()
         }
-    }, [isOpen, formData.role])
+    }, [isOpen])
+
+    // Fetch next employee ID when prefix changes or dialog opens
+    useEffect(() => {
+        // Only fetch if:
+        // 1. Dialog is open
+        // 2. Not using custom ID
+        // 3. Prefix is selected
+        // 4. Haven't already fetched for this prefix
+        if (isOpen && selectedPrefix && !useCustomId && selectedPrefix !== lastFetchedPrefix) {
+            fetchNextEmployeeIdForPrefix(selectedPrefix)
+            setLastFetchedPrefix(selectedPrefix)
+            
+            // Auto-set role based on prefix
+            const prefixConfig = availablePrefixes.find(p => p.prefix === selectedPrefix)
+            if (prefixConfig) {
+                setFormData(prev => ({
+                    ...prev,
+                    role: prefixConfig.roleType
+                }))
+            }
+        }
+        
+        // Reset when dialog closes
+        if (!isOpen) {
+            setLastFetchedPrefix('')
+        }
+    }, [selectedPrefix, isOpen, useCustomId, availablePrefixes])
+
+    // Fetch next employee ID for selected prefix (preview only, doesn't increment)
+    const fetchNextEmployeeIdForPrefix = async (prefix: string) => {
+        // Prevent multiple simultaneous fetches
+        if (fetchingRef.current) {
+            console.log('Already fetching, skipping...')
+            return
+        }
+        
+        fetchingRef.current = true
+        
+        try {
+            console.log(`Fetching preview for prefix: ${prefix}`)
+            // Use the preview endpoint that doesn't increment the sequence
+            const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees/prefixes/${prefix}/preview`)
+            const result = await response.json()
+
+            if (result.success && result.data?.nextId) {
+                console.log(`Preview ID received: ${result.data.nextId}`)
+                setNextEmployeeId(result.data.nextId)
+            }
+        } catch (error) {
+            console.error('Error fetching next employee ID:', error)
+            // Fallback: construct the preview ID from prefix config
+            try {
+                const configResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees/prefixes`)
+                const configResult = await configResponse.json()
+                
+                if (configResult.success) {
+                    const prefixConfig = configResult.data.find((p: any) => p.prefix === prefix)
+                    if (prefixConfig) {
+                        setNextEmployeeId(`${prefix}${prefixConfig.nextSequence.toString().padStart(3, '0')}`)
+                    }
+                }
+            } catch (fallbackError) {
+                console.error('Fallback error:', fallbackError)
+            }
+        } finally {
+            fetchingRef.current = false
+        }
+    }
 
     // Fetch next employee ID
     const fetchNextEmployeeId = async () => {
@@ -87,11 +183,6 @@ export default function CreateEmployeeForm({ onEmployeeCreated }: CreateEmployee
             ...prev,
             [field]: value
         }))
-
-        // Fetch new employee ID when role changes
-        if (field === 'role') {
-            fetchNextEmployeeId()
-        }
     }
 
     const validateForm = () => {
@@ -99,15 +190,6 @@ export default function CreateEmployeeForm({ onEmployeeCreated }: CreateEmployee
             toast({
                 title: "Validation Error",
                 description: "Name is required",
-                variant: "destructive"
-            })
-            return false
-        }
-
-        if (!formData.email.trim()) {
-            toast({
-                title: "Validation Error",
-                description: "Email is required",
                 variant: "destructive"
             })
             return false
@@ -162,6 +244,40 @@ export default function CreateEmployeeForm({ onEmployeeCreated }: CreateEmployee
 
         setLoading(true)
         try {
+            // Determine which employee ID to use
+            let employeeIdToUse = useCustomId ? customEmployeeId : nextEmployeeId
+
+            // If no employee ID is set or if we're using prefix selector, generate one now
+            if (!employeeIdToUse || (!useCustomId && selectedPrefix)) {
+                console.log('Generating employee ID with prefix:', selectedPrefix)
+                // Generate the actual ID (this will increment the sequence)
+                const genResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees/generate-id`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ prefix: selectedPrefix })
+                })
+                
+                const genResult = await genResponse.json()
+                console.log('Generated employee ID result:', genResult)
+                
+                if (genResult.success && genResult.data?.employeeId) {
+                    employeeIdToUse = genResult.data.employeeId
+                    console.log('Using generated employee ID:', employeeIdToUse)
+                } else {
+                    toast({
+                        title: "Error",
+                        description: "Failed to generate employee ID",
+                        variant: "destructive"
+                    })
+                    setLoading(false)
+                    return
+                }
+            }
+
+            console.log('Creating employee with ID:', employeeIdToUse)
+
             const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees`, {
                 method: 'POST',
                 headers: {
@@ -169,6 +285,7 @@ export default function CreateEmployeeForm({ onEmployeeCreated }: CreateEmployee
                 },
                 body: JSON.stringify({
                     ...formData,
+                    employeeId: employeeIdToUse, // Include the employee ID
                     salary: formData.salary ? parseFloat(formData.salary) : null,
                     teamId: formData.teamId === 'none' ? null : formData.teamId || null,
                     sickLeaveBalance: parseInt(formData.sickLeaveBalance),
@@ -181,7 +298,7 @@ export default function CreateEmployeeForm({ onEmployeeCreated }: CreateEmployee
             if (result.success) {
                 toast({
                     title: "Success",
-                    description: "Employee created successfully"
+                    description: `Employee created successfully with ID: ${employeeIdToUse}`
                 })
 
                 // Reset form
@@ -201,6 +318,12 @@ export default function CreateEmployeeForm({ onEmployeeCreated }: CreateEmployee
                     sickLeaveBalance: '12',
                     casualLeaveBalance: '12'
                 })
+                
+                // Reset employee ID state
+                setNextEmployeeId('')
+                setCustomEmployeeId('')
+                setUseCustomId(false)
+                setLastFetchedPrefix('')
 
                 setIsOpen(false)
                 onEmployeeCreated()
@@ -261,14 +384,13 @@ export default function CreateEmployeeForm({ onEmployeeCreated }: CreateEmployee
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="email">Email Address *</Label>
+                                    <Label htmlFor="email">Email Address</Label>
                                     <Input
                                         id="email"
                                         type="email"
                                         value={formData.email}
                                         onChange={(e) => handleInputChange('email', e.target.value)}
-                                        placeholder="Enter email address"
-                                        required
+                                        placeholder="Enter email address (optional)"
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -307,7 +429,7 @@ export default function CreateEmployeeForm({ onEmployeeCreated }: CreateEmployee
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="role">Employee Role *</Label>
-                                    <Select value={formData.role} onValueChange={(value: string) => handleInputChange('role', value)}>
+                                    <Select value={formData.role} onValueChange={(value: string) => handleInputChange('role', value)} disabled={!useCustomId}>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Select role" />
                                         </SelectTrigger>
@@ -316,9 +438,63 @@ export default function CreateEmployeeForm({ onEmployeeCreated }: CreateEmployee
                                             <SelectItem value="IN_OFFICE">In-Office Staff</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    {nextEmployeeId && (
+                                    {!useCustomId && (
+                                        <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+                                            ℹ️ Role is automatically set based on the selected prefix
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                <div className="space-y-2">
+                                    <Label htmlFor="prefix">Employee ID Prefix *</Label>
+                                    <Select value={selectedPrefix} onValueChange={setSelectedPrefix}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select prefix" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {availablePrefixes.map((p) => (
+                                                <SelectItem key={p.prefix} value={p.prefix}>
+                                                    {p.prefix} {p.description && `- ${p.description}`}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {!useCustomId && nextEmployeeId && (
                                         <div className="text-sm text-muted-foreground">
-                                            Next Employee ID: <Badge variant="outline" className="font-mono">{nextEmployeeId}</Badge>
+                                            Next ID: <Badge variant="outline" className="font-mono">{nextEmployeeId}</Badge>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="space-y-2 md:col-span-2">
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            id="useCustomId"
+                                            checked={useCustomId}
+                                            onChange={(e) => setUseCustomId(e.target.checked)}
+                                            className="h-4 w-4"
+                                        />
+                                        <Label htmlFor="useCustomId" className="cursor-pointer">
+                                            Enter custom Employee ID
+                                        </Label>
+                                    </div>
+                                    {useCustomId && (
+                                        <div className="space-y-2">
+                                            <Input
+                                                value={customEmployeeId}
+                                                onChange={(e) => setCustomEmployeeId(e.target.value.toUpperCase())}
+                                                placeholder="e.g., INS001, DEV001, HR001"
+                                                className="font-mono"
+                                            />
+                                            <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+                                                💡 Tip: Type any new prefix (like INS001) and it will be automatically saved for future use!
+                                            </div>
+                                        </div>
+                                    )}
+                                    {!useCustomId && availablePrefixes.length === 0 && (
+                                        <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
+                                            ℹ️ No prefixes found. Check "Enter custom Employee ID" to create your first one!
                                         </div>
                                     )}
                                 </div>

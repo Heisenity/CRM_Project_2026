@@ -423,18 +423,15 @@ export async function getNextAvailableEmployeeIds(count: number = 5): Promise<Ge
 }
 
 export async function validateEmployeeIdFormat(employeeId: string): Promise<ValidateEmployeeIdResponse> {
-  // Client-side validation for role-based IDs
-  const patterns = {
-    FIELD_ENGINEER: /^FE\d{3}$/,
-    IN_OFFICE: /^IO\d{3}$/,
-    LEGACY: /^EMP\d{3}$/
-  }
+  // Client-side validation for custom prefix format
+  // Format: 2-5 uppercase letters followed by 3 digits (e.g., DEV001, HR001, FE001)
+  const customPattern = /^[A-Z]{2,5}\d{3}$/
   
-  const isValid = Object.values(patterns).some(pattern => pattern.test(employeeId))
+  const isValid = customPattern.test(employeeId)
   
   return {
     success: true,
-    message: isValid ? 'Valid format' : 'Invalid format',
+    message: isValid ? 'Valid format' : 'Invalid format. Use format like DEV001, HR001, FE001',
     data: { employeeId, valid: isValid }
   }
 }
@@ -793,6 +790,144 @@ export async function getNextEmployeeId(role: 'FIELD_ENGINEER' | 'IN_OFFICE' = '
     return response
   } catch (error) {
     console.error('getNextEmployeeId error:', error)
+    throw error
+  }
+}
+
+// Employee ID Prefix Management
+export type EmployeeIdPrefix = {
+  prefix: string
+  description: string | null
+  nextSequence: number
+  roleType: 'FIELD_ENGINEER' | 'IN_OFFICE'
+}
+
+export async function getAvailablePrefixes(): Promise<{ success: boolean; data: EmployeeIdPrefix[] }> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees/prefixes`, {
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+
+    if (!res.ok) {
+      throw new Error(response.error || `Failed to get prefixes: ${res.status}`)
+    }
+
+    return response
+  } catch (error) {
+    console.error('getAvailablePrefixes error:', error)
+    throw error
+  }
+}
+
+export async function addCustomPrefix(prefix: string, description?: string, roleType?: 'FIELD_ENGINEER' | 'IN_OFFICE'): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees/prefixes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ prefix, description, roleType: roleType || 'IN_OFFICE' }),
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+
+    if (!res.ok) {
+      throw new Error(response.error || `Failed to add prefix: ${res.status}`)
+    }
+
+    return response
+  } catch (error) {
+    console.error('addCustomPrefix error:', error)
+    throw error
+  }
+}
+
+export async function updatePrefix(prefix: string, description: string, isActive: boolean, roleType?: 'FIELD_ENGINEER' | 'IN_OFFICE'): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees/prefixes/${prefix}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ description, isActive, roleType }),
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+
+    if (!res.ok) {
+      throw new Error(response.error || `Failed to update prefix: ${res.status}`)
+    }
+
+    return response
+  } catch (error) {
+    console.error('updatePrefix error:', error)
+    throw error
+  }
+}
+
+export async function deletePrefix(prefix: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees/prefixes/${prefix}`, {
+      method: 'DELETE',
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+
+    if (!res.ok) {
+      throw new Error(response.error || `Failed to delete prefix: ${res.status}`)
+    }
+
+    return response
+  } catch (error) {
+    console.error('deletePrefix error:', error)
+    throw error
+  }
+}
+
+export async function getNextAvailableIds(prefix: string, count: number = 5): Promise<{ success: boolean; data: string[] }> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees/next-available-ids?prefix=${prefix}&count=${count}`, {
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+
+    if (!res.ok) {
+      throw new Error(response.error || `Failed to get next available IDs: ${res.status}`)
+    }
+
+    return response
+  } catch (error) {
+    console.error('getNextAvailableIds error:', error)
+    throw error
+  }
+}
+
+export async function generateEmployeeIdWithPrefix(prefix: string): Promise<{ success: boolean; data: { employeeId: string; prefix: string } }> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees/generate-id`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ prefix }),
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+
+    if (!res.ok) {
+      throw new Error(response.error || `Failed to generate employee ID: ${res.status}`)
+    }
+
+    return response
+  } catch (error) {
+    console.error('generateEmployeeIdWithPrefix error:', error)
     throw error
   }
 }
@@ -1190,6 +1325,35 @@ export async function getAllTasks(params?: {
     return response
   } catch (error) {
     console.error('getAllTasks error:', error)
+    throw error
+  }
+}
+
+export async function getAllTaskHistory(params?: {
+  page?: number
+  limit?: number
+}): Promise<any> {
+  try {
+    const searchParams = new URLSearchParams()
+    if (params?.page) searchParams.append('page', params.page.toString())
+    if (params?.limit) searchParams.append('limit', params.limit.toString())
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/tasks/history?${searchParams}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    const response: any = await res.json()
+    
+    if (!res.ok) {
+      throw new Error(response.error || 'Failed to get task history')
+    }
+
+    return response
+  } catch (error) {
+    console.error('getAllTaskHistory error:', error)
     throw error
   }
 }
@@ -2612,7 +2776,12 @@ export type GetDatabaseStatsResponse = {
 
 export async function getDatabaseStats(): Promise<GetDatabaseStatsResponse> {
   try {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+    
     const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/database/stats`, {
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : ''
+      },
       cache: 'no-store'
     })
 

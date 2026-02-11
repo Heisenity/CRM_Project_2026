@@ -66,6 +66,8 @@ export function VehiclesPage() {
   const [activeTab, setActiveTab] = React.useState<'vehicles' | 'bills'>('vehicles')
   const [showAddVehicle, setShowAddVehicle] = React.useState(false)
   const [submitting, setSubmitting] = React.useState(false)
+  const [selectedBill, setSelectedBill] = React.useState<PetrolBill | null>(null)
+  const [showBillDialog, setShowBillDialog] = React.useState(false)
   const [vehicleForm, setVehicleForm] = React.useState({
     vehicleNumber: "",
     make: "",
@@ -198,6 +200,36 @@ export function VehiclesPage() {
         }
       },
       'Unassign Vehicle'
+    )
+  }
+
+  const handleViewBill = (bill: PetrolBill) => {
+    setSelectedBill(bill)
+    setShowBillDialog(true)
+  }
+
+  const handleApproveBill = async (billId: string, status: 'APPROVED' | 'REJECTED') => {
+    const action = status === 'APPROVED' ? 'approve' : 'reject'
+    showConfirm(
+      `Are you sure you want to ${action} this petrol bill?`,
+      async () => {
+        try {
+          const { approvePetrolBill } = await import('@/lib/server-api')
+          const response = await approvePetrolBill(billId, { status })
+          
+          if (response.success) {
+            await fetchData()
+            showToast.success(`Petrol bill ${action}d successfully!`)
+            setShowBillDialog(false)
+          } else {
+            showToast.error(response.error || `Failed to ${action} petrol bill`)
+          }
+        } catch (error) {
+          console.error(`Error ${action}ing petrol bill:`, error)
+          showToast.error(`Failed to ${action} petrol bill: ` + (error instanceof Error ? error.message : 'Unknown error'))
+        }
+      },
+      `${status === 'APPROVED' ? 'Approve' : 'Reject'} Petrol Bill`
     )
   }
 
@@ -511,48 +543,154 @@ export function VehiclesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredBills.map((bill) => (
-                    <TableRow key={bill.id}>
-                      <TableCell>
-                        <div className="font-medium">{bill.vehicleNumber}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{bill.employeeName}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">₹{bill.amount.toFixed(2)}</div>
-                      </TableCell>
-                      <TableCell>
-                        {new Date(bill.date).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        {getBillStatusBadge(bill.status)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="sm">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {userType === 'ADMIN' && bill.status === 'PENDING' && (
-                            <>
-                              <Button variant="ghost" size="sm" className="text-green-600">
-                                Approve
-                              </Button>
-                              <Button variant="ghost" size="sm" className="text-red-600">
-                                Reject
-                              </Button>
-                            </>
-                          )}
-                        </div>
+                  {filteredBills.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                        No petrol bills found
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    filteredBills.map((bill) => (
+                      <TableRow key={bill.id}>
+                        <TableCell>
+                          <div className="font-medium">{bill.vehicleNumber}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{bill.employeeName}</div>
+                            <div className="text-sm text-gray-500">{bill.employeeId}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">₹{Number(bill.amount).toFixed(2)}</div>
+                        </TableCell>
+                        <TableCell>
+                          {new Date(bill.date).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          {getBillStatusBadge(bill.status)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleViewBill(bill)}
+                              title="View details"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            {userType === 'ADMIN' && bill.status === 'PENDING' && (
+                              <>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                  onClick={() => handleApproveBill(bill.id, 'APPROVED')}
+                                  title="Approve"
+                                >
+                                  Approve
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  onClick={() => handleApproveBill(bill.id, 'REJECTED')}
+                                  title="Reject"
+                                >
+                                  Reject
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
           )}
         </div>
       </div>
+
+      {/* Bill View Dialog */}
+      <Dialog open={showBillDialog} onOpenChange={setShowBillDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Petrol Bill Details</DialogTitle>
+          </DialogHeader>
+          {selectedBill && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-gray-500">Vehicle</Label>
+                  <p className="font-medium">{selectedBill.vehicleNumber}</p>
+                </div>
+                <div>
+                  <Label className="text-gray-500">Employee</Label>
+                  <p className="font-medium">{selectedBill.employeeName}</p>
+                  <p className="text-sm text-gray-500">{selectedBill.employeeId}</p>
+                </div>
+                <div>
+                  <Label className="text-gray-500">Amount</Label>
+                  <p className="font-medium text-lg">₹{Number(selectedBill.amount).toFixed(2)}</p>
+                </div>
+                <div>
+                  <Label className="text-gray-500">Date</Label>
+                  <p className="font-medium">{new Date(selectedBill.date).toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <Label className="text-gray-500">Status</Label>
+                  <div className="mt-1">{getBillStatusBadge(selectedBill.status)}</div>
+                </div>
+                <div>
+                  <Label className="text-gray-500">Submitted On</Label>
+                  <p className="font-medium">{new Date(selectedBill.createdAt).toLocaleDateString()}</p>
+                </div>
+              </div>
+
+              {selectedBill.description && (
+                <div>
+                  <Label className="text-gray-500">Description</Label>
+                  <p className="mt-1 text-sm bg-gray-50 p-3 rounded">{selectedBill.description}</p>
+                </div>
+              )}
+
+              {selectedBill.imageUrl && (
+                <div>
+                  <Label className="text-gray-500">Bill Image</Label>
+                  <div className="mt-2 border rounded-lg overflow-hidden">
+                    <img 
+                      src={selectedBill.imageUrl} 
+                      alt="Petrol bill" 
+                      className="w-full max-h-96 object-contain bg-gray-50"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {userType === 'ADMIN' && selectedBill.status === 'PENDING' && (
+                <div className="flex gap-2 pt-4 border-t">
+                  <Button 
+                    className="flex-1 bg-green-600 hover:bg-green-700"
+                    onClick={() => handleApproveBill(selectedBill.id, 'APPROVED')}
+                  >
+                    Approve Bill
+                  </Button>
+                  <Button 
+                    variant="destructive"
+                    className="flex-1"
+                    onClick={() => handleApproveBill(selectedBill.id, 'REJECTED')}
+                  >
+                    Reject Bill
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

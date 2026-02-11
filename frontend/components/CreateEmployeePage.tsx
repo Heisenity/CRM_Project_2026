@@ -39,8 +39,15 @@ export default function CreateEmployeePage() {
         address: '',
         aadharCard: '',
         panCard: '',
+        uanNumber: '',
+        esiNumber: '',
+        bankAccountNumber: '',
         photo: null as File | null
     })
+
+    const [availablePrefixes, setAvailablePrefixes] = useState<Array<{ prefix: string; description: string | null; roleType: 'FIELD_ENGINEER' | 'IN_OFFICE'; nextSequence: number }>>([])
+    const [selectedPrefix, setSelectedPrefix] = useState('')
+    const [useCustomId, setUseCustomId] = useState(false)
 
     // store an object URL for preview and clean it up
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -54,25 +61,61 @@ export default function CreateEmployeePage() {
         }
     }, [formData.photo]);
 
-    // Auto-generate employee ID when role changes
+    // Fetch available prefixes on mount
     useEffect(() => {
-        if (formData.role && !formData.employeeId) {
-            // Auto-generate ID when role is selected and no ID exists
-            const generateId = async () => {
+        const fetchPrefixes = async () => {
+            try {
+                const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees/prefixes`)
+                const result = await response.json()
+
+                if (result.success && result.data) {
+                    setAvailablePrefixes(result.data)
+                    // Set first prefix as default
+                    if (result.data.length > 0) {
+                        setSelectedPrefix(result.data[0].prefix)
+                        // Auto-set role based on prefix
+                        setFormData(prev => ({
+                            ...prev,
+                            role: result.data[0].roleType
+                        }))
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching prefixes:', error)
+            }
+        }
+        fetchPrefixes()
+    }, [])
+
+    // Update employee ID preview when prefix changes
+    useEffect(() => {
+        if (selectedPrefix && !useCustomId) {
+            const fetchPreview = async () => {
                 try {
-                    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees/next-id?role=${formData.role}`)
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees/prefixes/${selectedPrefix}/preview`)
                     const result = await response.json()
 
-                    if (result.success) {
-                        setFormData(prev => ({ ...prev, employeeId: result.data.nextEmployeeId }))
+                    if (result.success && result.data?.nextId) {
+                        setFormData(prev => ({ ...prev, employeeId: result.data.nextId }))
                     }
                 } catch (error) {
-                    console.error('Error generating employee ID:', error)
+                    console.error('Error fetching preview:', error)
                 }
             }
-            generateId()
+            fetchPreview()
+            
+            // Auto-set role based on prefix
+            const prefixConfig = availablePrefixes.find(p => p.prefix === selectedPrefix)
+            if (prefixConfig) {
+                setFormData(prev => ({
+                    ...prev,
+                    role: prefixConfig.roleType
+                }))
+            }
         }
-    }, [formData.role])
+    }, [selectedPrefix, useCustomId, availablePrefixes])
+
+    // Removed legacy auto-generation - now only uses prefix-based system
 
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -84,10 +127,6 @@ export default function CreateEmployeePage() {
         }
         if (!formData.employeeName.trim()) {
             setError('Employee name is required');
-            return;
-        }
-        if (!formData.email.trim()) {
-            setError('Email is required');
             return;
         }
         if (!formData.password.trim()) {
@@ -126,7 +165,7 @@ export default function CreateEmployeePage() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         name: formData.employeeName.trim(),
-                        email: formData.email.trim(),
+                        email: formData.email.trim() || null,
                         password: formData.password.trim(),
                         phone: formData.phone.trim() || undefined,
                         designation: formData.designation.trim(),
@@ -138,7 +177,11 @@ export default function CreateEmployeePage() {
                         address: formData.address.trim() || undefined,
                         aadharCard: formData.aadharCard.trim() || undefined,
                         panCard: formData.panCard.trim() || undefined,
-                        photoKey, 
+                        uanNumber: formData.uanNumber.trim() || undefined,
+                        esiNumber: formData.esiNumber.trim() || undefined,
+                        bankAccountNumber: formData.bankAccountNumber.trim() || undefined,
+                        photoKey,
+                        employeeId: formData.employeeId.trim(), // ✅ FIXED: Include employeeId
                     }),
                 }
             );
@@ -294,28 +337,90 @@ export default function CreateEmployeePage() {
                                                     value={formData.role}
                                                     onChange={(e) => {
                                                         const newRole = e.target.value as 'FIELD_ENGINEER' | 'IN_OFFICE'
-                                                        setFormData(prev => ({ ...prev, role: newRole, employeeId: '' }))
+                                                        setFormData(prev => ({ ...prev, role: newRole }))
                                                     }}
-                                                    className="w-full p-3 border border-green-300 rounded-md focus:border-green-500 focus:ring-green-500 bg-white text-sm font-medium text-green-900"
+                                                    disabled={!useCustomId}
+                                                    className="w-full p-3 border border-green-300 rounded-md focus:border-green-500 focus:ring-green-500 bg-white text-sm font-medium text-green-900 disabled:bg-gray-100 disabled:cursor-not-allowed"
                                                 >
                                                     <option value="FIELD_ENGINEER">Field Engineer</option>
                                                     <option value="IN_OFFICE">Office Employee</option>
                                                 </select>
-                                                <div className="text-xs text-green-600">
-                                                    Select the employee's role and department
-                                                </div>
+                                                {!useCustomId && (
+                                                    <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+                                                        ℹ️ Role is automatically set based on the selected prefix
+                                                    </div>
+                                                )}
+                                                {useCustomId && (
+                                                    <div className="text-xs text-green-600">
+                                                        Select the employee's role and department
+                                                    </div>
+                                                )}
                                             </div>
 
                                             <div className="space-y-2">
                                                 <Label className="text-sm font-medium text-green-800">
                                                     Employee ID <span className="text-red-500">*</span>
                                                 </Label>
-                                                <EmployeeIdGenerator
-                                                    value={formData.employeeId}
-                                                    onChange={(value) => setFormData(prev => ({ ...prev, employeeId: value }))}
-                                                    disabled={loading}
-                                                    role={formData.role}
-                                                />
+                                                
+                                                {!useCustomId && (
+                                                    <div className="space-y-2">
+                                                        <select
+                                                            value={selectedPrefix}
+                                                            onChange={(e) => setSelectedPrefix(e.target.value)}
+                                                            className="w-full p-3 border border-green-300 rounded-md focus:border-green-500 focus:ring-green-500 bg-white text-sm font-medium text-green-900"
+                                                        >
+                                                            {availablePrefixes.map((p) => (
+                                                                <option key={p.prefix} value={p.prefix}>
+                                                                    {p.prefix} {p.description && `- ${p.description}`}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        {formData.employeeId && (
+                                                            <div className="text-sm text-green-700 bg-green-50 p-2 rounded">
+                                                                Next ID: <span className="font-mono font-semibold">{formData.employeeId}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                                
+                                                {useCustomId && (
+                                                    <Input
+                                                        value={formData.employeeId}
+                                                        onChange={(e) => setFormData(prev => ({ ...prev, employeeId: e.target.value.toUpperCase() }))}
+                                                        placeholder="e.g., DEV001, HR001, INSIT001"
+                                                        className="font-mono"
+                                                    />
+                                                )}
+                                                
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="checkbox"
+                                                        id="useCustomId"
+                                                        checked={useCustomId}
+                                                        onChange={(e) => {
+                                                            setUseCustomId(e.target.checked)
+                                                            if (!e.target.checked && selectedPrefix) {
+                                                                // Reset to prefix-based ID
+                                                                const prefixConfig = availablePrefixes.find(p => p.prefix === selectedPrefix)
+                                                                if (prefixConfig) {
+                                                                    setFormData(prev => ({
+                                                                        ...prev,
+                                                                        employeeId: `${selectedPrefix}${prefixConfig.nextSequence.toString().padStart(3, '0')}`,
+                                                                        role: prefixConfig.roleType
+                                                                    }))
+                                                                }
+                                                            }
+                                                        }}
+                                                        className="h-4 w-4"
+                                                    />
+                                                    <label htmlFor="useCustomId" className="text-xs text-gray-600 cursor-pointer">
+                                                        Enter custom Employee ID
+                                                    </label>
+                                                </div>
+                                                
+                                                <div className="text-xs text-gray-500">
+                                                    Format: [PREFIX][3-digits] (e.g., DEV001, HR001, FIELD001)
+                                                </div>
                                             </div>
                                         </div>
 
@@ -335,13 +440,13 @@ export default function CreateEmployeePage() {
 
                                             <div className="space-y-2">
                                                 <Label className="text-sm font-medium text-green-800">
-                                                    Email <span className="text-red-500">*</span>
+                                                    Email
                                                 </Label>
                                                 <Input
                                                     type="email"
                                                     value={formData.email}
                                                     onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                                                    placeholder="employee@company.com"
+                                                    placeholder="employee@company.com (optional)"
                                                     className="border-green-300 focus:border-green-500 focus:ring-green-500"
                                                 />
                                             </div>
@@ -510,6 +615,54 @@ export default function CreateEmployeePage() {
                                             </div>
                                         </div>
 
+                                        {/* Financial Information */}
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div className="space-y-2">
+                                                <Label className="text-sm font-medium text-green-800">
+                                                    UAN Number
+                                                </Label>
+                                                <Input
+                                                    value={formData.uanNumber}
+                                                    onChange={(e) => setFormData(prev => ({ ...prev, uanNumber: e.target.value }))}
+                                                    placeholder="Enter UAN number"
+                                                    className="border-green-300 focus:border-green-500 focus:ring-green-500 font-mono"
+                                                />
+                                                <div className="text-xs text-green-600">
+                                                    Universal Account Number (PF)
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label className="text-sm font-medium text-green-800">
+                                                    ESI Number
+                                                </Label>
+                                                <Input
+                                                    value={formData.esiNumber}
+                                                    onChange={(e) => setFormData(prev => ({ ...prev, esiNumber: e.target.value }))}
+                                                    placeholder="Enter ESI number"
+                                                    className="border-green-300 focus:border-green-500 focus:ring-green-500 font-mono"
+                                                />
+                                                <div className="text-xs text-green-600">
+                                                    Employee State Insurance
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label className="text-sm font-medium text-green-800">
+                                                    Bank Account Number
+                                                </Label>
+                                                <Input
+                                                    value={formData.bankAccountNumber}
+                                                    onChange={(e) => setFormData(prev => ({ ...prev, bankAccountNumber: e.target.value }))}
+                                                    placeholder="Enter bank account"
+                                                    className="border-green-300 focus:border-green-500 focus:ring-green-500 font-mono"
+                                                />
+                                                <div className="text-xs text-green-600">
+                                                    For salary payments
+                                                </div>
+                                            </div>
+                                        </div>
+
                                     </CardContent>
                                 </Card>
 
@@ -527,7 +680,7 @@ export default function CreateEmployeePage() {
                                     </Button>
                                     <Button
                                         type="submit"
-                                        disabled={loading || !formData.employeeId.trim() || !formData.employeeName.trim() || !formData.email.trim() || !formData.password.trim() || !formData.phone.trim()}
+                                        disabled={loading || !formData.employeeId.trim() || !formData.employeeName.trim() || !formData.password.trim() || !formData.phone.trim()}
                                         className="flex-1 h-14 text-base bg-blue-600 hover:bg-blue-700 disabled:opacity-50 font-medium shadow-sm"
                                     >
                                         {loading ? (
@@ -652,7 +805,7 @@ export default function CreateEmployeePage() {
                                                 </div>
                                                 <div>
                                                     <p className="text-sm font-medium text-blue-900">Login Credentials</p>
-                                                    <p className="text-xs text-blue-700 mt-1">Employee can login with email and password</p>
+                                                    <p className="text-xs text-blue-700 mt-1">Employee can login with Employee ID and password</p>
                                                 </div>
                                             </div>
                                         </div>

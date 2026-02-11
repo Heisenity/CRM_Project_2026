@@ -18,6 +18,7 @@ import productRoutes from '../modules/products/product.route';
 import inventoryRoutes from '../modules/Inventory/inventory.route';
 import meetingRoutes from '../modules/meetings/meeting.route';
 import calendlyRoutes from '../modules/meetings/calendly.route';
+import petrolBillRoutes from '../modules/vehicles/petrolBill.route';
 import databaseRoutes from './database.route';
 import { authRouter } from './auth.route';
 import employeeIdRoutes from './employeeId.route';
@@ -55,6 +56,9 @@ router.use('/teams', teamRoutes);
 
 // Mount vehicle routes
 router.use('/', vehicleRoutes);
+
+// Mount petrol bill routes
+router.use('/petrol-bills', petrolBillRoutes);
 
 // Mount leave routes
 router.use('/leave', leaveRoutes);

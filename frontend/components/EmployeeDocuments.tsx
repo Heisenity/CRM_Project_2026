@@ -164,48 +164,50 @@ export function EmployeeDocuments({ employeeId }: EmployeeDocumentsProps) {
             {documents.map((document) => (
               <div
                 key={document.id}
-                className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                className="border rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <span className="text-2xl">{getFileTypeIcon(document.mimeType)}</span>
-                      <div>
-                        <h4 className="font-medium text-gray-900">{document.title}</h4>
-                        <p className="text-sm text-gray-500">{document.fileName}</p>
-                      </div>
-                      <Badge variant="outline" className="text-xs">
-                        {document.mimeType.split('/')[1].toUpperCase()}
-                      </Badge>
+                <div className="flex flex-col space-y-3">
+                  {/* Header with icon, title, and badge */}
+                  <div className="flex items-start gap-2 sm:gap-3">
+                    <span className="text-2xl flex-shrink-0">{getFileTypeIcon(document.mimeType)}</span>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-gray-900 break-words">{document.title}</h4>
+                      <p className="text-xs sm:text-sm text-gray-500 break-all">{document.fileName}</p>
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600 mb-3">
-                      <div className="flex items-center space-x-2">
-                        <User className="h-4 w-4" />
-                        <span>Uploaded by: {document.uploadedBy}</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Calendar className="h-4 w-4" />
-                        <span>{formatDate(document.uploadedAt)}</span>
-                      </div>
-                    </div>
-
-                    <div className="text-sm text-gray-600 mb-3">
-                      <span><strong>Size:</strong> {formatFileSize(document.fileSize)}</span>
-                    </div>
-
-                    {document.description && (
-                      <div className="text-sm text-gray-700 mb-3 bg-gray-50 rounded p-3">
-                        <span className="font-medium">Description:</span>
-                        <p className="mt-1">{document.description}</p>
-                      </div>
-                    )}
+                    <Badge variant="outline" className="text-xs flex-shrink-0">
+                      {document.mimeType.split('/')[1].toUpperCase()}
+                    </Badge>
                   </div>
 
-                  <div className="ml-4">
+                  {/* Metadata */}
+                  <div className="space-y-2 text-xs sm:text-sm text-gray-600">
+                    <div className="flex items-center gap-2">
+                      <User className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                      <span className="truncate">Uploaded by: {document.uploadedBy}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                      <span>{formatDate(document.uploadedAt)}</span>
+                    </div>
+                    <div>
+                      <span><strong>Size:</strong> {formatFileSize(document.fileSize)}</span>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  {document.description && (
+                    <div className="text-xs sm:text-sm text-gray-700 bg-gray-50 rounded p-2 sm:p-3">
+                      <span className="font-medium">Description:</span>
+                      <p className="mt-1 break-words">{document.description}</p>
+                    </div>
+                  )}
+
+                  {/* Download button */}
+                  <div className="pt-2">
                     <Button
                       onClick={() => handleDownload(document.id)}
-                      className="bg-blue-600 hover:bg-blue-700"
+                      className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-sm"
+                      size="sm"
                     >
                       <Download className="h-4 w-4 mr-2" />
                       Download

@@ -38,6 +38,7 @@ import { StaffTicketForm } from "./StaffTicketForm"
 import { StaffTicketList } from "./StaffTicketList"
 import { TaskCheckInOut } from "@/components/TaskCheckInOut"
 import BarcodeScanner from "@/components/barcodeScanner/BarcodeScanner"
+import { PetrolBillUploader } from "./PetrolBillUploader"
 import { StaffFeatureAccessManagement } from "./StaffFeatureAccessManagement"
 import { getMyFeatures, type StaffPortalFeature } from "@/lib/server-api"
 import { dayClockOut } from "@/lib/server-api"
@@ -480,16 +481,16 @@ export function StaffPortal() {
 
         <div className="px-4 mt-6">
           <div className="flex items-center gap-3">
-            <Avatar className="h-12 w-12">
+            <Avatar className="h-12 w-12 flex-shrink-0">
               <AvatarImage
                 src={employeeProfile.photoUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${employeeProfile.name}`}
                 alt={employeeProfile.name}
               />
               <AvatarFallback className="text-sm">{getInitials(employeeProfile.name)}</AvatarFallback>
             </Avatar>
-            <div>
-              <div className="text-sm font-semibold">{employeeProfile.name}</div>
-              <div className="text-xs text-gray-500">{employeeProfile.employeeId}</div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold truncate">{employeeProfile.name}</div>
+              <div className="text-xs text-gray-500 truncate">{employeeProfile.employeeId}</div>
             </div>
           </div>
         </div>
@@ -643,16 +644,16 @@ export function StaffPortal() {
 
             <div className="mt-4">
               <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10">
+                <Avatar className="h-10 w-10 flex-shrink-0">
                   <AvatarImage
                     src={employeeProfile.photoUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${employeeProfile.name}`}
                     alt={employeeProfile.name}
                   />
                   <AvatarFallback className="text-sm">{getInitials(employeeProfile.name)}</AvatarFallback>
                 </Avatar>
-                <div>
-                  <div className="text-sm font-semibold">{employeeProfile.name}</div>
-                  <div className="text-xs text-gray-500">{employeeProfile.employeeId}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold truncate">{employeeProfile.name}</div>
+                  <div className="text-xs text-gray-500 truncate">{employeeProfile.employeeId}</div>
                 </div>
               </div>
 
@@ -790,8 +791,8 @@ export function StaffPortal() {
                       </AvatarFallback>
                     </Avatar>
                   </div>
-                  <CardTitle className="text-xl">{employeeProfile.name}</CardTitle>
-                  <p className="text-gray-600">{employeeProfile.employeeId}</p>
+                  <CardTitle className="text-xl break-words">{employeeProfile.name}</CardTitle>
+                  <p className="text-gray-600 text-sm break-all px-2">{employeeProfile.employeeId}</p>
                   <Badge className={getStatusColor(employeeProfile.status)}>
                     {employeeProfile.status}
                   </Badge>
@@ -900,64 +901,76 @@ export function StaffPortal() {
               )}
 
               {activeTab === 'vehicle' && employeeProfile?.role === 'FIELD_ENGINEER' && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Car className="h-5 w-5 text-blue-500" />
-                      Assigned Vehicle
-                    </CardTitle>
-                    <p className="text-gray-600">
-                      Your currently assigned vehicle details
-                    </p>
-                  </CardHeader>
+                <>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Car className="h-5 w-5 text-blue-500" />
+                        Assigned Vehicle
+                      </CardTitle>
+                      <p className="text-gray-600">
+                        Your currently assigned vehicle details
+                      </p>
+                    </CardHeader>
 
-                  <CardContent>
-                    {!assignedVehicle ? (
-                      <div className="text-center py-8 text-gray-500">
-                        <Car className="h-10 w-10 mx-auto mb-3 text-gray-400" />
-                        <p>No vehicle assigned</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-500">Vehicle Number</span>
-                          <span className="font-medium">{assignedVehicle.vehicleNumber}</span>
+                    <CardContent>
+                      {!assignedVehicle ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <Car className="h-10 w-10 mx-auto mb-3 text-gray-400" />
+                          <p>No vehicle assigned</p>
                         </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="flex justify-between">
+                            <span className="text-sm text-gray-500">Vehicle Number</span>
+                            <span className="font-medium">{assignedVehicle.vehicleNumber}</span>
+                          </div>
 
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-500">Make</span>
-                          <span className="font-medium">{assignedVehicle.make}</span>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-gray-500">Make</span>
+                            <span className="font-medium">{assignedVehicle.make}</span>
+                          </div>
+
+                          <div className="flex justify-between">
+                            <span className="text-sm text-gray-500">Model</span>
+                            <span className="font-medium">{assignedVehicle.model}</span>
+                          </div>
+
+                          <div className="flex justify-between">
+                            <span className="text-sm text-gray-500">Type</span>
+                            <span className="font-medium">{assignedVehicle.type}</span>
+                          </div>
+
+                          <div className="flex justify-between">
+                            <span className="text-sm text-gray-500">Assigned At</span>
+                            <span className="font-medium">
+                              {new Date(assignedVehicle.assignedAt).toLocaleDateString()}
+                            </span>
+                          </div>
+
+                          <Button
+                            onClick={handleDayClockOut}
+                            disabled={dayClockOutLoading}
+                            variant="destructive"
+                            className="w-full mt-4"
+                          >
+                            {dayClockOutLoading ? 'Clocking Out...' : 'Day Clock-Out'}
+                          </Button>
                         </div>
+                      )}
+                    </CardContent>
+                  </Card>
 
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-500">Model</span>
-                          <span className="font-medium">{assignedVehicle.model}</span>
-                        </div>
-
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-500">Type</span>
-                          <span className="font-medium">{assignedVehicle.type}</span>
-                        </div>
-
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-500">Assigned At</span>
-                          <span className="font-medium">
-                            {new Date(assignedVehicle.assignedAt).toLocaleDateString()}
-                          </span>
-                        </div>
-
-                        <Button
-                          onClick={handleDayClockOut}
-                          disabled={dayClockOutLoading}
-                          variant="destructive"
-                          className="w-full mt-4"
-                        >
-                          {dayClockOutLoading ? 'Clocking Out...' : 'Day Clock-Out'}
-                        </Button>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                  {/* Petrol Bill Uploader - Only show if vehicle is assigned */}
+                  {assignedVehicle && (
+                    <div className="mt-6">
+                      <PetrolBillUploader
+                        vehicleId={assignedVehicle.id}
+                        employeeId={employeeProfile.id}
+                      />
+                    </div>
+                  )}
+                </>
               )}
 
               {activeTab === 'tenders' && employeeProfile?.role === 'IN_OFFICE' && (
@@ -1100,7 +1113,7 @@ export function StaffPortal() {
                       <CardTitle>HR Center</CardTitle>
                     </CardHeader>
                     <CardContent className="text-center py-10">
-                      <Button onClick={() => router.push('/leave-management')}>
+                      <Button onClick={() => router.push('/hr-center')}>
                         Open HR Center
                       </Button>
                     </CardContent>

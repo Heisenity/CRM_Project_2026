@@ -160,7 +160,7 @@ export function LeaveApplicationsSummary() {
               <FileText className="h-5 w-5 text-blue-500" />
               Recent Pending Applications
             </CardTitle>
-            <Link href="/leave-management">
+            <Link href="/hr-center">
               <Button variant="outline" size="sm">
                 <Eye className="h-4 w-4 mr-2" />
                 View All

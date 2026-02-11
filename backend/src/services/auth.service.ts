@@ -32,7 +32,7 @@ class AuthService {
           sessionToken: session.sessionToken
         }
       } else if (userType?.toLowerCase() === 'employee') {
-        console.log('Employee authentication attempt:', { email, employeeId, userType })
+        console.log('Employee authentication attempt:', { employeeId, userType })
         
         if (!employeeId) {
           console.log('Employee authentication failed: No employeeId provided')
@@ -41,10 +41,7 @@ class AuthService {
 
         const employee = await prisma.employee.findFirst({
           where: { 
-            AND: [
-              { email },
-              { employeeId }
-            ]
+            employeeId
           }
         })
 
@@ -88,17 +85,21 @@ class AuthService {
   async registerEmployee(name: string, employeeId: string, email: string, password: string, phone?: string, teamId?: string) {
     try {
       // Check if employee already exists
+      const whereConditions: any[] = [{ employeeId }]
+      
+      // Only check email if it's provided
+      if (email) {
+        whereConditions.push({ email })
+      }
+
       const existingEmployee = await prisma.employee.findFirst({
         where: {
-          OR: [
-            { email },
-            { employeeId }
-          ]
+          OR: whereConditions
         }
       })
 
       if (existingEmployee) {
-        if (existingEmployee.email === email) {
+        if (email && existingEmployee.email === email) {
           throw new Error('Employee with this email already exists')
         }
         if (existingEmployee.employeeId === employeeId) {
@@ -114,7 +115,7 @@ class AuthService {
         data: {
           name,
           employeeId,
-          email,
+          email: email || null,
           password: hashedPassword, // Store hashed password
           phone,
           teamId

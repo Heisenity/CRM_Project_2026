@@ -1,15 +1,14 @@
 "use client"
 
 import * as React from "react"
-import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Clock, Loader2, CheckCircle, AlertCircle, User, Info, ArrowLeft, Save, Plus, Upload, Camera } from "lucide-react"
 import { createEmployee } from "@/lib/server-api"
-import { EmployeeIdGenerator } from "@/components/EmployeeIdGenerator"
 import { uploadEmployeePhotoToS3 } from "@/lib/s3-upload"
 
 interface AddAttendanceRecordProps {
@@ -36,8 +35,15 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
     address: '',
     aadharCard: '',
     panCard: '',
+    uanNumber: '',
+    esiNumber: '',
+    bankAccountNumber: '',
     photo: null as File | null
   })
+
+  const [availablePrefixes, setAvailablePrefixes] = React.useState<Array<{ prefix: string; description: string | null; roleType: 'FIELD_ENGINEER' | 'IN_OFFICE'; nextSequence: number }>>([])
+  const [selectedPrefix, setSelectedPrefix] = React.useState('')
+  const [useCustomId, setUseCustomId] = React.useState(false)
 
   // store an object URL for preview and clean it up
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
@@ -51,6 +57,48 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
     }
   }, [formData.photo]);
 
+  // Fetch available prefixes on mount
+  React.useEffect(() => {
+    const fetchPrefixes = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees/prefixes`)
+        const result = await response.json()
+
+        if (result.success && result.data) {
+          // Filter prefixes by role type
+          const filteredPrefixes = result.data.filter((p: any) => p.roleType === role)
+          setAvailablePrefixes(filteredPrefixes)
+          // Set first prefix as default
+          if (filteredPrefixes.length > 0) {
+            setSelectedPrefix(filteredPrefixes[0].prefix)
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching prefixes:', error)
+      }
+    }
+    fetchPrefixes()
+  }, [role])
+
+  // Update employee ID preview when prefix changes
+  React.useEffect(() => {
+    if (selectedPrefix && !useCustomId) {
+      const fetchPreview = async () => {
+        try {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees/prefixes/${selectedPrefix}/preview`)
+          const result = await response.json()
+
+          if (result.success && result.data?.nextId) {
+            setFormData(prev => ({ ...prev, employeeId: result.data.nextId }))
+          }
+        } catch (error) {
+          console.error('Error fetching preview:', error)
+        }
+      }
+      fetchPreview()
+    }
+  }, [selectedPrefix, useCustomId])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -61,11 +109,6 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
 
     if (!formData.employeeName.trim()) {
       setError('Employee name is required')
-      return
-    }
-
-    if (!formData.email.trim()) {
-      setError('Email is required')
       return
     }
 
@@ -96,27 +139,59 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
 
     try {
       let photoKey: string | undefined;
+      let finalEmployeeId = formData.employeeId
 
-      // 🔹 STEP 1: upload photo to S3 if exists
-      if (formData.photo) {
-        photoKey = await uploadEmployeePhotoToS3(formData.photo, formData.employeeId);
+      // 🔹 STEP 1: Generate employee ID if using prefix selector
+      if (!useCustomId && selectedPrefix) {
+        try {
+          const genResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees/generate-id`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ prefix: selectedPrefix })
+          })
+          
+          const genResult = await genResponse.json()
+          
+          if (genResult.success && genResult.data?.employeeId) {
+            finalEmployeeId = genResult.data.employeeId
+          } else {
+            setError('Failed to generate employee ID')
+            setLoading(false)
+            return
+          }
+        } catch (error) {
+          setError('Failed to generate employee ID')
+          setLoading(false)
+          return
+        }
       }
 
-      // Create the employee with the specified role
+      // 🔹 STEP 2: upload photo to S3 if exists
+      if (formData.photo) {
+        photoKey = await uploadEmployeePhotoToS3(formData.photo, finalEmployeeId);
+      }
+
+      // 🔹 STEP 3: Create the employee with the specified role
       const employeeData = {
         name: formData.employeeName.trim(),
-        email: formData.email.trim(),
+        email: formData.email.trim() || null,
         password: formData.password.trim(),
         phone: formData.phone.trim() || undefined,
         designation: formData.designation.trim() || undefined,
         isTeamLeader: false, // Always false during employee creation
         role: role, // Use the role prop
+        employeeId: finalEmployeeId, // Include the employee ID
         sickLeaveBalance: formData.sickLeaveBalance,
         casualLeaveBalance: formData.casualLeaveBalance,
         salary: formData.salary ? parseFloat(formData.salary) : undefined,
         address: formData.address.trim() || undefined,
         aadharCard: formData.aadharCard.trim() || undefined,
         panCard: formData.panCard.trim() || undefined,
+        uanNumber: formData.uanNumber.trim() || undefined,
+        esiNumber: formData.esiNumber.trim() || undefined,
+        bankAccountNumber: formData.bankAccountNumber.trim() || undefined,
         photoKey
       }
 
@@ -146,6 +221,9 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
           address: '',
           aadharCard: '',
           panCard: '',
+          uanNumber: '',
+          esiNumber: '',
+          bankAccountNumber: '',
           photo: null
         })
         setShowSuccess(false)
@@ -298,23 +376,87 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
                         <Label className="text-sm font-medium text-green-800">
                           Employee ID <span className="text-red-500">*</span>
                         </Label>
-                        <EmployeeIdGenerator
-                          value={formData.employeeId}
-                          onChange={(value) => setFormData(prev => ({ ...prev, employeeId: value }))}
-                          disabled={loading}
-                          role={role}
-                        />
+                        
+                        {!useCustomId && availablePrefixes.length > 0 ? (
+                          <div className="space-y-2">
+                            <Select value={selectedPrefix} onValueChange={setSelectedPrefix}>
+                              <SelectTrigger className="border-green-300 focus:border-green-500 focus:ring-green-500">
+                                <SelectValue placeholder="Select prefix" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availablePrefixes.map((p) => (
+                                  <SelectItem key={p.prefix} value={p.prefix}>
+                                    {p.prefix} {p.description && `- ${p.description}`}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {formData.employeeId && (
+                              <div className="text-sm text-green-700 bg-green-50 p-2 rounded">
+                                Next ID: <span className="font-mono font-semibold">{formData.employeeId}</span>
+                              </div>
+                            )}
+                          </div>
+                        ) : useCustomId ? (
+                          <Input
+                            value={formData.employeeId}
+                            onChange={(e) => setFormData(prev => ({ ...prev, employeeId: e.target.value.toUpperCase() }))}
+                            placeholder="e.g., DEV001, HR001, FIELD001"
+                            className="font-mono border-green-300 focus:border-green-500 focus:ring-green-500"
+                          />
+                        ) : (
+                          <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded border border-amber-200">
+                            No prefixes available for {role === 'FIELD_ENGINEER' ? 'Field Engineers' : 'Office Employees'}. Enable custom ID below.
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="useCustomId"
+                            checked={useCustomId}
+                            onChange={(e) => {
+                              setUseCustomId(e.target.checked)
+                              if (!e.target.checked && selectedPrefix && availablePrefixes.length > 0) {
+                                // Reset to prefix-based ID
+                                const prefixConfig = availablePrefixes.find(p => p.prefix === selectedPrefix)
+                                if (prefixConfig) {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    employeeId: `${selectedPrefix}${prefixConfig.nextSequence.toString().padStart(3, '0')}`
+                                  }))
+                                }
+                              } else if (e.target.checked) {
+                                setFormData(prev => ({ ...prev, employeeId: '' }))
+                              }
+                            }}
+                            className="h-4 w-4"
+                          />
+                          <label htmlFor="useCustomId" className="text-xs text-gray-600 cursor-pointer">
+                            Enter custom Employee ID
+                          </label>
+                        </div>
+                        
+                        {useCustomId && (
+                          <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+                            💡 Tip: Type any new prefix and it will be automatically saved for future use!
+                          </div>
+                        )}
+                        
+                        <div className="text-xs text-gray-500">
+                          Format: [PREFIX][3-digits] (e.g., DEV001, HR001, FIELD001)
+                        </div>
                       </div>
 
                       <div className="space-y-2">
                         <Label className="text-sm font-medium text-green-800">
-                          Email <span className="text-red-500">*</span>
+                          Email
                         </Label>
                         <Input
                           type="email"
                           value={formData.email}
                           onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                          placeholder="employee@company.com"
+                          placeholder="employee@company.com (optional)"
                           className="border-green-300 focus:border-green-500 focus:ring-green-500"
                         />
                       </div>
@@ -487,6 +629,54 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
                       </div>
                     </div>
 
+                    {/* Financial Information */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-green-800">
+                          UAN Number
+                        </Label>
+                        <Input
+                          value={formData.uanNumber}
+                          onChange={(e) => setFormData(prev => ({ ...prev, uanNumber: e.target.value }))}
+                          placeholder="Enter UAN number"
+                          className="border-green-300 focus:border-green-500 focus:ring-green-500 font-mono"
+                        />
+                        <div className="text-xs text-green-600">
+                          Universal Account Number (PF)
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-green-800">
+                          ESI Number
+                        </Label>
+                        <Input
+                          value={formData.esiNumber}
+                          onChange={(e) => setFormData(prev => ({ ...prev, esiNumber: e.target.value }))}
+                          placeholder="Enter ESI number"
+                          className="border-green-300 focus:border-green-500 focus:ring-green-500 font-mono"
+                        />
+                        <div className="text-xs text-green-600">
+                          Employee State Insurance
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-green-800">
+                          Bank Account Number
+                        </Label>
+                        <Input
+                          value={formData.bankAccountNumber}
+                          onChange={(e) => setFormData(prev => ({ ...prev, bankAccountNumber: e.target.value }))}
+                          placeholder="Enter bank account"
+                          className="border-green-300 focus:border-green-500 focus:ring-green-500 font-mono"
+                        />
+                        <div className="text-xs text-green-600">
+                          For salary payments
+                        </div>
+                      </div>
+                    </div>
+
                   </CardContent>
                 </Card>
 
@@ -504,7 +694,7 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
                   </Button>
                   <Button
                     type="submit"
-                    disabled={loading || !formData.employeeId.trim() || !formData.employeeName.trim() || !formData.email.trim() || !formData.password.trim() || !formData.phone.trim()}
+                    disabled={loading || !formData.employeeId.trim() || !formData.employeeName.trim() || !formData.password.trim() || !formData.phone.trim()}
                     className="flex-1 h-14 text-base bg-blue-600 hover:bg-blue-700 disabled:opacity-50 font-medium shadow-sm"
                   >
                     {loading ? (
@@ -618,7 +808,7 @@ export function AddAttendanceRecord({ onRecordAdded, onBack, role = 'FIELD_ENGIN
                         </div>
                         <div>
                           <p className="text-sm font-medium text-blue-900">Login Credentials</p>
-                          <p className="text-xs text-blue-700 mt-1">Employee can login with email and password</p>
+                          <p className="text-xs text-blue-700 mt-1">Employee can login with Employee ID and password</p>
                         </div>
                       </div>
                     </div>

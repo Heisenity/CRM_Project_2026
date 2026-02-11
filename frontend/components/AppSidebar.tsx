@@ -103,7 +103,7 @@ const navigationItems = [
     },
     {
         title: "HR Center",
-        url: "/leave-management",
+        url: "/hr-center",
         icon: FileText,
         badge: null,
         description: "Employee leave and docs upload system",
@@ -318,12 +318,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                             <span className="font-semibold text-sm text-foreground truncate">
                                 {session.user.name}
                             </span>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-xs text-muted-foreground truncate">
                                     {(session.user as any).userType === 'ADMIN' ? 'Admin' : 'Employee'}
                                 </span>
                                 {((session.user as any).employeeId || (session.user as any).adminId) && (
-                                    <Badge variant="outline" className="text-xs px-1.5 py-0.5">
+                                    <Badge variant="outline" className="text-xs px-1.5 py-0.5 whitespace-nowrap">
                                         ID: {(session.user as any).employeeId || (session.user as any).adminId}
                                     </Badge>
                                 )}

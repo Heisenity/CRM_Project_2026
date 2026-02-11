@@ -73,5 +73,32 @@ router.post("/presigned-url", authenticateToken, getPresignedUploadUrl);
  */
 router.post("/customer-presigned-url", authenticateCustomer, getPresignedUploadUrl);
 
+/**
+ * POST /api/v1/uploads/petrol-bill
+ */
+router.post("/petrol-bill", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { fileName, fileType, employeeId } = req.body;
+
+    if (!fileName || !fileType || !employeeId) {
+      return res.status(400).json({
+        success: false,
+        error: "fileName, fileType and employeeId are required",
+      });
+    }
+
+    const { getPetrolBillUploadUrl } = await import("../services/s3.service");
+    const data = await getPetrolBillUploadUrl(fileName, fileType, employeeId);
+
+    res.json({ success: true, ...data });
+  } catch (err) {
+    console.error("Petrol bill upload URL error:", err);
+    res.status(500).json({
+      success: false,
+      error: "Failed to generate upload URL",
+    });
+  }
+});
+
 
 export default router;

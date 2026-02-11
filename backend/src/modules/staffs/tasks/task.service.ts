@@ -60,6 +60,14 @@ export async function createTask(data: CreateTaskData): Promise<TaskRecord> {
       throw new Error(`Employee with employee ID ${data.employeeId} not found`);
     }
 
+    // Check if employee has an assigned vehicle
+    const assignedVehicle = await prisma.vehicle.findFirst({
+      where: {
+        assignedTo: employee.id,
+        status: 'ASSIGNED'
+      }
+    });
+
     const createdTask = await prisma.task.create({
       data: {
         employeeId: employee.id,
@@ -69,8 +77,20 @@ export async function createTask(data: CreateTaskData): Promise<TaskRecord> {
         location: data.location,
         assignedBy: data.assignedBy,
         relatedTicketId: data.relatedTicketId,
+        vehicleId: assignedVehicle?.id, // Store the vehicle ID at task creation time
         status: 'PENDING'
         // NOTE: we intentionally do NOT set checkIn/checkOut here
+      }
+    });
+
+    // Create initial history entry
+    await prisma.taskHistory.create({
+      data: {
+        taskId: createdTask.id,
+        status: 'PENDING',
+        changedBy: data.assignedBy,
+        notes: 'Task created and assigned',
+        vehicleId: assignedVehicle?.id // Capture vehicle at creation time
       }
     });
 
@@ -115,7 +135,7 @@ export async function getEmployeeTasks(employeeId: string, status?: TaskStatus):
  * - If setting COMPLETED => also sets checkOut timestamp using a safe path below (completeTask).
  * - This function does not implicitly set checkIn.
  */
-export async function updateTaskStatus(taskId: string, status: TaskStatus): Promise<TaskRecord> {
+export async function updateTaskStatus(taskId: string, status: TaskStatus, changedBy?: string): Promise<TaskRecord> {
   try {
     // Defensive: don't allow status IN_PROGRESS set here to auto-create checkIn.
     // Use startTask(taskId) to begin a task (sets checkIn + in-progress).
@@ -136,6 +156,17 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus): Prom
       },
       include: {
         employee: true
+      }
+    });
+
+    // Log status change to history
+    await prisma.taskHistory.create({
+      data: {
+        taskId: task.id,
+        status: status,
+        changedBy: changedBy || null,
+        notes: `Status changed to ${status}`,
+        vehicleId: task.vehicleId // Capture current vehicle
       }
     });
 
@@ -175,6 +206,17 @@ export async function startTask(taskId: string): Promise<TaskRecord> {
 
     const updatedRow = Array.isArray(rows) ? rows[0] : rows;
     if (!updatedRow) throw new Error('Failed to start task');
+
+    // Log status change to history
+    await prisma.taskHistory.create({
+      data: {
+        taskId: taskId,
+        status: 'IN_PROGRESS',
+        changedBy: existing.employee.id,
+        notes: 'Task started by employee',
+        vehicleId: existing.vehicleId // Capture vehicle at start time
+      }
+    });
 
     // Map the returned row to TaskRecord - the returned row fields follow schema naming
     return {
@@ -224,6 +266,17 @@ export async function completeTask(taskId: string): Promise<TaskRecord> {
 
     const updatedRow = Array.isArray(rows) ? rows[0] : rows;
     if (!updatedRow) throw new Error('Failed to complete task');
+
+    // Log status change to history
+    await prisma.taskHistory.create({
+      data: {
+        taskId: taskId,
+        status: 'COMPLETED',
+        changedBy: existing.employee.id,
+        notes: 'Task completed by employee',
+        vehicleId: existing.vehicleId // Capture vehicle at completion time
+      }
+    });
 
     // After completing the task, create TASK_COMPLETED notification and unassign any vehicles
     (async () => {
@@ -365,6 +418,14 @@ export async function getAllTasks(page: number = 1, limit: number = 50, status?:
               name: true,
               email: true
             }
+          },
+          assignedByEmployee: {
+            select: {
+              employeeId: true,
+              name: true,
+              email: true,
+              role: true
+            }
           }
         }
       }),
@@ -384,6 +445,9 @@ export async function getAllTasks(page: number = 1, limit: number = 50, status?:
         startTime: task.checkIn ? task.checkIn.toISOString() : undefined,
         endTime: task.checkOut ? task.checkOut.toISOString() : undefined,
         assignedBy: task.assignedBy,
+        assignedByName: task.assignedByEmployee?.name || 'System',
+        assignedByEmployeeId: task.assignedByEmployee?.employeeId,
+        assignedByRole: task.assignedByEmployee?.role,
         assignedAt: task.assignedAt.toISOString(),
         status: task.status,
         relatedTicketId: task.relatedTicketId,
@@ -399,6 +463,110 @@ export async function getAllTasks(page: number = 1, limit: number = 50, status?:
     };
   } catch (error) {
     console.error('Error getting all tasks:', error);
+    throw error;
+  }
+}
+
+/**
+ * getAllTaskHistory - Get all task history records with full details
+ * Returns each status change as a separate record
+ */
+export async function getAllTaskHistory(page: number = 1, limit: number = 1000) {
+  const skip = (page - 1) * limit;
+
+  try {
+    const [historyRecords, total] = await Promise.all([
+      prisma.taskHistory.findMany({
+        skip,
+        take: limit,
+        orderBy: {
+          changedAt: 'desc'
+        },
+        include: {
+          task: {
+            include: {
+              employee: {
+                select: {
+                  id: true,
+                  employeeId: true,
+                  name: true,
+                  email: true,
+                  photoKey: true
+                }
+              },
+              assignedByEmployee: {
+                select: {
+                  employeeId: true,
+                  name: true,
+                  email: true,
+                  role: true
+                }
+              }
+            }
+          },
+          changedByEmployee: {
+            select: {
+              employeeId: true,
+              name: true,
+              email: true,
+              role: true
+            }
+          },
+          vehicle: {
+            select: {
+              id: true,
+              vehicleNumber: true,
+              make: true,
+              model: true,
+              year: true
+            }
+          }
+        }
+      }),
+      prisma.taskHistory.count()
+    ]);
+
+    return {
+      history: historyRecords.map(record => ({
+        id: record.id,
+        taskId: record.task.id,
+        taskTitle: record.task.title,
+        taskDescription: record.task.description,
+        taskCategory: record.task.category,
+        taskLocation: record.task.location,
+        relatedTicketId: record.task.relatedTicketId,
+        employeeId: record.task.employee.employeeId,
+        employeeName: record.task.employee.name,
+        employeeEmail: record.task.employee.email,
+        employeePhotoKey: record.task.employee.photoKey,
+        vehicleId: record.vehicle?.id, // Use vehicle from history record
+        vehicleNumber: record.vehicle?.vehicleNumber,
+        vehicleMake: record.vehicle?.make,
+        vehicleModel: record.vehicle?.model,
+        vehicleYear: record.vehicle?.year,
+        status: record.status,
+        changedBy: record.changedBy,
+        changedByName: record.changedByEmployee?.name || 'System',
+        changedByEmployeeId: record.changedByEmployee?.employeeId,
+        changedByRole: record.changedByEmployee?.role,
+        changedAt: record.changedAt.toISOString(),
+        notes: record.notes,
+        assignedBy: record.task.assignedBy,
+        assignedByName: record.task.assignedByEmployee?.name || 'System',
+        assignedByEmployeeId: record.task.assignedByEmployee?.employeeId,
+        assignedAt: record.task.assignedAt.toISOString(),
+        startTime: record.task.checkIn ? record.task.checkIn.toISOString() : undefined,
+        endTime: record.task.checkOut ? record.task.checkOut.toISOString() : undefined,
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
+  } catch (error) {
+    console.error('Error getting task history:', error);
     throw error;
   }
 }

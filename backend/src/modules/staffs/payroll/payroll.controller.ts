@@ -4,6 +4,7 @@ import PDFDocument from 'pdfkit'
 import fs from 'fs'
 import path from 'path'
 import { uploadPayslipToS3 } from '../../../services/s3.service'
+import { payslipIdGeneratorService } from '../../../services/payslipIdGenerator.service'
 
 export const getPayrollRecords = async (req: Request, res: Response) => {
   try {
@@ -279,9 +280,13 @@ export const generatePayslip = async (req: Request, res: Response) => {
       })
     }
 
+    // Generate payslip ID
+    const payslipId = await payslipIdGeneratorService.generatePayslipId()
+
     // Create payroll record
     const payrollRecord = await prisma.payrollRecord.create({
       data: {
+        payslipId,
         employeeId,
         month,
         year,
@@ -398,22 +403,23 @@ const generatePayslipPDF = async (employee: any, payrollRecord: any, payslipDeta
 
       // Company header
       doc.fontSize(20).font('Helvetica-Bold')
-      doc.text('MEDIA INFOTECH', 170, 70)
+      doc.text('MEDIAINFOTECH', 170, 70)
       
       doc.fontSize(14).font('Helvetica')
-      doc.text(`Pay Slip for the month Of ${getMonthName(payrollRecord.month)}' ${payrollRecord.year}`, 50, 120)
+      doc.text(`Pay Slip for the month Of ${getMonthName(payrollRecord.month)}' ${payrollRecord.year}`, 50, 135)
 
       // Employee details table
-      let yPos = 160
+      let yPos = 175
       const tableWidth = 500
       const colWidth = tableWidth / 2
 
       // Employee info section
       const employeeLocation = employee.address || 'Office Location'
+      const employeeDesignation = employee.designation || employee.role || 'N/A'
       const employeeInfo = [
         ['Employee No.', employee.employeeId],
         ['Employee Name', employee.name],
-        ['Designation', employee.role],
+        ['Designation', employeeDesignation],
         ['Location', employeeLocation],
         ['UAN no.', payslipDetails.uanNumber || 'N/A'],
         ['ESI No.', payslipDetails.esiNumber || 'N/A'],

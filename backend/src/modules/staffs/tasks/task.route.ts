@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { assignTask, getTasksForEmployee, updateTask, editTask, getTasks, resetEmployeeAttendanceAttempts } from './task.controller';
+import { assignTask, getTasksForEmployee, updateTask, editTask, getTasks, getTaskHistory, resetEmployeeAttendanceAttempts } from './task.controller';
 import { exportTasksToExcel } from './task.export';
 import taskAttendanceRoutes from './task-attendance.route';
 
@@ -8,6 +8,11 @@ const router = Router();
 // Export tasks to Excel
 router.get('/export/excel', (req: Request, res: Response) => {
   return exportTasksToExcel(req, res);
+});
+
+// Get all task history with pagination
+router.get('/history', (req: Request, res: Response) => {
+  return getTaskHistory(req, res);
 });
 
 // Assign a new task

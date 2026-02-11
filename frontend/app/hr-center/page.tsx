@@ -114,15 +114,7 @@ export default function HRCenterPage() {
               {/* Also show for staff with HR_CENTER permission */}
               {!isAdmin && canUseHr && <ReEnableClockInDialog adminId={adminId} />}
 
-              {/* leave-management navigation: visible to admin or permitted staff */}
-              {canUseHr && (
-                <button
-                  onClick={() => router.push("/leave-management")}
-                  className="px-4 py-2 text-sm font-medium border rounded-lg"
-                >
-                  Leave Management
-                </button>
-              )}
+              
 
               {/* Payslip accessible to admin or permitted staff */}
               {canUseHr && (
@@ -154,8 +146,8 @@ export default function HRCenterPage() {
           </div>
         )}
 
-        {/* Credential Reset (admin or permitted staff) */}
-        {canUseHr && (
+        {/* Credential Reset - ADMIN ONLY */}
+        {isAdmin && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <AdminCredentialReset adminId={adminId} adminName={adminName} />
           </div>
