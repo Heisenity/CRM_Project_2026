@@ -78,7 +78,7 @@ export function StaffPortal() {
   const [employeeProfile, setEmployeeProfile] = useState<EmployeeProfile | null>(null)
   const [assignedVehicle, setAssignedVehicle] = useState<AssignedVehicle | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'attendance' | 'leave' | 'documents' | 'vehicle' | 'tasks' | 'dashboard' | 'project' | 'task_management' | 'support_requests' | 'customers' | 'employees' | 'teams' | 'admin_ticket_management' | 'tenders' | 'stock' | 'hr_center' | 'field_engineer_attendance' | 'inoffice_attendance' | 'customer_support_requests' | 'staff_feature_access' | 'tickets'>('attendance')
+  const [activeTab, setActiveTab] = useState<'attendance' | 'leave' | 'documents' | 'vehicle' | 'tasks' | 'dashboard' | 'project' | 'task_management' | 'support_requests' | 'customers' | 'employees' | 'teams' | 'tenders' | 'stock' | 'hr_center' | 'field_engineer_attendance' | 'inoffice_attendance' | 'customer_support_requests' | 'staff_feature_access' | 'tickets'>('attendance')
   const [leaveRefreshTrigger, setLeaveRefreshTrigger] = useState(0)
   const [ticketRefreshTrigger, setTicketRefreshTrigger] = useState(0)
   const [dayClockOutLoading, setDayClockOutLoading] = useState(false)
@@ -513,7 +513,7 @@ export function StaffPortal() {
           )}
 
           {employeeProfile?.role === 'IN_OFFICE' && hasFeatureAccess('TICKETS') && (
-            <NavItem onClick={() => setActiveTab('admin_ticket_management')} active={activeTab === 'admin_ticket_management'}>
+            <NavItem onClick={() => setActiveTab('tickets')} active={activeTab === 'tickets'}>
               <FileText className="h-4 w-4" /> Ticket Management
             </NavItem>
           )}
@@ -1127,7 +1127,7 @@ export function StaffPortal() {
                       <CardTitle>Field Attendance</CardTitle>
                     </CardHeader>
                     <CardContent className="text-center py-10">
-                      <Button onClick={() => router.push('/field-attendance')}>
+                      <Button onClick={() => router.push('/field-engineer-attendance')}>
                         Open Field Attendance
                       </Button>
                     </CardContent>
@@ -1141,7 +1141,7 @@ export function StaffPortal() {
                       <CardTitle>Office Attendance</CardTitle>
                     </CardHeader>
                     <CardContent className="text-center py-10">
-                      <Button onClick={() => router.push('/office-attendance')}>
+                      <Button onClick={() => router.push('/inoffice-attendance')}>
                         Open Office Attendance
                       </Button>
                     </CardContent>

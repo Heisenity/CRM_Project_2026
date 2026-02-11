@@ -1209,6 +1209,7 @@ function EditEmployeeForm({ employee, teams, onSave, onCancel }: EditEmployeeFor
     const [showPasswordDialog, setShowPasswordDialog] = useState(false)
     const [previewUrl, setPreviewUrl] = useState<string | null>(employee.photoUrl || null)
     const [uploadingPhoto, setUploadingPhoto] = useState(false)
+    const [photoRemoved, setPhotoRemoved] = useState(false)
 
     // Clean up preview URL when component unmounts
     React.useEffect(() => {
@@ -1234,23 +1235,25 @@ function EditEmployeeForm({ employee, teams, onSave, onCancel }: EditEmployeeFor
         }
         
         setFormData(prev => ({ ...prev, photo: file }))
+        setPhotoRemoved(false)
     }
 
     const handleRemovePhoto = () => {
         setFormData(prev => ({ ...prev, photo: null }))
         setPreviewUrl(null)
+        setPhotoRemoved(true)
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         
-        let photoUrl = employee.photoUrl // Keep existing photo URL by default
-        
+        let photoKey: string | null | undefined = photoRemoved ? null : employee.photoKey
+
         // Upload new photo if one was selected
         if (formData.photo) {
             setUploadingPhoto(true)
             try {
-                photoUrl = await uploadEmployeePhotoToS3(formData.photo, employee.employeeId)
+                photoKey = await uploadEmployeePhotoToS3(formData.photo, employee.employeeId)
             } catch (error) {
                 console.error('Photo upload failed:', error)
                 alert('Failed to upload photo. Please try again.')
@@ -1265,7 +1268,7 @@ function EditEmployeeForm({ employee, teams, onSave, onCancel }: EditEmployeeFor
             ...formData,
             salary: formData.salary ? parseFloat(formData.salary.toString()) : null,
             teamId: formData.teamId && formData.teamId !== "no-team" ? formData.teamId : null,
-            photoUrl: photoUrl
+            photoKey: photoKey
         }
 
         // Only include password if it was changed
