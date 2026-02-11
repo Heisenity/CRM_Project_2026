@@ -29,6 +29,7 @@ export const authOptions: AuthOptions = {
 
       async authorize(credentials) {
         if (!credentials?.password) {
+          console.error("[NextAuth] No password provided")
           return null
         }
 
@@ -39,9 +40,11 @@ export const authOptions: AuthOptions = {
 
         // For admin, email is required. For employee, only employeeId is required
         if (userType === "ADMIN" && !email) {
+          console.error("[NextAuth] Admin login requires email")
           return null
         }
         if (userType === "EMPLOYEE" && !employeeId) {
+          console.error("[NextAuth] Employee login requires employeeId")
           return null
         }
 
@@ -63,7 +66,11 @@ export const authOptions: AuthOptions = {
             }
           }
 
-          const response = await fetch(`${BACKEND_URL}/auth/login`, {
+          const backendUrl = `${BACKEND_URL}/api/v1/auth/login`
+          console.log("[NextAuth] Attempting authentication to:", backendUrl)
+          console.log("[NextAuth] Request body:", { ...body, password: "***" })
+
+          const response = await fetch(backendUrl, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -71,12 +78,16 @@ export const authOptions: AuthOptions = {
             body: JSON.stringify(body),
           })
 
+          console.log("[NextAuth] Backend response status:", response.status)
+
           if (!response.ok) {
-            console.error("Backend auth failed:", response.status)
+            const errorText = await response.text()
+            console.error("[NextAuth] Backend auth failed:", response.status, errorText)
             return null
           }
 
           const user = await response.json()
+          console.log("[NextAuth] Authentication successful for:", user.email || user.employeeId)
 
           return {
             id: user.id,
@@ -88,7 +99,7 @@ export const authOptions: AuthOptions = {
             sessionToken: user.sessionToken,
           }
         } catch (error) {
-          console.error("Auth error:", error)
+          console.error("[NextAuth] Auth error:", error)
           return null
         }
       },
