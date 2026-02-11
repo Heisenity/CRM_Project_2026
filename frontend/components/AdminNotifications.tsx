@@ -736,8 +736,7 @@ export function AdminNotifications({ onClose }: AdminNotificationsProps) {
                       </Button>
                       <Button
                         onClick={() => setShowRejectForm(true)}
-                        variant="destructive"
-                        className="flex-1"
+                        className="flex-1 bg-red-600 hover:bg-red-700 text-white border-red-600"
                       >
                         Reject
                       </Button>
@@ -757,8 +756,7 @@ export function AdminNotifications({ onClose }: AdminNotificationsProps) {
                       <Button
                         onClick={() => handleRejectAttendance(selectedNotification.data!.attendanceId!)}
                         disabled={isRejecting || !rejectionReason.trim()}
-                        variant="destructive"
-                        className="flex-1"
+                        className="flex-1 bg-red-600 hover:bg-red-700 text-white border-red-600 disabled:bg-red-300 disabled:text-white"
                       >
                         {isRejecting ? 'Rejecting...' : 'Confirm Reject'}
                       </Button>
