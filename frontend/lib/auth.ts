@@ -1,4 +1,4 @@
-﻿import CredentialsProvider from "next-auth/providers/credentials"
+import CredentialsProvider from "next-auth/providers/credentials"
 import type { AuthOptions } from "next-auth"
 
 // Backend URL for server-side NextAuth
@@ -109,12 +109,12 @@ export const authOptions: AuthOptions = {
 
   session: {
     strategy: "jwt",
-    maxAge: 24 * 60 * 60, // 24 hours
-    updateAge: 60 * 60, // Update session every hour
+    maxAge: 2 * 60 * 60, // 2 hours
+    updateAge: 30 * 60, // Update session every 30 minutes
   },
 
   jwt: {
-    maxAge: 24 * 60 * 60, // 24 hours
+    maxAge: 2 * 60 * 60, // 2 hours
   },
 
   callbacks: {
@@ -170,3 +170,4 @@ export const authOptions: AuthOptions = {
   // Enable debug mode in development
   debug: process.env.NODE_ENV === 'development',
 }
+
