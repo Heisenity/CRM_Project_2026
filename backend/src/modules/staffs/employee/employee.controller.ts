@@ -4,6 +4,12 @@ import bcrypt from 'bcryptjs'
 import { EmployeeIdGeneratorService } from '../../../services/employeeIdGenerator.service'
 import { getDownloadUrl } from '../../../services/s3.service'
 
+const normalizeOptionalUniqueField = (value: unknown): string | null => {
+  if (value === undefined || value === null) return null
+  const normalized = String(value).trim()
+  return normalized === '' ? null : normalized
+}
+
 // Generate next employee ID
 export const generateEmployeeId = async (): Promise<string> => {
   try {
@@ -167,6 +173,8 @@ export const createEmployee = async (req: Request, res: Response) => {
       photoKey,
       employeeId // Add this to accept custom employee ID
     } = req.body
+    const normalizedAadharCard = normalizeOptionalUniqueField(aadharCard)
+    const normalizedPanCard = normalizeOptionalUniqueField(panCard)
 
     // Validate required fields
     if (!name || !password) {
@@ -199,9 +207,9 @@ export const createEmployee = async (req: Request, res: Response) => {
     }
 
     // Check if Aadhar card already exists (if provided)
-    if (aadharCard) {
+    if (normalizedAadharCard) {
       const existingAadhar = await prisma.employee.findUnique({
-        where: { aadharCard }
+        where: { aadharCard: normalizedAadharCard }
       })
 
       if (existingAadhar) {
@@ -213,9 +221,9 @@ export const createEmployee = async (req: Request, res: Response) => {
     }
 
     // Check if PAN card already exists (if provided)
-    if (panCard) {
+    if (normalizedPanCard) {
       const existingPan = await prisma.employee.findUnique({
-        where: { panCard }
+        where: { panCard: normalizedPanCard }
       })
 
       if (existingPan) {
@@ -310,8 +318,8 @@ export const createEmployee = async (req: Request, res: Response) => {
         casualLeaveBalance: parseInt(casualLeaveBalance) || 12,
         salary: salary ? parseFloat(salary) : null,
         address: address || null,
-        aadharCard: aadharCard || null,
-        panCard: panCard || null,
+        aadharCard: normalizedAadharCard,
+        panCard: normalizedPanCard,
         uanNumber: uanNumber || null,
         esiNumber: esiNumber || null,
         bankAccountNumber: bankAccountNumber || null,
@@ -381,6 +389,12 @@ export const updateEmployee = async (req: Request, res: Response) => {
       bankAccountNumber,
       photoKey
     } = req.body
+    const normalizedAadharCard = aadharCard === undefined
+      ? undefined
+      : normalizeOptionalUniqueField(aadharCard)
+    const normalizedPanCard = panCard === undefined
+      ? undefined
+      : normalizeOptionalUniqueField(panCard)
 
     if (!id) {
       return res.status(400).json({
@@ -416,30 +430,34 @@ export const updateEmployee = async (req: Request, res: Response) => {
     }
 
     // Check if Aadhar card is being changed and if it already exists
-    if (aadharCard && aadharCard !== existingEmployee.aadharCard) {
-      const aadharExists = await prisma.employee.findUnique({
-        where: { aadharCard }
-      })
-
-      if (aadharExists) {
-        return res.status(400).json({
-          success: false,
-          error: 'Employee with this Aadhar card already exists'
+    if (normalizedAadharCard !== undefined && normalizedAadharCard !== existingEmployee.aadharCard) {
+      if (normalizedAadharCard) {
+        const aadharExists = await prisma.employee.findUnique({
+          where: { aadharCard: normalizedAadharCard }
         })
+
+        if (aadharExists) {
+          return res.status(400).json({
+            success: false,
+            error: 'Employee with this Aadhar card already exists'
+          })
+        }
       }
     }
 
     // Check if PAN card is being changed and if it already exists
-    if (panCard && panCard !== existingEmployee.panCard) {
-      const panExists = await prisma.employee.findUnique({
-        where: { panCard }
-      })
-
-      if (panExists) {
-        return res.status(400).json({
-          success: false,
-          error: 'Employee with this PAN card already exists'
+    if (normalizedPanCard !== undefined && normalizedPanCard !== existingEmployee.panCard) {
+      if (normalizedPanCard) {
+        const panExists = await prisma.employee.findUnique({
+          where: { panCard: normalizedPanCard }
         })
+
+        if (panExists) {
+          return res.status(400).json({
+            success: false,
+            error: 'Employee with this PAN card already exists'
+          })
+        }
       }
     }
 
@@ -456,8 +474,8 @@ export const updateEmployee = async (req: Request, res: Response) => {
     if (casualLeaveBalance !== undefined) updateData.casualLeaveBalance = parseInt(casualLeaveBalance)
     if (salary !== undefined) updateData.salary = salary ? parseFloat(salary) : null
     if (address !== undefined) updateData.address = address
-    if (aadharCard !== undefined) updateData.aadharCard = aadharCard
-    if (panCard !== undefined) updateData.panCard = panCard
+    if (normalizedAadharCard !== undefined) updateData.aadharCard = normalizedAadharCard
+    if (normalizedPanCard !== undefined) updateData.panCard = normalizedPanCard
     if (uanNumber !== undefined) updateData.uanNumber = uanNumber
     if (esiNumber !== undefined) updateData.esiNumber = esiNumber
     if (bankAccountNumber !== undefined) updateData.bankAccountNumber = bankAccountNumber
