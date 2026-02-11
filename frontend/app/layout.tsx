@@ -62,8 +62,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     "/employee-management",
   ]
 
-  const isProtectedPath = protectedPathPrefixes.some((prefix) =>
-    pathname.startsWith(prefix)
+  const isProtectedPath = protectedPathPrefixes.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   )
 
   useEffect(() => {
@@ -161,3 +161,4 @@ export default function RootLayout({
     </html>
   )
 }
+
