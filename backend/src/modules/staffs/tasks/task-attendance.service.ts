@@ -123,6 +123,17 @@ export async function taskCheckIn(data: TaskCheckInData): Promise<TaskAttendance
       }
     });
 
+    // Log task status transition for audit history
+    await prisma.taskHistory.create({
+      data: {
+        taskId: data.taskId,
+        status: 'IN_PROGRESS',
+        changedBy: employee.id,
+        notes: 'Task started by employee',
+        vehicleId: task.vehicleId
+      }
+    });
+
     // For in-office employees, create attendance record if it doesn't exist
     if (employee.role === 'IN_OFFICE') {
       const today = getTodayDate();
@@ -214,6 +225,17 @@ export async function taskCheckOut(data: TaskCheckOutData): Promise<TaskAttendan
         checkOut: now,
         status: 'COMPLETED',
         updatedAt: now
+      }
+    });
+
+    // Log task status transition for audit history
+    await prisma.taskHistory.create({
+      data: {
+        taskId: data.taskId,
+        status: 'COMPLETED',
+        changedBy: employee.id,
+        notes: 'Task completed by employee',
+        vehicleId: task.vehicleId
       }
     });
 
