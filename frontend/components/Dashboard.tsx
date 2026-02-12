@@ -104,7 +104,8 @@ export function Dashboard() {
     setLoadingStats(true)
 
     try {
-      const response = await getDatabaseStats()
+      const sessionToken = (session?.user as { sessionToken?: string } | undefined)?.sessionToken
+      const response = await getDatabaseStats(sessionToken)
 
       if (response.success && response.data) {
         setDbStats(prev => ({
@@ -139,6 +140,7 @@ export function Dashboard() {
   React.useEffect(() => {
     // Initial fetch
     fetchDatabaseStats()
+    const interval = setInterval(fetchDatabaseStats, 30000)
 
     // Listen for inventory changes from other pages/components (including cross-tab)
     const handler = () => {
@@ -161,6 +163,7 @@ export function Dashboard() {
     window.addEventListener('storage', storageHandler)
 
     return () => {
+      clearInterval(interval)
       window.removeEventListener('inventoryUpdated', handler)
       window.removeEventListener('storage', storageHandler)
       try { bc?.close() } catch { /* ignore */ }

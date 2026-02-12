@@ -2798,9 +2798,9 @@ export type GetDatabaseStatsResponse = {
   error?: string
 }
 
-export async function getDatabaseStats(): Promise<GetDatabaseStatsResponse> {
+export async function getDatabaseStats(sessionToken?: string): Promise<GetDatabaseStatsResponse> {
   try {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+    const token = sessionToken || (typeof window !== 'undefined' ? localStorage.getItem('token') : null)
     
     const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/database/stats`, {
       headers: {
