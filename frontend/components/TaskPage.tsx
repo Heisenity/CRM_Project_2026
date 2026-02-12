@@ -1085,10 +1085,6 @@ export function TaskPage() {
                                   Unassign Task
                                 </DropdownMenuItem>
                               )}
-                              <DropdownMenuItem onClick={() => handleAssignTask(record.employeeId)}>
-                                <UserPlus className="h-4 w-4 mr-2" />
-                                Assign Task
-                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
