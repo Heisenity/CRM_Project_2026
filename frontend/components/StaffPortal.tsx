@@ -524,13 +524,6 @@ export function StaffPortal() {
             </NavItem>
           )}
 
-          {employeeProfile?.role === 'FIELD_ENGINEER' && (
-            <NavItem onClick={() => setActiveTab('tasks')} active={activeTab === 'tasks'}>
-              <FileText className="h-4 w-4" /> Task Management
-            </NavItem>
-          )}
-
-
           {employeeProfile?.role === 'IN_OFFICE' && (
             <NavItem onClick={() => setActiveTab('support_requests')} active={activeTab === 'support_requests'}>
               <FileText className="h-4 w-4" /> Support Requests
@@ -961,15 +954,12 @@ export function StaffPortal() {
                     </CardContent>
                   </Card>
 
-                  {/* Petrol Bill Uploader - Only show if vehicle is assigned */}
-                  {assignedVehicle && (
-                    <div className="mt-6">
-                      <PetrolBillUploader
-                        vehicleId={assignedVehicle.id}
-                        employeeId={employeeProfile.id}
-                      />
-                    </div>
-                  )}
+                  <div className="mt-6">
+                    <PetrolBillUploader
+                      employeeId={employeeProfile.id}
+                      currentVehicleId={assignedVehicle?.id}
+                    />
+                  </div>
                 </>
               )}
 

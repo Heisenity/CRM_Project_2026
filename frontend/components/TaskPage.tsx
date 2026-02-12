@@ -17,7 +17,6 @@ import {
   ChevronLeft,
   Search,
   Filter,
-  Download,
   Clock,
   MapPin,
   Users,
@@ -30,12 +29,10 @@ import {
   X,
   UserPlus,
   Car,
-  Timer,
-  Calendar,
   Edit,
   History
 } from "lucide-react"
-import { getAttendanceRecords, getAllEmployees, getAllTeams, getAllVehicles, getAllTasks, getAllTaskHistory, getEmployeeVehicle, AttendanceRecord, Employee, Team, Vehicle, exportTasksToExcel, ExportParams, getAllTickets, Ticket, updateTaskStatus, unassignVehicle } from "@/lib/server-api"
+import { getAttendanceRecords, getAllEmployees, getAllTeams, getAllVehicles, getAllTasks, getAllTaskHistory, getEmployeeVehicle, AttendanceRecord, Employee, Team, Vehicle, getAllTickets, Ticket, updateTaskStatus, unassignVehicle } from "@/lib/server-api"
 
 interface ExtendedAttendanceRecord extends AttendanceRecord {
   hasAttendance: boolean
@@ -175,7 +172,6 @@ export function TaskPage() {
     teamId?: string
     vehicleId?: string | null
   } | null>(null)
-  const [exportLoading, setExportLoading] = React.useState<'excel' | null>(null)
   const [lastUpdated, setLastUpdated] = React.useState<Date>(new Date())
 
   const fetchAttendanceData = React.useCallback(async () => {
@@ -450,35 +446,6 @@ export function TaskPage() {
     setShowViewDetails(true)
   }
 
-  const handleExport = async (quickRange?: 'yesterday' | '15days' | '30days') => {
-    try {
-      setExportLoading('excel')
-
-      // Prepare export parameters based on current filters
-      const exportParams: ExportParams = {
-        quickRange: quickRange
-      }
-
-      // If no quick range is specified, use current filters
-      if (!quickRange) {
-        // Default to today if no date is specified
-        exportParams.date = new Date().toISOString().split('T')[0]
-
-        if (filters.status) {
-          exportParams.status = filters.status
-        }
-      }
-
-      await exportTasksToExcel(exportParams)
-      showToast.success('Export successful')
-    } catch (error) {
-      console.error('Error exporting to Excel:', error)
-      showToast.error('Failed to export to Excel')
-    } finally {
-      setExportLoading(null)
-    }
-  }
-
   // Calculate statistics
   const stats = React.useMemo(() => {
     const total = combinedData.length
@@ -564,52 +531,6 @@ export function TaskPage() {
                   <UserPlus className="h-4 w-4 mr-2" />
                   Assign
                 </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="border-gray-300 hover:bg-gray-50"
-                      disabled={exportLoading !== null}
-                    >
-                      {exportLoading ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <Download className="h-4 w-4 mr-2" />
-                      )}
-                      {exportLoading ? 'Exporting...' : 'Export to Excel'}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onClick={() => handleExport()}
-                      disabled={exportLoading !== null}
-                    >
-                      <Filter className="h-4 w-4 mr-2" />
-                      Current Filter
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => handleExport('yesterday')}
-                      disabled={exportLoading !== null}
-                    >
-                      <Clock className="h-4 w-4 mr-2" />
-                      Yesterday
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => handleExport('15days')}
-                      disabled={exportLoading !== null}
-                    >
-                      <Timer className="h-4 w-4 mr-2" />
-                      Last 15 Days
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => handleExport('30days')}
-                      disabled={exportLoading !== null}
-                    >
-                      <Calendar className="h-4 w-4 mr-2" />
-                      Last 30 Days
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
               </div>
             </div>
 

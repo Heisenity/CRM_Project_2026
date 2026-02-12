@@ -440,19 +440,18 @@ export class VehicleService {
         }
       }
 
-      // Verify vehicle is assigned to employee using the database ID
-      const vehicle = await prisma.vehicle.findFirst({
+      // Allow petrol bills even when vehicle is not currently assigned.
+      // This supports uploading slips after task/day close events.
+      const vehicle = await prisma.vehicle.findUnique({
         where: {
-          id: data.vehicleId,
-          assignedTo: employee.id,
-          status: VehicleStatus.ASSIGNED
+          id: data.vehicleId
         }
       })
 
       if (!vehicle) {
         return {
           success: false,
-          error: 'Vehicle not found or not assigned to you'
+          error: 'Vehicle not found'
         }
       }
 

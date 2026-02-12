@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,12 +12,20 @@ import { uploadPetrolBillToS3 } from "@/lib/s3-upload"
 import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch"
 
 interface PetrolBillUploaderProps {
-  vehicleId: string
   employeeId: string
+  currentVehicleId?: string
   onUploadSuccess?: () => void
 }
 
-export function PetrolBillUploader({ vehicleId, employeeId, onUploadSuccess }: PetrolBillUploaderProps) {
+interface VehicleOption {
+  id: string
+  label: string
+}
+
+export function PetrolBillUploader({ employeeId, currentVehicleId, onUploadSuccess }: PetrolBillUploaderProps) {
+  const [selectedVehicleId, setSelectedVehicleId] = useState(currentVehicleId || "")
+  const [vehicleOptions, setVehicleOptions] = useState<VehicleOption[]>([])
+  const [loadingVehicles, setLoadingVehicles] = useState(true)
   const [amount, setAmount] = useState("")
   const [date, setDate] = useState("")
   const [description, setDescription] = useState("")
@@ -25,6 +33,43 @@ export function PetrolBillUploader({ vehicleId, employeeId, onUploadSuccess }: P
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const { authenticatedFetch } = useAuthenticatedFetch()
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadVehicles = async () => {
+      try {
+        setLoadingVehicles(true)
+        const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/vehicles`)
+        const result = await response.json()
+
+        if (!cancelled && result?.success && Array.isArray(result.data)) {
+          const options: VehicleOption[] = result.data.map((vehicle: any) => ({
+            id: vehicle.id,
+            label: `${vehicle.vehicleNumber} - ${vehicle.make} ${vehicle.model}`
+          }))
+          setVehicleOptions(options)
+        }
+      } catch (error) {
+        console.error("Failed to load vehicles:", error)
+      } finally {
+        if (!cancelled) {
+          setLoadingVehicles(false)
+        }
+      }
+    }
+
+    loadVehicles()
+    return () => {
+      cancelled = true
+    }
+  }, [authenticatedFetch])
+
+  useEffect(() => {
+    if (currentVehicleId && !selectedVehicleId) {
+      setSelectedVehicleId(currentVehicleId)
+    }
+  }, [currentVehicleId, selectedVehicleId])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -65,7 +110,7 @@ export function PetrolBillUploader({ vehicleId, employeeId, onUploadSuccess }: P
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!amount || !date || !selectedFile) {
+    if (!selectedVehicleId || !amount || !date || !selectedFile) {
       showToast.error("Please fill in all required fields and select a file")
       return
     }
@@ -90,7 +135,7 @@ export function PetrolBillUploader({ vehicleId, employeeId, onUploadSuccess }: P
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            vehicleId,
+            vehicleId: selectedVehicleId,
             employeeId,
             amount: parseFloat(amount),
             date,
@@ -132,6 +177,29 @@ export function PetrolBillUploader({ vehicleId, employeeId, onUploadSuccess }: P
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="vehicleId">
+              Vehicle <span className="text-red-500">*</span>
+            </Label>
+            <select
+              id="vehicleId"
+              value={selectedVehicleId}
+              onChange={(e) => setSelectedVehicleId(e.target.value)}
+              className="w-full border border-input bg-background rounded-md px-3 py-2 text-sm"
+              disabled={loadingVehicles}
+              required
+            >
+              <option value="">
+                {loadingVehicles ? "Loading vehicles..." : "Select vehicle"}
+              </option>
+              {vehicleOptions.map((vehicle) => (
+                <option key={vehicle.id} value={vehicle.id}>
+                  {vehicle.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Amount */}
           <div className="space-y-2">
             <Label htmlFor="amount">
@@ -233,7 +301,7 @@ export function PetrolBillUploader({ vehicleId, employeeId, onUploadSuccess }: P
           {/* Submit Button */}
           <Button
             type="submit"
-            disabled={uploading || !amount || !date || !selectedFile}
+            disabled={uploading || !selectedVehicleId || !amount || !date || !selectedFile}
             className="w-full bg-blue-600 hover:bg-blue-700"
           >
             {uploading ? "Submitting..." : "Submit Petrol Bill"}
