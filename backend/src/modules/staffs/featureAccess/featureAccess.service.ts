@@ -168,7 +168,13 @@ export class FeatureAccessService {
     const employees = await prisma.employee.findMany({
       where: {
         status: 'ACTIVE',
-        role: 'IN_OFFICE' // Only IN_OFFICE employees
+        role: 'IN_OFFICE', // Only IN_OFFICE employees
+        employeeId: {
+          notIn: ['SYSTEM', 'ADMIN_SYSTEM'],
+          not: {
+            startsWith: 'ADMIN_'
+          }
+        }
       },
       select: {
         id: true,
