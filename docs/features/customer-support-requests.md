@@ -19,11 +19,6 @@ Use it when handling pending customer requests.
 ## Expected result
 Each support request is accepted by staff and converted into a trackable ticket.
 
-## Screenshot placeholders
-- [Screenshot: Pending requests list]
-- [Screenshot: Accepted requests list]
-- [Screenshot: Create ticket dialog]
-
 ## Common mistakes or errors
 - Cannot create ticket: Accept the request first.
 - Missing problem type or priority: Fill required fields before submit.

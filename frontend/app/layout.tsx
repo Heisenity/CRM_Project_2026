@@ -13,6 +13,7 @@ import { NotificationProvider } from "@/lib/notification-context"
 import { GlobalNotificationSound } from "@/components/GlobalNotificationSound"
 import { Toaster } from "@/components/ui/toaster"
 import { useSessionPersistence } from "@/hooks/useSessionPersistence"
+import { useSessionHeartbeat } from "@/hooks/useSessionHeartbeat"
 
 interface CustomUser {
   id: string
@@ -34,6 +35,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   // Use session persistence hook to prevent logout on tab switch
   useSessionPersistence()
+  // Keep frontend auth state synced with backend session validity
+  useSessionHeartbeat()
 
   const protectedPathPrefixes = [
     "/dashboard",

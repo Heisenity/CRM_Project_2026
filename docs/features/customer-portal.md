@@ -4,26 +4,43 @@
 **Route:** `/customer-portal`
 
 ## What this feature does
-Gives customers a self-service area to view account info, notifications, and submit support tickets.
+Customer Portal is a self-service page for customers to manage support communication.
+
+You can use this page to:
+- View your customer account details.
+- Create support tickets/messages.
+- Track notifications and updates from the support team.
+- Monitor follow-up activity without calling support every time.
 
 ## When users should use it
-Use it when customers need help or want to track communication updates.
+Use this page when you need to:
+- Report a new issue.
+- Ask for support help.
+- Check if support has responded.
+- Review your latest support activity.
 
 ## Step-by-step instructions
-1. Open `/customer-portal` and sign in as customer.
-2. Review customer profile details.
-3. Open **Write Support Ticket**.
-4. Enter the issue and submit.
-5. Check notifications for updates.
+1. Open the login page and sign in using customer details.
+2. After login, open **Customer Portal**.
+3. Review account/profile information to confirm you are in the correct account.
+4. Click **Write Support Ticket**.
+5. Enter a clear message describing your issue.
+6. Attach files if needed (if upload option is available).
+7. Submit the ticket.
+8. Open the notification section to check updates from support.
+9. Mark notifications as read after reviewing them.
 
 ## Expected result
-Support requests are submitted and customers can see updates.
+Your support request is submitted successfully, and you can track updates from the support team inside the portal.
 
-## Screenshot placeholders
-- [Screenshot: Customer portal home]
-- [Screenshot: Create support ticket dialog]
-- [Screenshot: Notification panel]
+Typical outcomes:
+- A new support ticket is created with your message.
+- Ticket/reference information is shown after submission.
+- Notifications help you track progress and responses.
 
 ## Common mistakes or errors
-- Ticket submit button disabled: Add a clear message first.
-- No updates yet: Wait for support team action and refresh notifications.
+- Cannot sign in: Recheck customer ID and phone/login details.
+- Submit button disabled: Enter a clear support message first.
+- File not uploading: Check file size/type and retry.
+- No updates visible: Refresh notifications and wait for support response.
+- Wrong account details shown: Sign out and log in with the correct customer account.

@@ -4,26 +4,46 @@
 **Route:** `/products`
 
 ## What this feature does
-Manages product records, stock levels, and product updates in one place.
+Product Management helps you maintain product records and track inventory information from one page.
+
+You can use this page to:
+- Add new products.
+- Edit existing product details.
+- Delete products that are no longer needed.
+- Search products quickly.
+- View stock-related information.
+- Export product data for reporting.
 
 ## When users should use it
-Use it when adding new products, editing details, or checking stock health.
+Use this page when you need to:
+- Register a new product in the system.
+- Update product name, price, supplier, or quantity details.
+- Check low stock or out-of-stock items.
+- Download a product report.
 
 ## Step-by-step instructions
-1. Open `/products`.
-2. Select **Add Product** for a new item.
-3. Enter product details and save.
-4. Use search or filters to find products.
-5. Use row actions to edit or remove products.
+1. Open the app and, in the left sidebar, click **Stock Management**. Then click **Product** in the top-right area to open **Product Management**.
+2. To create a new item, click **Add Product**.
+3. Fill product details (name, SKU, quantity, pricing, and supplier details if needed).
+4. Click **Create Product** to save.
+5. Use the search box to find products by name, SKU, or description.
+6. Use filters to narrow the list (for example by stock or status).
+7. Open row actions for a product:
+   - **Edit Product** to update details.
+   - **Delete** to remove the product.
+8. Use **Export Products** when you need a downloadable report.
 
 ## Expected result
-Product data stays accurate and easy to find.
+Product records are accurate, searchable, and ready for inventory operations.
 
-## Screenshot placeholders
-- [Screenshot: Product management page]
-- [Screenshot: Add/Edit product form]
-- [Screenshot: Product table actions]
+Typical outcomes:
+- New products appear in the list after creation.
+- Updated product values are reflected immediately.
+- Low stock items are easier to identify and manage.
 
 ## Common mistakes or errors
-- Duplicate SKU or invalid values: Correct the field and save again.
-- Product not showing: Check status filters.
+- Product not saved: Check required fields before submitting.
+- Duplicate SKU: Use a unique SKU for each product.
+- Wrong quantity or price: Recheck numeric values and decimals.
+- Product not visible: Clear filters and search again.
+- Delete by mistake: Confirm product details before deleting.

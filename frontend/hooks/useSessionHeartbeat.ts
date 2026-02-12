@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
+import { signOut } from 'next-auth/react';
 
 /**
  * This hook sends a heartbeat to the backend every 2 minutes to keep the session alive
@@ -12,6 +13,7 @@ import { useSession } from 'next-auth/react';
  */
 export function useSessionHeartbeat() {
   const { data: session, status } = useSession();
+  const signingOutRef = useRef(false);
 
   useEffect(() => {
     if (status !== 'authenticated' || !session?.user) {
@@ -26,13 +28,18 @@ export function useSessionHeartbeat() {
     // Send heartbeat every 2 minutes (less than the 5-minute timeout)
     const sendHeartbeat = async () => {
       try {
-        await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/validate-session`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/validate-session`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${sessionToken}`
           }
         });
+
+        if (response.status === 401 && !signingOutRef.current) {
+          signingOutRef.current = true;
+          await signOut({ callbackUrl: '/', redirect: true });
+        }
       } catch (error) {
         console.error('Heartbeat failed:', error);
       }
