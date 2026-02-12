@@ -113,7 +113,8 @@ export const getAttendanceRecords = async (req: Request, res: Response) => {
             phone: true,
             teamId: true,
             isTeamLeader: true,
-            role: true
+            role: true,
+            status: true
           }
         },
         sessions: {
@@ -180,6 +181,7 @@ export const getAttendanceRecords = async (req: Request, res: Response) => {
         teamId: attendance.employee.teamId,
         isTeamLeader: attendance.employee.isTeamLeader,
         role: attendance.employee.role,
+        employeeStatus: attendance.employee.status,
         date: attendance.date.toISOString().split('T')[0],
         clockIn: attendance.clockIn?.toISOString(),
         clockOut: attendance.clockOut?.toISOString(),

@@ -184,7 +184,8 @@ export function Dashboard() {
         if (response.success && response.data) {
           const records = response.data.records
           const presentCount = records.filter(record =>
-            record.status === 'PRESENT' || record.status === 'LATE'
+            (record.status === 'PRESENT' || record.status === 'LATE') &&
+            (record.employeeStatus ?? 'ACTIVE') === 'ACTIVE'
           ).length
 
           setTodayAttendance({

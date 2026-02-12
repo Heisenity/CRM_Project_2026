@@ -171,6 +171,7 @@ export type AttendanceRecord = {
     id: string
     employeeId: string
     employeeName: string
+    employeeStatus?: string
     email: string
     phone?: string
     teamId?: string
