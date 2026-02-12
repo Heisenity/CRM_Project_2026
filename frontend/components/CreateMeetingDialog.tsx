@@ -87,7 +87,7 @@ export default function CreateMeetingDialog({
   const fetchEmployees = async () => {
     try {
       setEmployeesLoading(true);
-      const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees`);
+      const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees?status=ACTIVE`);
       const result = await response.json();
       
       console.log('Employees API response:', result);

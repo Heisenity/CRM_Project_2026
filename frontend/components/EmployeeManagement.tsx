@@ -110,10 +110,12 @@ export default function EmployeeManagement() {
     const [teams, setTeams] = useState<any[]>([])
     const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null)
     const [editingAdmin, setEditingAdmin] = useState<Admin | null>(null)
+    const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null)
+    const [adminToDelete, setAdminToDelete] = useState<Admin | null>(null)
 
     const fetchEmployees = useCallback(async () => {
         try {
-            const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees`)
+            const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees?status=ACTIVE`)
             const result = await response.json()
             
             if (result.success) {
@@ -277,10 +279,6 @@ export default function EmployeeManagement() {
     }
 
     const handleDeleteEmployee = async (employee: Employee) => {
-        if (!confirm(`Are you sure you want to remove ${employee.name} from active employees? Historical records will be preserved.`)) {
-            return
-        }
-
         try {
             const response = await authenticatedFetch(
                 `${process.env.NEXT_PUBLIC_BACKEND_URL}/employees/${employee.id}`,
@@ -296,6 +294,7 @@ export default function EmployeeManagement() {
                 })
                 // Refresh the employee list
                 fetchEmployees()
+                setEmployeeToDelete(null)
             } else {
                 throw new Error('Failed to delete employee')
             }
@@ -323,10 +322,6 @@ export default function EmployeeManagement() {
     }
 
     const handleDeleteAdmin = async (admin: Admin) => {
-        if (!confirm(`Are you sure you want to delete administrator ${admin.name}? This action cannot be undone.`)) {
-            return
-        }
-
         try {
             const response = await authenticatedFetch(
                 `${process.env.NEXT_PUBLIC_BACKEND_URL}/admins/${admin.id}`,
@@ -342,6 +337,7 @@ export default function EmployeeManagement() {
                 })
                 // Refresh the admin list
                 fetchAdmins()
+                setAdminToDelete(null)
             } else {
                 throw new Error('Failed to delete administrator')
             }
@@ -812,7 +808,7 @@ export default function EmployeeManagement() {
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuItem 
-                                                                onClick={() => handleDeleteEmployee(employee)}
+                                                                onClick={() => setEmployeeToDelete(employee)}
                                                                 className="cursor-pointer text-red-600 focus:text-red-600"
                                                             >
                                                                 <Trash2 className="mr-2 h-4 w-4" />
@@ -976,7 +972,7 @@ export default function EmployeeManagement() {
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuItem 
-                                                                onClick={() => handleDeleteAdmin(admin)}
+                                                                onClick={() => setAdminToDelete(admin)}
                                                                 className="cursor-pointer text-red-600 focus:text-red-600"
                                                             >
                                                                 <Trash2 className="mr-2 h-4 w-4" />
@@ -1175,6 +1171,50 @@ export default function EmployeeManagement() {
                     )}
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={!!employeeToDelete} onOpenChange={(open) => !open && setEmployeeToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Remove Employee From Active List?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {employeeToDelete
+                                ? `This will archive ${employeeToDelete.name}. Historical records will be preserved.`
+                                : 'This will archive the employee and preserve historical records.'}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-red-600 hover:bg-red-700"
+                            onClick={() => employeeToDelete && handleDeleteEmployee(employeeToDelete)}
+                        >
+                            Remove
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={!!adminToDelete} onOpenChange={(open) => !open && setAdminToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Administrator?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {adminToDelete
+                                ? `This will permanently delete administrator ${adminToDelete.name}.`
+                                : 'This will permanently delete the administrator.'}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-red-600 hover:bg-red-700"
+                            onClick={() => adminToDelete && handleDeleteAdmin(adminToDelete)}
+                        >
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }

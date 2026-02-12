@@ -56,8 +56,12 @@ export const getAllEmployees = async (req: Request, res: Response) => {
       ]
     }
 
+    // Default behavior: only show active employees across the app.
+    // Pass ?status=INACTIVE (or other explicit status) when needed.
     if (status) {
       whereClause.status = status
+    } else {
+      whereClause.status = 'ACTIVE'
     }
 
     if (role && (role === 'FIELD_ENGINEER' || role === 'IN_OFFICE')) {
@@ -740,6 +744,13 @@ export const getEmployeeByEmployeeId = async (req: Request, res: Response) => {
     })
 
     if (!employee) {
+      return res.status(404).json({
+        success: false,
+        error: 'Employee not found'
+      })
+    }
+
+    if (employee.status !== 'ACTIVE') {
       return res.status(404).json({
         success: false,
         error: 'Employee not found'

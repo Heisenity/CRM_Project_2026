@@ -497,7 +497,7 @@ export async function getAllFieldEngineers(params?: {
 }): Promise<GetFieldEngineersResponse> {
   try {
     const queryParams = new URLSearchParams()
-    if (params?.status) queryParams.append('status', params.status)
+    queryParams.append('status', params?.status || 'ACTIVE')
     if (params?.search) queryParams.append('search', params.search)
     
     const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/field-engineers${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
@@ -666,7 +666,7 @@ export async function getAllEmployees(params?: {
     if (params?.page) searchParams.append('page', params.page.toString())
     if (params?.limit) searchParams.append('limit', params.limit.toString())
     if (params?.search) searchParams.append('search', params.search)
-    if (params?.status) searchParams.append('status', params.status)
+    searchParams.append('status', params?.status || 'ACTIVE')
     if (params?.role) searchParams.append('role', params.role)
 
     const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/employees${searchParams.toString() ? `?${searchParams.toString()}` : ''}`

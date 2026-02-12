@@ -35,7 +35,8 @@ class AuthService {
                     where: {
                         AND: [
                             { email },
-                            { employeeId }
+                            { employeeId },
+                            { status: 'ACTIVE' }
                         ]
                     }
                 });

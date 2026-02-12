@@ -43,6 +43,9 @@ export const getAllEmployees = async (req, res) => {
         if (status) {
             whereClause.status = status;
         }
+        else {
+            whereClause.status = 'ACTIVE';
+        }
         if (role && (role === 'FIELD_ENGINEER' || role === 'IN_OFFICE')) {
             whereClause.role = role;
         }
@@ -276,13 +279,30 @@ export const deleteEmployee = async (req, res) => {
                 error: 'Employee not found'
             });
         }
-        // Delete employee (this will cascade delete related records)
-        await prisma.employee.delete({
-            where: { id }
+        await prisma.$transaction(async (tx) => {
+            await tx.employee.update({
+                where: { id },
+                data: {
+                    status: 'INACTIVE',
+                    isTeamLeader: false
+                }
+            });
+            await tx.userSession.updateMany({
+                where: { employeeId: id, isActive: true },
+                data: { isActive: false }
+            });
+            await tx.vehicle.updateMany({
+                where: { assignedTo: id },
+                data: {
+                    assignedTo: null,
+                    assignedAt: null,
+                    status: 'AVAILABLE'
+                }
+            });
         });
         return res.status(200).json({
             success: true,
-            message: 'Employee deleted successfully'
+            message: 'Employee archived successfully. Historical records were preserved.'
         });
     }
     catch (error) {
@@ -321,6 +341,12 @@ export const getEmployeeById = async (req, res) => {
             }
         });
         if (!employee) {
+            return res.status(404).json({
+                success: false,
+                error: 'Employee not found'
+            });
+        }
+        if (employee.status !== 'ACTIVE') {
             return res.status(404).json({
                 success: false,
                 error: 'Employee not found'

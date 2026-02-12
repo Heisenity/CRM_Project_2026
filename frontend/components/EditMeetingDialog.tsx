@@ -156,7 +156,7 @@ export default function EditMeetingDialog({
   const fetchEmployees = async () => {
     try {
       setEmployeesLoading(true);
-      const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees`);
+      const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees?status=ACTIVE`);
       const result = await response.json();
       
       if (result.success && result.data && Array.isArray(result.data.employees)) {

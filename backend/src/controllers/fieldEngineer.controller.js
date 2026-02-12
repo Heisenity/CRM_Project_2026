@@ -87,7 +87,7 @@ export class FieldEngineerController {
                     updatedAt: true
                 }
             });
-            if (!fieldEngineer || fieldEngineer.role !== 'FIELD_ENGINEER') {
+            if (!fieldEngineer || fieldEngineer.role !== 'FIELD_ENGINEER' || fieldEngineer.status !== 'ACTIVE') {
                 return res.status(404).json({
                     success: false,
                     message: 'Field engineer not found'

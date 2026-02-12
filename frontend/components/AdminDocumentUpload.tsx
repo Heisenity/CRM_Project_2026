@@ -59,7 +59,7 @@ export function AdminDocumentUpload({ adminId, adminName }: AdminDocumentUploadP
       setEmployeesLoading(true)
       try {
         // Use authenticatedFetch to include session token
-        const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees`)
+        const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/employees?status=ACTIVE`)
         const result = await response.json()
 
         console.log('Employees API response:', result) // Debug log
