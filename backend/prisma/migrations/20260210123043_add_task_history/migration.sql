@@ -1,9 +1,6 @@
-/*
-  Warnings:
-
-  - Changed the type of `status` on the `task_history` table. No cast exists, the column would be dropped and recreated, which cannot be done if there is data, since the column is required.
-
-*/
--- AlterTable
-ALTER TABLE "task_history" DROP COLUMN "status",
-ADD COLUMN     "status" "TaskStatus" NOT NULL;
+-- NOTE:
+-- This migration was generated before the table creation migration
+-- (20260210130000_add_task_history). Running ALTER TABLE here fails on a
+-- fresh database because "task_history" does not exist yet.
+--
+-- Keep this migration as a no-op so migrate reset/dev can proceed safely.

@@ -2,7 +2,7 @@
 CREATE TABLE "task_history" (
     "id" TEXT NOT NULL,
     "taskId" TEXT NOT NULL,
-    "status" TEXT NOT NULL,
+    "status" "TaskStatus" NOT NULL,
     "changedBy" TEXT,
     "changedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "notes" TEXT,
