@@ -148,20 +148,23 @@ export class EmployeeIdGeneratorService {
   }
 
   /**
-   * Delete a custom prefix (only if no employees use it)
+   * Delete a custom prefix.
+   * Safe rule: block delete only when ACTIVE employees still use the prefix.
+   * Inactive/history employees should not block config cleanup.
    */
   static async deletePrefix(prefix: string): Promise<void> {
-    // Check if any employees use this prefix
+    // Check if any ACTIVE employees use this prefix
     const employeesWithPrefix = await prisma.employee.count({
       where: {
         employeeId: {
           startsWith: prefix
-        }
+        },
+        status: 'ACTIVE'
       }
     })
 
     if (employeesWithPrefix > 0) {
-      throw new Error(`Cannot delete prefix ${prefix}: ${employeesWithPrefix} employees are using it`)
+      throw new Error(`Cannot delete prefix ${prefix}: ${employeesWithPrefix} active employees are using it`)
     }
 
     await prisma.employeeIdConfig.delete({
