@@ -931,42 +931,31 @@ export function TaskPage() {
                         <TableCell className="py-4 px-6">
                           <div className="space-y-1">
                             {(() => {
-                              const attendanceStart = record.clockIn
-                              const attendanceEnd = record.clockOut
-
                               const task = record.assignedTask
                               const taskStart = task?.startTime
                               const taskEnd = task?.endTime
-
-                              // Show task times if available, otherwise show attendance times
-                              const displayStart = taskStart || attendanceStart
-                              const displayEnd = taskEnd || attendanceEnd
+                              const isTaskInProgress = task?.status === 'IN_PROGRESS'
 
                               return (
                                 <>
                                   <div className="flex items-center gap-2">
                                     <span className="text-sm font-semibold text-green-600">
-                                      {displayStart ? formatTime(displayStart) : '-'}
+                                      {taskStart ? formatTime(taskStart) : '-'}
                                     </span>
                                     <span className="text-gray-400">→</span>
                                     <span className="text-sm font-semibold text-orange-600">
-                                      {displayEnd
-                                        ? formatTime(displayEnd)
-                                        : displayStart
+                                      {taskEnd
+                                        ? formatTime(taskEnd)
+                                        : isTaskInProgress
                                           ? 'Working...'
                                           : '-'}
                                     </span>
                                   </div>
                                   <div className="text-xs text-gray-500">
-                                    {displayStart
-                                      ? new Date(displayStart).toLocaleDateString()
+                                    {taskStart
+                                      ? new Date(taskStart).toLocaleDateString()
                                       : '-'}
                                   </div>
-                                  {taskStart && attendanceStart && taskStart !== attendanceStart && (
-                                    <div className="text-xs text-blue-600">
-                                      Task: {formatTime(taskStart)}
-                                    </div>
-                                  )}
                                 </>
                               )
                             })()}
