@@ -1,5 +1,6 @@
 import { prisma } from '../../../lib/prisma'
 import { NotificationService } from '../../notifications/notification.service'
+import { getDownloadUrl } from '../../../services/s3.service'
 import { 
   Vehicle, 
   PetrolBill, 
@@ -12,6 +13,29 @@ import {
 } from './vehicle.types'
 
 export class VehicleService {
+  private async resolvePetrolBillImageUrl(imageUrl: string | null): Promise<string | null> {
+    if (!imageUrl) {
+      return imageUrl
+    }
+
+    // Keep already-signed URLs unchanged.
+    if (imageUrl.includes('X-Amz-Signature=')) {
+      return imageUrl
+    }
+
+    const bucket = process.env.AWS_S3_MISCELLANEOUS_BUCKET
+    if (!bucket) {
+      return imageUrl
+    }
+
+    try {
+      return await getDownloadUrl(bucket, imageUrl)
+    } catch (error) {
+      console.error('Failed to sign petrol bill image URL:', error)
+      return imageUrl
+    }
+  }
+
   // Get all vehicles with optional filters
   async getAllVehicles(filters?: {
     status?: VehicleStatus
@@ -104,10 +128,18 @@ export class VehicleService {
         }
       }
 
+      const petrolBills = await Promise.all(
+        vehicle.petrolBills.map(async (bill) => ({
+          ...bill,
+          imageUrl: await this.resolvePetrolBillImageUrl(bill.imageUrl)
+        }))
+      )
+
       return {
         success: true,
         data: {
           ...vehicle,
+          petrolBills,
           employeeName: vehicle.employee?.name,
           employeeId: vehicle.employee?.employeeId
         }
@@ -412,14 +444,19 @@ export class VehicleService {
         }
       })
 
-      return {
-        success: true,
-        data: bills.map(bill => ({
+      const enrichedBills = await Promise.all(
+        bills.map(async (bill) => ({
           ...bill,
+          imageUrl: await this.resolvePetrolBillImageUrl(bill.imageUrl),
           employeeName: bill.employee.name,
           employeeIdNumber: bill.employee.employeeId,
           vehicleNumber: bill.vehicle.vehicleNumber
         }))
+      )
+
+      return {
+        success: true,
+        data: enrichedBills
       }
     } catch (error) {
       console.error('Error fetching petrol bills:', error)

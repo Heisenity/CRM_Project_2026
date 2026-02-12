@@ -47,7 +47,7 @@ export async function uploadAttendancePhotoToS3(
   }
 
   // 3️⃣ Return public file URL
-  return presignData.fileUrl as string
+  return (presignData.fileKey || presignData.fileUrl) as string
 }
 
 export async function uploadDocumentToS3(
@@ -188,6 +188,8 @@ export async function uploadPetrolBillToS3(
     throw new Error("Failed to upload petrol bill to S3")
   }
 
-  // 3️⃣ Return file URL
-  return presignData.fileUrl as string
+  // 3️⃣ Return S3 key (fallback to URL for compatibility)
+  return (presignData.fileKey || presignData.fileUrl) as string
 }
+
+

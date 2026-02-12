@@ -555,7 +555,7 @@ export function VehiclesPage() {
                         <TableCell>
                           <div>
                             <div className="font-medium">{bill.employeeName}</div>
-                            <div className="text-sm text-gray-500">{bill.employeeId}</div>
+                            <div className="text-sm text-gray-500">{bill.employeeIdNumber || bill.employeeId}</div>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -627,7 +627,7 @@ export function VehiclesPage() {
                 <div>
                   <Label className="text-gray-500">Employee</Label>
                   <p className="font-medium">{selectedBill.employeeName}</p>
-                  <p className="text-sm text-gray-500">{selectedBill.employeeId}</p>
+                  <p className="text-sm text-gray-500">{selectedBill.employeeIdNumber || selectedBill.employeeId}</p>
                 </div>
                 <div>
                   <Label className="text-gray-500">Amount</Label>
