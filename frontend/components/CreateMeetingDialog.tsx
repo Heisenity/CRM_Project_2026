@@ -22,10 +22,9 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch";
-import { Calendar, Users, Video, FileText, ExternalLink, XCircle } from "lucide-react";
+import { Calendar, Users, Video, FileText, XCircle } from "lucide-react";
 
 interface Employee {
   id: string;
@@ -64,8 +63,6 @@ export default function CreateMeetingDialog({
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedAttendees, setSelectedAttendees] = useState<string[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [isCalendlyLoaded, setIsCalendlyLoaded] = useState(false);
   const [employeeSearchTerm, setEmployeeSearchTerm] = useState("");
   
   const [formData, setFormData] = useState({
@@ -78,24 +75,6 @@ export default function CreateMeetingDialog({
     meetingLink: "",
     agenda: ""
   });
-
-  // Load Calendly widget script
-  useEffect(() => {
-    if (open) {
-      const script = document.createElement('script');
-      script.src = 'https://assets.calendly.com/assets/external/widget.js';
-      script.async = true;
-      script.onload = () => setIsCalendlyLoaded(true);
-      document.head.appendChild(script);
-
-      return () => {
-        const existingScript = document.querySelector('script[src="https://assets.calendly.com/assets/external/widget.js"]');
-        if (existingScript) {
-          document.head.removeChild(existingScript);
-        }
-      };
-    }
-  }, [open]);
 
   // Fetch employees and customers
   useEffect(() => {
@@ -170,42 +149,6 @@ export default function CreateMeetingDialog({
       [field]: value
     }));
 
-    // If customer is selected, find the customer object
-    if (field === 'customerId' && value) {
-      const customer = customers.find(c => c.id === value);
-      setSelectedCustomer(customer || null);
-    }
-  };
-
-  const openCalendlyInNewWindow = () => {
-    let calendlyUrl = process.env.NEXT_PUBLIC_CALENDLY_URL || 'https://calendly.com/your-calendly-username';
-    
-    // Add customer details if available
-    if (selectedCustomer) {
-      const params = new URLSearchParams({
-        name: selectedCustomer.name,
-        email: selectedCustomer.email || '',
-        a1: selectedCustomer.customerId,
-        a2: selectedCustomer.phone
-      });
-      calendlyUrl += `?${params.toString()}`;
-    }
-    
-    window.open(calendlyUrl, '_blank', 'width=900,height=700,scrollbars=yes,resizable=yes');
-  };
-
-  const openCalendlyForTeamMeeting = () => {
-    let calendlyUrl = process.env.NEXT_PUBLIC_CALENDLY_URL || 'https://calendly.com/your-calendly-username';
-    
-    // Add meeting details
-    const params = new URLSearchParams({
-      name: `Team Meeting: ${formData.title || 'Internal Meeting'}`,
-      a1: 'Internal Team Meeting',
-      a2: `Attendees: ${selectedAttendees.length} selected`
-    });
-    calendlyUrl += `?${params.toString()}`;
-    
-    window.open(calendlyUrl, '_blank', 'width=900,height=700,scrollbars=yes,resizable=yes');
   };
 
   const handleAttendeeToggle = (employeeId: string) => {
@@ -292,7 +235,6 @@ export default function CreateMeetingDialog({
           agenda: ""
         });
         setSelectedAttendees([]);
-        setSelectedCustomer(null);
         setEmployeeSearchTerm("");
         
         onMeetingCreated();
@@ -321,14 +263,13 @@ export default function CreateMeetingDialog({
             Schedule New Meeting
           </DialogTitle>
           <DialogDescription>
-            Create a new meeting manually or use Calendly for scheduling
+            Create a new meeting manually
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="manual" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-1">
             <TabsTrigger value="manual">Manual Creation</TabsTrigger>
-            <TabsTrigger value="calendly">Calendly Integration</TabsTrigger>
           </TabsList>
 
           {/* Manual Creation Tab */}
@@ -618,244 +559,6 @@ export default function CreateMeetingDialog({
         </form>
       </TabsContent>
 
-      {/* Calendly Integration Tab */}
-      <TabsContent value="calendly" className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Client Meeting with Calendly */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-blue-600" />
-                Client Meeting
-              </CardTitle>
-              <CardDescription>
-                Schedule a meeting with a customer using Calendly
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Customer Selection */}
-              <div className="space-y-2">
-                <Label htmlFor="calendly-customer">Select Customer</Label>
-                {customersLoading ? (
-                  <div className="flex items-center justify-center h-10 px-3 py-2 border border-input bg-background rounded-md">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                    <span className="ml-2 text-xs text-gray-500">Loading customers...</span>
-                  </div>
-                ) : !isAuthenticated ? (
-                  <div className="flex items-center justify-center h-10 px-3 py-2 border border-input bg-background rounded-md text-sm text-muted-foreground">
-                    Please log in to view customers
-                  </div>
-                ) : Array.isArray(customers) && customers.length > 0 ? (
-                  <Select 
-                    value={formData.customerId} 
-                    onValueChange={(value: string) => handleInputChange('customerId', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose a customer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.name} ({customer.customerId})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <div className="flex items-center justify-center h-10 px-3 py-2 border border-input bg-background rounded-md text-sm text-muted-foreground">
-                    No customers available
-                  </div>
-                )}
-              </div>
-
-              {/* Customer Details Preview */}
-              {selectedCustomer && (
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="font-medium text-sm">{selectedCustomer.name}</p>
-                  <p className="text-sm text-gray-600">ID: {selectedCustomer.customerId}</p>
-                  <p className="text-sm text-gray-600">Phone: {selectedCustomer.phone}</p>
-                  {selectedCustomer.email && (
-                    <p className="text-sm text-gray-600">Email: {selectedCustomer.email}</p>
-                  )}
-                </div>
-              )}
-
-              <Button
-                onClick={openCalendlyInNewWindow}
-                className="w-full"
-                disabled={!selectedCustomer}
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Open Calendly for Customer
-              </Button>
-
-              <p className="text-xs text-gray-500">
-                Customer details will be pre-filled in Calendly
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Team Meeting with Calendly */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-green-600" />
-                Team Meeting
-              </CardTitle>
-              <CardDescription>
-                Schedule an internal team meeting using Calendly
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Meeting Title */}
-              <div className="space-y-2">
-                <Label htmlFor="calendly-title">Meeting Title</Label>
-                <Input
-                  id="calendly-title"
-                  value={formData.title}
-                  onChange={(e) => handleInputChange('title', e.target.value)}
-                  placeholder="Enter meeting title"
-                />
-              </div>
-
-              {/* Quick Attendee Selection */}
-              <div className="space-y-2">
-                <Label>Quick Attendee Selection</Label>
-                {employeesLoading ? (
-                  <div className="flex items-center justify-center h-10 px-3 py-2 border border-input bg-background rounded-md">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                    <span className="ml-2 text-xs text-gray-500">Loading...</span>
-                  </div>
-                ) : Array.isArray(employees) && employees.length > 0 ? (
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder={
-                        selectedAttendees.length === 0 
-                          ? "Select team members" 
-                          : `${selectedAttendees.length} member${selectedAttendees.length !== 1 ? 's' : ''} selected`
-                      } />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <div className="p-2">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <Checkbox
-                            id="calendly-select-all"
-                            checked={selectedAttendees.length === filteredEmployees.length && filteredEmployees.length > 0}
-                            onCheckedChange={(checked: boolean) => {
-                              if (checked) {
-                                const newSelected = [...new Set([...selectedAttendees, ...filteredEmployees.map(emp => emp.id)])];
-                                setSelectedAttendees(newSelected);
-                              } else {
-                                const filteredIds = filteredEmployees.map(emp => emp.id);
-                                setSelectedAttendees(prev => prev.filter(id => !filteredIds.includes(id)));
-                              }
-                            }}
-                          />
-                          <Label htmlFor="calendly-select-all" className="text-sm font-medium">
-                            Select All Team ({filteredEmployees.length})
-                          </Label>
-                        </div>
-                        <div className="border-t pt-2 max-h-48 overflow-y-auto">
-                          {filteredEmployees.length > 0 ? (
-                            filteredEmployees.map((employee) => (
-                              <div key={employee.id} className="flex items-center space-x-2 py-1 hover:bg-gray-50 rounded px-2">
-                                <Checkbox
-                                  id={`calendly-${employee.id}`}
-                                  checked={selectedAttendees.includes(employee.id)}
-                                  onCheckedChange={() => handleAttendeeToggle(employee.id)}
-                                />
-                                <Label htmlFor={`calendly-${employee.id}`} className="text-sm cursor-pointer flex-1">
-                                  <div className="flex items-center justify-between">
-                                    <span>{employee.name}</span>
-                                    <span className="text-xs text-gray-500">({employee.employeeId})</span>
-                                  </div>
-                                  <div className="text-xs text-gray-400 capitalize">
-                                    {employee.role?.replace('_', ' ').toLowerCase()}
-                                  </div>
-                                </Label>
-                              </div>
-                            ))
-                          ) : (
-                            <div className="text-center py-4 text-sm text-gray-500">
-                              No team members available
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <div className="flex items-center justify-center h-10 px-3 py-2 border border-input bg-background rounded-md text-sm text-muted-foreground">
-                    No employees available
-                  </div>
-                )}
-                
-                {/* Selected Members Tags */}
-                {selectedAttendees.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {selectedAttendees.slice(0, 3).map(attendeeId => {
-                      const employee = employees.find(emp => emp.id === attendeeId);
-                      return employee ? (
-                        <span key={attendeeId} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
-                          {employee.name}
-                          <button
-                            type="button"
-                            onClick={() => handleAttendeeToggle(attendeeId)}
-                            className="ml-1 hover:bg-green-200 rounded-full p-0.5"
-                          >
-                            <XCircle className="h-3 w-3" />
-                          </button>
-                        </span>
-                      ) : null;
-                    })}
-                    {selectedAttendees.length > 3 && (
-                      <span className="text-xs text-green-600 px-2 py-1">
-                        +{selectedAttendees.length - 3} more
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <Button
-                onClick={openCalendlyForTeamMeeting}
-                className="w-full"
-                variant="outline"
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Open Calendly for Team Meeting
-              </Button>
-
-              <p className="text-xs text-gray-500">
-                Meeting details will be pre-filled in Calendly
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Calendly Features */}
-        <Card>
-          <CardContent>
-            <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-              <h4 className="font-medium text-blue-900 mb-2">How it works:</h4>
-              <ol className="text-sm text-blue-800 space-y-1">
-                <li>1. Select meeting type and attendees</li>
-                <li>2. Click to open Calendly with pre-filled details</li>
-                <li>3. Choose available time slots</li>
-                <li>4. Calendly sends invitations automatically</li>
-                <li>5. Meeting details sync back to your calendar</li>
-              </ol>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Actions for Calendly Tab */}
-        <div className="flex justify-end pt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
-        </div>
-      </TabsContent>
     </Tabs>
       </DialogContent>
     </Dialog>

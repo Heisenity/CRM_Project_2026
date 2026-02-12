@@ -40,8 +40,9 @@ class AuthService {
         }
 
         const employee = await prisma.employee.findFirst({
-          where: { 
-            employeeId
+          where: {
+            employeeId,
+            status: 'ACTIVE'
           }
         })
 

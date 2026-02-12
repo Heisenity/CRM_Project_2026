@@ -566,14 +566,37 @@ export const deleteEmployee = async (req: Request, res: Response) => {
       })
     }
 
-    // Delete employee (this will cascade delete related records)
-    await prisma.employee.delete({
-      where: { id }
+    // Soft delete: keep history, but deactivate the employee account.
+    // This avoids FK/relation failures and preserves attendance/tasks/transactions.
+    await prisma.$transaction(async (tx) => {
+      await tx.employee.update({
+        where: { id },
+        data: {
+          status: 'INACTIVE',
+          isTeamLeader: false
+        }
+      })
+
+      // Ensure the employee can no longer access the system.
+      await tx.userSession.updateMany({
+        where: { employeeId: id, isActive: true },
+        data: { isActive: false }
+      })
+
+      // If a vehicle is assigned, release it safely.
+      await tx.vehicle.updateMany({
+        where: { assignedTo: id },
+        data: {
+          assignedTo: null,
+          assignedAt: null,
+          status: 'AVAILABLE'
+        }
+      })
     })
 
     return res.status(200).json({
       success: true,
-      message: 'Employee deleted successfully'
+      message: 'Employee archived successfully. Historical records were preserved.'
     })
   } catch (error) {
     console.error('Error deleting employee:', error)

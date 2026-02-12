@@ -277,7 +277,7 @@ export default function EmployeeManagement() {
     }
 
     const handleDeleteEmployee = async (employee: Employee) => {
-        if (!confirm(`Are you sure you want to delete ${employee.name}? This action cannot be undone.`)) {
+        if (!confirm(`Are you sure you want to remove ${employee.name} from active employees? Historical records will be preserved.`)) {
             return
         }
 
@@ -292,7 +292,7 @@ export default function EmployeeManagement() {
             if (response.ok) {
                 toast({
                     title: "Success",
-                    description: `Employee ${employee.name} has been deleted successfully`
+                    description: `Employee ${employee.name} was removed from active employees.`
                 })
                 // Refresh the employee list
                 fetchEmployees()
