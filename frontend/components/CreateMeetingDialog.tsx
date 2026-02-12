@@ -202,8 +202,10 @@ export default function CreateMeetingDialog({
     setLoading(true);
 
     try {
+      const meetingStartTimeIso = startTime.toISOString();
       const meetingData = {
         ...formData,
+        startTime: meetingStartTimeIso,
         organizerId: (session.user as any).id,
         userType: (session.user as any).userType, // Add userType to determine admin vs employee
         customerId: formData.customerId || undefined,
