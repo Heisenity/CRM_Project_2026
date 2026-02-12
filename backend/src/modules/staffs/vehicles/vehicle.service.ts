@@ -319,9 +319,14 @@ export class VehicleService {
   // Get employee's assigned vehicle
   async getEmployeeVehicle(employeeId: string) {
     try {
-      // First, find the employee by their display ID to get the database ID
-      const employee = await prisma.employee.findUnique({
-        where: { employeeId: employeeId }
+      // Accept either employee display ID or internal employee ID from session context
+      const employee = await prisma.employee.findFirst({
+        where: {
+          OR: [
+            { employeeId: employeeId },
+            { id: employeeId }
+          ]
+        }
       })
 
       if (!employee) {
@@ -428,9 +433,14 @@ export class VehicleService {
   // Create petrol bill
   async createPetrolBill(employeeId: string, data: CreatePetrolBillRequest) {
     try {
-      // First, find the employee by their display ID to get the database ID
-      const employee = await prisma.employee.findUnique({
-        where: { employeeId: employeeId }
+      // Accept either employee display ID or internal employee ID from session context
+      const employee = await prisma.employee.findFirst({
+        where: {
+          OR: [
+            { employeeId: employeeId },
+            { id: employeeId }
+          ]
+        }
       })
 
       if (!employee) {

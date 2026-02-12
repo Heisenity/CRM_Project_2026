@@ -28,7 +28,8 @@ export function useSessionHeartbeat() {
     // Send heartbeat every 2 minutes (less than the 5-minute timeout)
     const sendHeartbeat = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/validate-session`, {
+        const backendUrl = (process.env.NEXT_PUBLIC_BACKEND_URL || "").replace(/\/$/, "")
+        const response = await fetch(`${backendUrl}/auth/validate-session`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

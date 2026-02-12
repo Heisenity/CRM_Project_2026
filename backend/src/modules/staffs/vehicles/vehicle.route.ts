@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { VehicleController } from './vehicle.controller'
+import { authenticateToken } from '../../../middleware/auth.middleware'
 
 const router = Router()
 const vehicleController = new VehicleController()
@@ -14,8 +15,8 @@ router.post('/vehicles/:id/unassign', (req, res) => vehicleController.unassignVe
 router.get('/vehicles/employee/:employeeId', (req, res) => vehicleController.getEmployeeVehicle(req, res))
 
 // Petrol bill routes
-router.get('/petrol-bills', (req, res) => vehicleController.getAllPetrolBills(req, res))
-router.post('/petrol-bills', (req, res) => vehicleController.createPetrolBill(req, res))
-router.post('/petrol-bills/:id/approve', (req, res) => vehicleController.approvePetrolBill(req, res))
+router.get('/petrol-bills', authenticateToken, (req, res) => vehicleController.getAllPetrolBills(req, res))
+router.post('/petrol-bills', authenticateToken, (req, res) => vehicleController.createPetrolBill(req, res))
+router.post('/petrol-bills/:id/approve', authenticateToken, (req, res) => vehicleController.approvePetrolBill(req, res))
 
 export default router

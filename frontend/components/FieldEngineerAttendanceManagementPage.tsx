@@ -17,7 +17,6 @@ import { showToast } from "@/lib/toast-utils"
 import {
   Search,
   Filter,
-  Download,
   Clock,
   Users,
   CheckCircle,
@@ -33,7 +32,7 @@ import {
   MoreVertical,
   Edit
 } from "lucide-react"
-import { getAttendanceRecords, getAllEmployees, exportAttendanceToExcel, ExportParams, Employee } from "@/lib/server-api"
+import { getAttendanceRecords, getAllEmployees, Employee } from "@/lib/server-api"
 
 
 
@@ -192,8 +191,6 @@ export function AttendanceManagementPage() {
     search: '',
     status: ''
   })
-  const [exportLoading, setExportLoading] = React.useState<'excel' | 'pdf' | null>(null)
-
   // Edit dialog state
   const [editDialog, setEditDialog] = React.useState<{
     open: boolean
@@ -379,36 +376,6 @@ export function AttendanceManagementPage() {
     }, 1000)
   }
 
-  const handleExport = async (quickRange?: 'yesterday' | '15days' | '30days') => {
-    try {
-      setExportLoading('excel')
-
-      const exportParams: ExportParams = {
-        role: 'FIELD_ENGINEER',
-        quickRange: quickRange
-      }
-
-      // Only use custom date range if no quick range is specified
-      if (!quickRange) {
-        // No date filter - export all data
-      }
-
-      if (filters.status) {
-        exportParams.status = filters.status
-      }
-
-      await exportAttendanceToExcel(exportParams)
-      showToast.success('Export successful')
-    } catch (error) {
-      console.error('Error exporting to Excel:', error)
-      showToast.error('Failed to export to Excel')
-    } finally {
-      setExportLoading(null)
-    }
-  }
-
-
-
   // Edit attendance functions
   const handleEditAttendance = (record: AttendanceSessionRow) => {
     setEditDialog({
@@ -544,52 +511,6 @@ export function AttendanceManagementPage() {
                   <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                   Refresh
                 </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="border-gray-300 hover:bg-gray-50"
-                      disabled={exportLoading !== null}
-                    >
-                      {exportLoading ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <Download className="h-4 w-4 mr-2" />
-                      )}
-                      {exportLoading ? 'Exporting...' : 'Export to Excel'}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onClick={() => handleExport()}
-                      disabled={exportLoading !== null}
-                    >
-                      <Filter className="h-4 w-4 mr-2" />
-                      Current Filter
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => handleExport('yesterday')}
-                      disabled={exportLoading !== null}
-                    >
-                      <Clock className="h-4 w-4 mr-2" />
-                      Yesterday
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => handleExport('15days')}
-                      disabled={exportLoading !== null}
-                    >
-                      <Timer className="h-4 w-4 mr-2" />
-                      Last 15 Days
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => handleExport('30days')}
-                      disabled={exportLoading !== null}
-                    >
-                      <Calendar className="h-4 w-4 mr-2" />
-                      Last 30 Days
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
                 <Button
                   onClick={() => setShowAddForm(true)}
                   className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"

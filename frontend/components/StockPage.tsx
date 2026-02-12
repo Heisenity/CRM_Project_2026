@@ -10,12 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
 import BarcodeScanner from "@/components/barcodeScanner/BarcodeScanner"
-import { exportTransactionsToExcel } from "@/lib/server-api"
 import { showToast } from "@/lib/toast-utils"
 import { 
   Search, 
   Filter, 
-  Download, 
   Package, 
   TrendingUp,
   AlertTriangle,
@@ -127,7 +125,6 @@ export function StockPage() {
   })
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
-  const [exportLoading, setExportLoading] = React.useState<boolean>(false)
 
   // Fetch inventory transactions
   const fetchTransactions = React.useCallback(async () => {
@@ -193,26 +190,6 @@ export function StockPage() {
       fetchTransactions()
     }
   }, [fetchTransactions, session])
-
-  const handleExport = async (quickRange?: 'yesterday' | '15days' | '30days') => {
-    try {
-      setExportLoading(true)
-
-      const exportParams: { quickRange?: 'yesterday' | '15days' | '30days' } = {}
-      
-      if (quickRange) {
-        exportParams.quickRange = quickRange
-      }
-
-      await exportTransactionsToExcel(exportParams)
-      showToast.success('Export successful')
-    } catch (error) {
-      console.error('Error exporting to Excel:', error)
-      showToast.error('Failed to export to Excel')
-    } finally {
-      setExportLoading(false)
-    }
-  }
 
   // Handle barcode scan
   const handleBarcodeScan = React.useCallback((barcodeValue: string) => {
@@ -305,41 +282,6 @@ export function StockPage() {
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
               </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    className="border-gray-300 hover:bg-gray-50"
-                    disabled={exportLoading}
-                  >
-                    {exportLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Exporting...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="h-4 w-4 mr-2" />
-                        Export
-                      </>
-                    )}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => handleExport()}>
-                    Current Filter
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExport('yesterday')}>
-                    Yesterday
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExport('15days')}>
-                    Last 15 Days
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExport('30days')}>
-                    Last 30 Days
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
             </div>
           </div>
           
