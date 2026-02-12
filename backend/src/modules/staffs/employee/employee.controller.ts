@@ -64,6 +64,14 @@ export const getAllEmployees = async (req: Request, res: Response) => {
       whereClause.role = role
     }
 
+    // Hide synthetic system/admin shadow employees from standard employee UI lists.
+    whereClause.AND = [
+      ...(whereClause.AND || []),
+      { employeeId: { not: 'SYSTEM' } },
+      { employeeId: { not: 'ADMIN_SYSTEM' } },
+      { employeeId: { not: { startsWith: 'ADMIN_' } } }
+    ]
+
     const employees = await prisma.employee.findMany({
       where: whereClause,
       orderBy: {
