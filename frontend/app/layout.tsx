@@ -101,6 +101,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     "/",
     "/landing",
     "/admin-login",
+    "/login-admin",
     "/employee-attendance",
     "/staff-portal",
     "/customer-portal",

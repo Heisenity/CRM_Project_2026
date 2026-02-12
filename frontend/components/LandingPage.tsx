@@ -239,6 +239,30 @@ function StaffLoginCard() {
   )
 }
 
+// Admin Login Card Component
+function AdminLoginCard() {
+  return (
+    <Card className="group p-6 bg-gray-50 rounded-2xl border-2 border-transparent hover:border-blue-200 transition-all duration-300 hover:shadow-lg">
+      <CardHeader className="text-center pb-4">
+        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+          <ShieldCheck className="h-8 w-8 text-blue-600" />
+        </div>
+        <CardTitle className="text-2xl font-bold text-gray-900">Admin Login</CardTitle>
+        <CardDescription className="text-gray-600 text-sm">
+          Administrator access portal
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Link href="/login-admin">
+          <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-3">
+            Login as Admin
+          </Button>
+        </Link>
+      </CardContent>
+    </Card>
+  )
+}
+
 
 
 export default function LandingPage({ onGetStarted, isLoggedIn = false, userProfile }: LandingPageProps) {
@@ -279,12 +303,15 @@ export default function LandingPage({ onGetStarted, isLoggedIn = false, userProf
             </div>
             
             {!isLoggedIn && (
-              <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
                 {/* Customer Login */}
                 <CustomerLoginCard />
 
                 {/* Staff Login */}
                 <StaffLoginCard />
+
+                {/* Admin Login */}
+                <AdminLoginCard />
               </div>
             )}
 
@@ -369,12 +396,6 @@ Bengal, 711201</p>
             <div className="text-center md:text-right">
               <p>&copy; 2026 MediaInfoTech.</p>
               <p className="text-sm mt-1">powered by insightsnode</p>
-              <Link 
-                href="/admin-login" 
-                className="text-xs text-gray-500 hover:text-gray-300 transition-colors mt-2 inline-block"
-              >
-                Admin Access
-              </Link>
             </div>
           </div>
         </div>
