@@ -84,6 +84,7 @@ export function Dashboard() {
   const [todayAttendance, setTodayAttendance] = React.useState({ present: 0, total: 0 })
   const [recentTickets, setRecentTickets] = React.useState<TicketData[]>([])
   const [loadingStats, setLoadingStats] = React.useState(true)
+  const [loadingTodayAttendance, setLoadingTodayAttendance] = React.useState(true)
 
   const handleProductScan = (productId: string) => {
     setLastScannedProduct(productId)
@@ -169,6 +170,13 @@ export function Dashboard() {
   // Fetch today's attendance data
   React.useEffect(() => {
     const fetchTodayAttendance = async () => {
+      if (status !== "authenticated" || !session?.user) {
+        setTodayAttendance({ present: 0, total: 0 })
+        setLoadingTodayAttendance(false)
+        return
+      }
+
+      setLoadingTodayAttendance(true)
       try {
         const today = new Date().toISOString().split('T')[0]
         const response = await getAttendanceRecords({ date: today, limit: 1000 })
@@ -181,7 +189,7 @@ export function Dashboard() {
 
           setTodayAttendance({
             present: presentCount,
-            total: dbStats.employees || records.length
+            total: dbStats.employees > 0 ? dbStats.employees : records.length
           })
         }
       } catch (error) {
@@ -191,13 +199,13 @@ export function Dashboard() {
           present: 0,
           total: dbStats.employees || 0
         })
+      } finally {
+        setLoadingTodayAttendance(false)
       }
     }
 
-    if (dbStats.employees > 0) {
-      fetchTodayAttendance()
-    }
-  }, [dbStats.employees])
+    fetchTodayAttendance()
+  }, [dbStats.employees, status, session])
 
   // Fetch recent tickets
   React.useEffect(() => {
@@ -386,7 +394,7 @@ export function Dashboard() {
               <div className="space-y-2">
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-bold text-gray-900">
-                    {loadingStats ? '...' : todayAttendance.present}
+                    {loadingTodayAttendance ? '...' : todayAttendance.present}
                   </span>
                 </div>
                 <p className="text-sm text-gray-500">

@@ -133,7 +133,7 @@ export class DatabaseController {
         totalCustomers
       ] = await Promise.all([
         prisma.admin.count(),
-        prisma.employee.count(),
+        prisma.employee.count({ where: { status: 'ACTIVE' } }),
         prisma.product.count({ where: { isActive: true } }),
         prisma.team.count(),
         prisma.attendance.count(),
