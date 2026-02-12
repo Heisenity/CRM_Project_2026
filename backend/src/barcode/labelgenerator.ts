@@ -1,7 +1,5 @@
 import * as bwipjs from 'bwip-js';
 import PDFDocument from 'pdfkit';
-import * as fs from 'fs-extra';
-import * as path from 'path';
 import { prisma } from '../lib/prisma';
 
 interface LabelRenderItem {
@@ -11,8 +9,6 @@ interface LabelRenderItem {
   productName: string;
   boxQty: number;
 }
-
-const OUTPUT_DIR = path.join(process.cwd(), 'output');
 
 function zeroPad(num: number, width = 6) {
   return String(num).padStart(width, '0');
@@ -50,13 +46,10 @@ async function renderBarcodePng(text: string): Promise<Buffer> {
   }
 }
 
-async function createPdfFromLabels(labels: LabelRenderItem[], fileName: string): Promise<string> {
-  await fs.ensureDir(OUTPUT_DIR);
-  const pdfPath = path.join(OUTPUT_DIR, fileName);
-
+async function createPdfFromLabels(labels: LabelRenderItem[]): Promise<Buffer> {
   const doc = new PDFDocument({ size: 'A4', margin: 36 });
-  const writeStream = fs.createWriteStream(pdfPath);
-  doc.pipe(writeStream);
+  const chunks: Buffer[] = [];
+  doc.on('data', (chunk: Buffer) => chunks.push(chunk));
 
   const columns = 3;
   const gutter = 12;
@@ -95,18 +88,16 @@ async function createPdfFromLabels(labels: LabelRenderItem[], fileName: string):
 
   doc.end();
 
-  await new Promise<void>((resolve, reject) => {
-    writeStream.on('finish', resolve);
-    writeStream.on('error', reject);
+  const pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
   });
 
-  const stat = await fs.stat(pdfPath);
-  if (stat.size === 0) {
+  if (!pdfBuffer.length) {
     throw new Error('Generated PDF is empty');
   }
 
-  return pdfPath;
+  return pdfBuffer;
 }
 
 export async function generateLabelsForProduct(params: {
@@ -183,11 +174,11 @@ export async function generateLabelsForProduct(params: {
       });
     }
 
-    const pdfName = `labels_${product.id}_${Date.now()}.pdf`;
-    const pdfPath = await createPdfFromLabels(labels, pdfName);
+    const pdfBuffer = await createPdfFromLabels(labels);
 
     return {
-      pdfPath,
+      pdfBuffer,
+      fileName: `labels_${product.id}_${Date.now()}.pdf`,
       createdCount: txResult.created.length,
       barcodes: txResult.created
     };

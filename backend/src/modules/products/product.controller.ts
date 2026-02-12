@@ -1,8 +1,6 @@
 import { Request, Response } from 'express';
 import { generateLabelsForProduct } from '../../barcode/labelgenerator';
 import { prisma } from '../../lib/prisma';
-import * as path from 'path';
-import * as fs from 'fs-extra';
 import { updateProductInventory, calculateAvailableUnits, auditInventoryChange, checkLowStockThreshold } from '../Inventory/inventory.service';
 
 // New imports for duplicate-scan detection
@@ -759,32 +757,12 @@ export const generateLabels = async (req: Request, res: Response) => {
       prefix: normalizedPrefix
     });
 
-    // Return the PDF file
-    const pdfPath = result.pdfPath;
-    const fileName = path.basename(pdfPath);
-
+    // Return PDF directly from memory buffer (no filesystem write required).
+    const fileName = result.fileName || `labels_${productId}_${Date.now()}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-
-    const fileStream = fs.createReadStream(pdfPath);
-    fileStream.pipe(res);
-
-    fileStream.on('end', () => {
-      // Clean up the file after sending (optional)
-      setTimeout(() => {
-        fs.unlink(pdfPath).catch(console.error);
-      }, 5000); // Delete after 5 seconds
-    });
-
-    fileStream.on('error', (error) => {
-      console.error('Error streaming PDF:', error);
-      if (!res.headersSent) {
-        res.status(500).json({
-          error: 'Failed to stream PDF file',
-          message: error.message
-        });
-      }
-    });
+    res.setHeader('Content-Length', String(result.pdfBuffer.length));
+    return res.status(200).send(result.pdfBuffer);
 
   } catch (error: any) {
     console.error('Error generating labels:', error);
