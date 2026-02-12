@@ -81,21 +81,18 @@ export function VehiclesPage() {
   // Fetch data from API
   React.useEffect(() => {
     fetchData()
-  }, [])
+  }, [session?.user])
 
   const fetchData = async () => {
     try {
       setLoading(true)
-      
-      const [vehiclesResponse, billsResponse] = await Promise.all([
-        getAllVehicles(),
-        getAllPetrolBills()
-      ])
+      const vehiclesResponse = await getAllVehicles()
 
       if (vehiclesResponse.success && vehiclesResponse.data) {
         setVehicles(vehiclesResponse.data)
       }
 
+      const billsResponse = await getAllPetrolBills()
       if (billsResponse.success && billsResponse.data) {
         setPetrolBills(billsResponse.data)
       }

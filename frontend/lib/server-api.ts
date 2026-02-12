@@ -1820,6 +1820,11 @@ export async function getAllPetrolBills(params?: {
   vehicleId?: string
 }): Promise<GetPetrolBillsResponse> {
   try {
+    const token = await getSessionToken()
+    if (!token) {
+      return { success: false, error: 'Not authenticated' }
+    }
+
     const searchParams = new URLSearchParams()
     
     if (params?.status) searchParams.append('status', params.status)
@@ -1829,13 +1834,19 @@ export async function getAllPetrolBills(params?: {
     const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/petrol-bills${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
     
     const res = await fetch(url, {
-      cache: 'no-store'
+      cache: 'no-store',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
     })
 
     const response = await res.json()
 
     if (!res.ok) {
-      throw new Error(response.error || `Failed to get petrol bills: ${res.status}`)
+      return {
+        success: false,
+        error: response.error || `Failed to get petrol bills: ${res.status}`
+      }
     }
 
     return response
@@ -1847,10 +1858,16 @@ export async function getAllPetrolBills(params?: {
 
 export async function createPetrolBill(bill: CreatePetrolBillRequest): Promise<CreatePetrolBillResponse> {
   try {
+    const token = await getSessionToken()
+    if (!token) {
+      return { success: false, error: 'Not authenticated' }
+    }
+
     const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/petrol-bills`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify(bill),
       cache: 'no-store'
@@ -1871,10 +1888,16 @@ export async function createPetrolBill(bill: CreatePetrolBillRequest): Promise<C
 
 export async function approvePetrolBill(billId: string, data: ApprovePetrolBillRequest): Promise<ApprovePetrolBillResponse> {
   try {
+    const token = await getSessionToken()
+    if (!token) {
+      return { success: false, error: 'Not authenticated' }
+    }
+
     const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/petrol-bills/${billId}/approve`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify(data),
       cache: 'no-store'
