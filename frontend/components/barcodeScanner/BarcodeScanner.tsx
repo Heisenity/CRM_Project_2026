@@ -470,7 +470,7 @@ export default function BarcodeScanner({ onScan, onInventoryChange, onScanResult
         </Button>
       </SheetTrigger>
 
-      <SheetContent side="right" className="w-full sm:max-w-md p-0">
+      <SheetContent side="right" className="w-full sm:max-w-md p-0 h-full flex flex-col overflow-hidden">
         <SheetHeader className="px-6 py-4">
           <SheetTitle className="flex items-center gap-2">
             <Package className="h-5 w-5 text-blue-600" />
@@ -478,7 +478,8 @@ export default function BarcodeScanner({ onScan, onInventoryChange, onScanResult
           </SheetTitle>
         </SheetHeader>
 
-        <div className="p-6 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="p-6 space-y-4">
           {cameraError ? (
             <div className="bg-red-50 p-4 rounded-xl border border-red-200 text-center">
               <AlertCircle className="h-8 w-8 text-red-600 mx-auto mb-2" />
@@ -557,7 +558,7 @@ export default function BarcodeScanner({ onScan, onInventoryChange, onScanResult
           <div className="text-xs text-gray-500 text-center space-y-1">
             <p>Make sure barcode is well-lit and in focus</p>
           </div>
-        </div>
+          </div>
 
         {/* Scan Result – shown BELOW camera */}
         {result && (
@@ -613,6 +614,7 @@ export default function BarcodeScanner({ onScan, onInventoryChange, onScanResult
 
           </div>
         )}
+        </div>
 
       </SheetContent>
 
