@@ -22,7 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Edit, Trash2, Eye, Building2, CalendarDays } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Eye, Building2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import MeetingScheduler from "./MeetingScheduler";
@@ -272,11 +272,6 @@ export default function CustomerManagement() {
     setIsViewDialogOpen(true);
   };
 
-  const openMeetingScheduler = (customer: Customer) => {
-    setSelectedCustomer(customer);
-    setIsMeetingDialogOpen(true);
-  };
-
   const resetForm = () => {
     setFormData({
       name: "",
@@ -419,14 +414,6 @@ export default function CustomerManagement() {
                             onClick={() => openEditDialog(customer)}
                           >
                             <Edit className="w-5 h-5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openMeetingScheduler(customer)}
-                            title="Schedule Meeting"
-                          >
-                            <CalendarDays className="w-5 h-5 text-blue-600" />
                           </Button>
                           <Button
                             variant="ghost"
