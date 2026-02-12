@@ -1308,13 +1308,12 @@ function EditEmployeeForm({ employee, teams, onSave, onCancel }: EditEmployeeFor
                     />
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="email">Email *</Label>
+                    <Label htmlFor="email">Email</Label>
                     <Input
                         id="email"
                         type="email"
                         value={formData.email}
                         onChange={(e) => handleChange('email', e.target.value)}
-                        required
                     />
                 </div>
                 <div className="space-y-2">
