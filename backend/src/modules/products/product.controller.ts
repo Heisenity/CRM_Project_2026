@@ -721,11 +721,24 @@ export const generateLabels = async (req: Request, res: Response) => {
       });
     }
 
+    if (!/^\d+$/.test(String(productId))) {
+      return res.status(400).json({
+        error: 'Invalid productId format'
+      });
+    }
+
     // Validate count
     const labelCount = safeParseInt(count);
     if (Number.isNaN(labelCount) || labelCount < 1 || labelCount > 100) {
       return res.status(400).json({
         error: 'Count must be a number between 1 and 100'
+      });
+    }
+
+    const normalizedPrefix = String(prefix || 'BX').trim().toUpperCase();
+    if (!/^[A-Z]{2,4}$/.test(normalizedPrefix)) {
+      return res.status(400).json({
+        error: 'Prefix must be 2-4 uppercase letters only'
       });
     }
 
@@ -743,7 +756,7 @@ export const generateLabels = async (req: Request, res: Response) => {
     const result = await generateLabelsForProduct({
       productId,
       count: labelCount,
-      prefix: prefix || 'BX'
+      prefix: normalizedPrefix
     });
 
     // Return the PDF file

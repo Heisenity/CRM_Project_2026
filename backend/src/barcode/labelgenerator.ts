@@ -18,63 +18,49 @@ function zeroPad(num: number, width = 6) {
   return String(num).padStart(width, '0');
 }
 
-async function renderBarcodePng(text: string): Promise<Buffer> {
-  console.log('🏷️  Generating barcode for text:', text);
-  console.log('🏷️  Text length:', text.length);
-  console.log('🏷️  Text type:', typeof text);
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
+async function renderBarcodePng(text: string): Promise<Buffer> {
   try {
-    // Try with different Code128 options to ensure proper encoding
     const buffer = await bwipjs.toBuffer({
       bcid: 'code128',
-      text: text,
+      text,
       scale: 3,
       height: 10,
       includetext: false,
       textxalign: 'center',
-      // Force Code128 Auto mode for better compatibility
       parsefnc: true
     });
-
-    console.log('✅ Barcode generated successfully for:', text);
     return buffer;
   } catch (error) {
-    console.error('❌ Barcode generation failed for:', text, error);
-
-    // Fallback: try with simpler options
     try {
-      console.log('🔄 Trying fallback barcode generation...');
       const fallbackBuffer = await bwipjs.toBuffer({
         bcid: 'code128',
-        text: text,
+        text,
         scale: 2,
         height: 8
       });
-      console.log('✅ Fallback barcode generated for:', text);
       return fallbackBuffer;
     } catch (fallbackError) {
-      console.error('❌ Fallback barcode generation also failed:', fallbackError);
+      console.error('Barcode generation failed:', { text, error, fallbackError });
       throw fallbackError;
     }
   }
 }
 
-async function createPdfFromLabels(
-  labels: LabelRenderItem[],
-  fileName: string
-): Promise<string> {
+async function createPdfFromLabels(labels: LabelRenderItem[], fileName: string): Promise<string> {
   await fs.ensureDir(OUTPUT_DIR);
   const pdfPath = path.join(OUTPUT_DIR, fileName);
 
   const doc = new PDFDocument({ size: 'A4', margin: 36 });
   const writeStream = fs.createWriteStream(pdfPath);
-
   doc.pipe(writeStream);
 
   const columns = 3;
   const gutter = 12;
   const labelHeight = 110;
-
   const pageWidth = doc.page.width - 72;
   const colWidth = (pageWidth - (columns - 1) * gutter) / columns;
 
@@ -88,7 +74,7 @@ async function createPdfFromLabels(
       fit: [colWidth - 12, 48]
     });
 
-    let textY = y + 60;
+    const textY = y + 60;
     doc.fontSize(9).text(`SKU: ${l.sku}`, x + 6, textY);
     doc.text(`Product: ${l.productName}`);
     doc.text(`Box Qty: ${l.boxQty}`);
@@ -107,17 +93,14 @@ async function createPdfFromLabels(
     }
   }
 
-  // END PDF
   doc.end();
 
-  // 🔒 CRITICAL FIX: wait until file is FULLY written
   await new Promise<void>((resolve, reject) => {
     writeStream.on('finish', resolve);
     writeStream.on('error', reject);
     doc.on('error', reject);
   });
 
-  // Optional safety check
   const stat = await fs.stat(pdfPath);
   if (stat.size === 0) {
     throw new Error('Generated PDF is empty');
@@ -126,54 +109,71 @@ async function createPdfFromLabels(
   return pdfPath;
 }
 
-
 export async function generateLabelsForProduct(params: {
   productId: string;
   count: number;
   prefix?: string;
 }) {
   const { productId, count, prefix = 'BX' } = params;
+  const normalizedPrefix = String(prefix || 'BX').trim().toUpperCase();
+  if (!/^[A-Z]{2,4}$/.test(normalizedPrefix)) {
+    throw new Error('Invalid prefix format. Use 2-4 uppercase letters.');
+  }
 
   const product = await prisma.product.findUnique({
     where: { id: BigInt(productId) }
   });
-  if (!product) throw new Error('Product not found');
 
-  return prisma.$transaction(async (tx) => {
-    // 🔒 find last serial safely
-    const last = await tx.barcode.findFirst({
-      where: { barcodeValue: { startsWith: prefix } },
-      orderBy: { barcodeValue: 'desc' }
+  if (!product) {
+    throw new Error('Product not found');
+  }
+
+  const txResult = await prisma.$transaction(async (tx) => {
+    const recent = await tx.barcode.findMany({
+      where: { barcodeValue: { startsWith: normalizedPrefix } },
+      select: { barcodeValue: true },
+      orderBy: { id: 'desc' },
+      take: 500
     });
 
-    let lastIndex = last
-      ? parseInt(last.barcodeValue.replace(prefix, ''), 10)
-      : 0;
+    const serialRegex = new RegExp(`^${escapeRegExp(normalizedPrefix)}(\\d+)$`);
+    let lastIndex = 0;
+    for (const row of recent) {
+      const match = row.barcodeValue.match(serialRegex);
+      if (!match) continue;
+      const n = parseInt(match[1], 10);
+      if (!Number.isNaN(n) && n > lastIndex) {
+        lastIndex = n;
+      }
+    }
 
     const created: any[] = [];
-    const labels: LabelRenderItem[] = [];
+    const serials: string[] = [];
 
     for (let i = 0; i < count; i++) {
-      lastIndex++;
-      const serial = `${prefix}${zeroPad(lastIndex)}`;
-
-      console.log('🔢 Generated serial:', serial);
-      console.log('🔢 Prefix:', prefix);
-      console.log('🔢 LastIndex:', lastIndex);
-      console.log('🔢 ZeroPad result:', zeroPad(lastIndex));
+      lastIndex += 1;
+      const serial = `${normalizedPrefix}${zeroPad(lastIndex)}`;
 
       const barcode = await tx.barcode.create({
         data: {
           barcodeValue: serial,
-          serialNumber: serial, // Using same value for both fields
+          serialNumber: serial,
           productId: product.id,
           unitsPerBox: product.unitsPerBox
         }
       });
 
-      const png = await renderBarcodePng(serial);
-
       created.push(barcode);
+      serials.push(serial);
+    }
+
+    return { created, serials };
+  });
+
+  try {
+    const labels: LabelRenderItem[] = [];
+    for (const serial of txResult.serials) {
+      const png = await renderBarcodePng(serial);
       labels.push({
         png,
         barcodeString: serial,
@@ -188,8 +188,20 @@ export async function generateLabelsForProduct(params: {
 
     return {
       pdfPath,
-      createdCount: created.length,
-      barcodes: created
+      createdCount: txResult.created.length,
+      barcodes: txResult.created
     };
-  });
+  } catch (error) {
+    try {
+      const createdIds = txResult.created.map((b) => b.id);
+      if (createdIds.length > 0) {
+        await prisma.barcode.deleteMany({
+          where: { id: { in: createdIds } }
+        });
+      }
+    } catch (cleanupError) {
+      console.error('Failed to cleanup barcodes after label generation failure:', cleanupError);
+    }
+    throw error;
+  }
 }
