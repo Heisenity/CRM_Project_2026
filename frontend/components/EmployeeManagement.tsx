@@ -1238,8 +1238,8 @@ function EditEmployeeForm({ employee, teams, onSave, onCancel }: EditEmployeeFor
         address: employee.address || '',
         aadharCard: employee.aadharCard || '',
         panCard: employee.panCard || '',
-        sickLeaveBalance: employee.sickLeaveBalance || 12,
-        casualLeaveBalance: employee.casualLeaveBalance || 12,
+        sickLeaveBalance: employee.sickLeaveBalance ?? 0,
+        casualLeaveBalance: employee.casualLeaveBalance ?? 0,
         password: '',
         photo: null as File | null
     })

@@ -173,8 +173,8 @@ export const createEmployee = async (req: Request, res: Response) => {
       assignedBy, 
       password, 
       role = 'IN_OFFICE', 
-      sickLeaveBalance = 12, 
-      casualLeaveBalance = 12,
+      sickLeaveBalance,
+      casualLeaveBalance,
       salary,
       address,
       aadharCard,
@@ -185,6 +185,22 @@ export const createEmployee = async (req: Request, res: Response) => {
       photoKey,
       employeeId // Add this to accept custom employee ID
     } = req.body
+    const parsedSickLeaveBalance =
+      sickLeaveBalance === undefined || sickLeaveBalance === null || sickLeaveBalance === ''
+        ? undefined
+        : Number.parseInt(String(sickLeaveBalance), 10)
+    const parsedCasualLeaveBalance =
+      casualLeaveBalance === undefined || casualLeaveBalance === null || casualLeaveBalance === ''
+        ? undefined
+        : Number.parseInt(String(casualLeaveBalance), 10)
+
+    if (parsedSickLeaveBalance !== undefined && Number.isNaN(parsedSickLeaveBalance)) {
+      return res.status(400).json({ success: false, error: 'Invalid sickLeaveBalance' })
+    }
+    if (parsedCasualLeaveBalance !== undefined && Number.isNaN(parsedCasualLeaveBalance)) {
+      return res.status(400).json({ success: false, error: 'Invalid casualLeaveBalance' })
+    }
+
     const normalizedAadharCard = normalizeOptionalUniqueField(aadharCard)
     const normalizedPanCard = normalizeOptionalUniqueField(panCard)
 
@@ -326,8 +342,9 @@ export const createEmployee = async (req: Request, res: Response) => {
         assignedBy: assignedBy || null,
         role: role,
         status: 'ACTIVE',
-        sickLeaveBalance: parseInt(sickLeaveBalance) || 12,
-        casualLeaveBalance: parseInt(casualLeaveBalance) || 12,
+        // Allow 0; fall back to DB default only when field is not provided.
+        ...(parsedSickLeaveBalance === undefined ? {} : { sickLeaveBalance: parsedSickLeaveBalance }),
+        ...(parsedCasualLeaveBalance === undefined ? {} : { casualLeaveBalance: parsedCasualLeaveBalance }),
         salary: salary ? parseFloat(salary) : null,
         address: address || null,
         aadharCard: normalizedAadharCard,
