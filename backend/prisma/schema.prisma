@@ -48,8 +48,8 @@ model Employee {
   designation             String? 
   role                    EmployeeRole             @default(FIELD_ENGINEER)
   status                  String                   @default("ACTIVE")
-  sickLeaveBalance        Int                      @default(12)
-  casualLeaveBalance      Int                      @default(12)
+  sickLeaveBalance        Int                      @default(0)
+  casualLeaveBalance      Int                      @default(0)
   salary                  Decimal?                 @db.Decimal(10, 2)
   address                 String?
   aadharCard              String?                  @unique
