@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, FileText, CalendarIcon, User, DollarSign, Edit, Send, ArrowLeft } from "lucide-react"
+import { Loader2, FileText, CalendarIcon, User, IndianRupee, Edit, Send, ArrowLeft } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch"
 import { getDaysInMonth } from "date-fns"
@@ -699,7 +699,7 @@ export function PayslipManagement({ adminId }: PayslipManagementProps) {
               {/* Income Section */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-green-700 flex items-center gap-2">
-                  <DollarSign className="h-5 w-5" />
+                  <IndianRupee className="h-5 w-5" />
                   Income
                 </h3>
 
