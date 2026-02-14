@@ -4,26 +4,41 @@
  */
 
 const { PrismaClient } = require('@prisma/client');
-const { PrismaPg } = require("@prisma/adapter-pg");
-const { Pool } = require("pg");
-const bcrypt = require('bcryptjs');
 
 // Load environment variables
 require('dotenv').config();
 
-// Initialize Prisma client with PostgreSQL adapter
-const pool = new Pool({
-  host: process.env.DATABASE_HOST,
-  user: process.env.DATABASE_USER,
-  password: process.env.DATABASE_PASSWORD,
-  database: process.env.DATABASE_NAME,
-  port: parseInt(process.env.DATABASE_PORT || '5432'),
-  max: 5,
-  ssl: false
-});
+// Initialize Prisma client:
+// - Production commonly sets DATABASE_URL (Prisma default).
+// - For environments that still use individual DATABASE_* vars, fall back to a pg Pool + adapter.
+let prisma;
 
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
+if (process.env.DATABASE_URL) {
+  prisma = new PrismaClient({
+    datasources: {
+      db: { url: process.env.DATABASE_URL }
+    }
+  });
+} else if (process.env.DATABASE_HOST && process.env.DATABASE_USER && process.env.DATABASE_NAME) {
+  const { PrismaPg } = require("@prisma/adapter-pg");
+  const { Pool } = require("pg");
+
+  const pool = new Pool({
+    host: process.env.DATABASE_HOST,
+    user: process.env.DATABASE_USER,
+    password: process.env.DATABASE_PASSWORD,
+    database: process.env.DATABASE_NAME,
+    port: parseInt(process.env.DATABASE_PORT || '5432'),
+    max: 5,
+    ssl: false
+  });
+
+  const adapter = new PrismaPg(pool);
+  prisma = new PrismaClient({ adapter });
+} else {
+  // Last-resort: let Prisma resolve its own config (e.g., DATABASE_URL via environment).
+  prisma = new PrismaClient();
+}
 
 async function resetAdminPassword() {
   try {
@@ -39,15 +54,14 @@ async function resetAdminPassword() {
     
     console.log(`👤 Found admin: ${admin.adminId} (${admin.email})`);
     
-    // Hash the correct password from credentials file
+    // Use the plain-text password from credentials file
     const correctPassword = 'admin123456';
-    const hashedPassword = await bcrypt.hash(correctPassword, 12);
     
     // Update the admin password
     await prisma.admin.update({
-      where: { id: admin.id },
-      data: {
-        password: hashedPassword,
+        where: { id: admin.id },
+        data: {
+        password: correctPassword,
         adminId: 'ADMIN001',
         email: 'admin@company.com'
       }

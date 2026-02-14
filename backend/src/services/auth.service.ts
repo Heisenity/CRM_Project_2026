@@ -16,7 +16,7 @@ class AuthService {
           }
         })
 
-        if (!admin || !await bcrypt.compare(password, admin.password)) {
+        if (!admin || password !== admin.password) {
           return null
         }
 

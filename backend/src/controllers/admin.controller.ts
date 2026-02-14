@@ -1,6 +1,5 @@
 import { Request, Response } from 'express'
 import { prisma } from '../lib/prisma'
-import { hashPassword } from '../utils/hash'
 
 // Get all admins
 export const getAllAdmins = async (req: Request, res: Response) => {
@@ -300,9 +299,7 @@ export const resetAdminCredentials = async (req: Request, res: Response) => {
         })
       }
 
-      // Hash the new password
-      const hashedPassword = await hashPassword(newPassword)
-      updateData.password = hashedPassword
+      updateData.password = newPassword
       hasChanges = true
     }
 
