@@ -160,10 +160,11 @@ export default function CreateMeetingDialog({
   };
 
   // Filter employees based on search term
+  const employeeSearchLower = employeeSearchTerm.toLowerCase()
   const filteredEmployees = employees.filter(employee =>
-    employee.name.toLowerCase().includes(employeeSearchTerm.toLowerCase()) ||
-    employee.employeeId.toLowerCase().includes(employeeSearchTerm.toLowerCase()) ||
-    employee.email.toLowerCase().includes(employeeSearchTerm.toLowerCase())
+    String(employee.name || '').toLowerCase().includes(employeeSearchLower) ||
+    String(employee.employeeId || '').toLowerCase().includes(employeeSearchLower) ||
+    String(employee.email || '').toLowerCase().includes(employeeSearchLower)
   );
 
   const handleSubmit = async (e: React.FormEvent) => {

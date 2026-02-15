@@ -208,11 +208,12 @@ export function StockPage() {
 
   // Filter transactions based on search and filters
   const filteredTransactions = React.useMemo(() => {
+    const q = searchTerm.toLowerCase()
     return transactions.filter(transaction => {
-      const matchesSearch = transaction.product.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           transaction.product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           transaction.barcode.barcodeValue.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           transaction.employee.name.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesSearch = transaction.product.productName.toLowerCase().includes(q) ||
+                           transaction.product.sku.toLowerCase().includes(q) ||
+                           transaction.barcode.barcodeValue.toLowerCase().includes(q) ||
+                           String(transaction.employee?.name || '').toLowerCase().includes(q)
       
       const matchesTransactionType = selectedTransactionType === "all" || transaction.transactionType === selectedTransactionType
       const matchesEmployee = selectedEmployee === "all" || transaction.employee.id === selectedEmployee

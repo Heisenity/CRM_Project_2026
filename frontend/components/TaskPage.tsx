@@ -288,9 +288,9 @@ export function TaskPage() {
         if (filters.search) {
           const searchLower = filters.search.toLowerCase()
           filteredCombined = combined.filter(record =>
-            record.employeeName.toLowerCase().includes(searchLower) ||
-            record.employeeId.toLowerCase().includes(searchLower) ||
-            record.email.toLowerCase().includes(searchLower)
+            String(record.employeeName || '').toLowerCase().includes(searchLower) ||
+            String(record.employeeId || '').toLowerCase().includes(searchLower) ||
+            String(record.email || '').toLowerCase().includes(searchLower)
           )
         }
 

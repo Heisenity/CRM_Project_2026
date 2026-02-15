@@ -59,10 +59,11 @@ export function CreateTeamPage({ onBack, onTeamCreated }: CreateTeamPageProps) {
   // Filter employees based on search term
   const filteredEmployees = React.useMemo(() => {
     if (!searchTerm) return employees
+    const q = searchTerm.toLowerCase()
     return employees.filter(employee => 
-      employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.email.toLowerCase().includes(searchTerm.toLowerCase())
+      String(employee.name || '').toLowerCase().includes(q) ||
+      String(employee.employeeId || '').toLowerCase().includes(q) ||
+      String(employee.email || '').toLowerCase().includes(q)
     )
   }, [employees, searchTerm])
 

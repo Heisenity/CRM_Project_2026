@@ -205,12 +205,14 @@ export default function EmployeeManagement() {
         return () => window.removeEventListener('focus', handleFocus)
     }, [refreshing, loading, fetchEmployees, fetchAdmins])
 
+    const searchLower = searchTerm.toLowerCase()
+
     // Filter employees
     const filteredEmployees = employees.filter(employee => {
         const matchesSearch = 
-            employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            employee.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            employee.email.toLowerCase().includes(searchTerm.toLowerCase())
+            String(employee.name || '').toLowerCase().includes(searchLower) ||
+            String(employee.employeeId || '').toLowerCase().includes(searchLower) ||
+            String(employee.email || '').toLowerCase().includes(searchLower)
         
         const matchesRole = roleFilter === 'all' || employee.role === roleFilter
         
@@ -220,9 +222,9 @@ export default function EmployeeManagement() {
     // Filter admins
     const filteredAdmins = admins.filter(admin => {
         const matchesSearch = 
-            admin.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            admin.adminId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            admin.email.toLowerCase().includes(searchTerm.toLowerCase())
+            String(admin.name || '').toLowerCase().includes(searchLower) ||
+            String(admin.adminId || '').toLowerCase().includes(searchLower) ||
+            String(admin.email || '').toLowerCase().includes(searchLower)
         
         return matchesSearch
     })

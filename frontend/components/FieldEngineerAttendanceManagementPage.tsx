@@ -326,9 +326,9 @@ export function AttendanceManagementPage() {
         if (filters.search) {
           const searchLower = filters.search.toLowerCase()
           filteredCombined = filteredCombined.filter(record =>
-            record.employeeName.toLowerCase().includes(searchLower) ||
-            record.employeeId.toLowerCase().includes(searchLower) ||
-            record.email.toLowerCase().includes(searchLower)
+            String(record.employeeName || '').toLowerCase().includes(searchLower) ||
+            String(record.employeeId || '').toLowerCase().includes(searchLower) ||
+            String(record.email || '').toLowerCase().includes(searchLower)
           )
         }
 
